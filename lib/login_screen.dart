@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'add_car_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,21 +42,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-
         final token = data['token'];
-        final user = data['user'];
-
-        print('✅ Token: $token');
-        print('👤 User: $user');
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Login successful')),
         );
 
-        // Navigate to Home Screen (replace with your own)
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => AddCarScreen(token: token)),
         );
       } else {
         final error = jsonDecode(response.body);
@@ -93,7 +88,6 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 Image.asset('assets/logo.png', width: 150),
                 const SizedBox(height: 30),
-
                 const Text(
                   'Login',
                   style: TextStyle(
@@ -102,10 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 const SizedBox(height: 30),
-
-                // Phone Number Field
                 TextField(
                   controller: phoneController,
                   keyboardType: TextInputType.phone,
@@ -121,8 +112,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 15),
-
-                // Password Field
                 TextField(
                   controller: passwordController,
                   obscureText: true,
@@ -138,8 +127,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // General error message
                 if (generalError != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
@@ -148,8 +135,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: const TextStyle(color: Colors.red),
                     ),
                   ),
-
-                // Login Button
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -169,21 +154,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// شاشة وهمية مؤقتة للـ Home بعد تسجيل الدخول
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Text('Welcome to Home! 🎉', style: TextStyle(fontSize: 20)),
       ),
     );
   }
