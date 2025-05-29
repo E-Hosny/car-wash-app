@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'order_request_screen.dart';
 
 class AddCarScreen extends StatefulWidget {
   final String token;
@@ -92,6 +93,14 @@ class _AddCarScreenState extends State<AddCarScreen> {
     if (res.statusCode == 201) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ Car added successfully')),
+      );
+
+      // ⬇️ الانتقال إلى صفحة الطلب بعد نجاح الإضافة
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OrderRequestScreen(token: widget.token),
+        ),
       );
     } else {
       print(res.body);
