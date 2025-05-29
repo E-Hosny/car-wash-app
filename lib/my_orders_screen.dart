@@ -50,6 +50,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     }
   }
 
+  String formatDateTime(String? datetime) {
+    if (datetime == null) return 'N/A';
+    DateTime dt = DateTime.tryParse(datetime) ?? DateTime.now();
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,6 +105,13 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
                           ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          order['scheduled_at'] != null
+                              ? '🕒 Scheduled at: ${formatDateTime(order['scheduled_at'])}'
+                              : '🕒 Ordered at: ${formatDateTime(order['created_at'])}',
+                          style: const TextStyle(color: Colors.grey),
                         ),
                       ],
                     ),

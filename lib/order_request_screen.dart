@@ -20,8 +20,10 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   List cars = [];
   List selectedServices = [];
   int? selectedCarId;
-
   double totalPrice = 0;
+
+  bool useCurrentTime = true;
+  DateTime? selectedDateTime;
 
   @override
   void initState() {
@@ -90,7 +92,8 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
         'address': 'Test Location - Riyadh',
         'car_id': selectedCarId,
         'services': selectedServices,
-        'scheduled_at': null,
+        'scheduled_at':
+            useCurrentTime ? null : selectedDateTime?.toIso8601String(),
       }),
     );
 
@@ -99,7 +102,6 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
         const SnackBar(content: Text('✅ Order placed successfully')),
       );
 
-      // الانتظار 2 ثواني لعرض الرسالة ثم الانتقال
       await Future.delayed(const Duration(seconds: 2));
 
       Navigator.pushReplacement(
@@ -169,6 +171,52 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 ),
               );
             }).toList(),
+            const SizedBox(height: 25),
+            const Text('🕒 Schedule Time',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            SwitchListTile(
+              title: const Text('Use current time'),
+              value: useCurrentTime,
+              onChanged: (val) {
+                setState(() {
+                  useCurrentTime = val;
+                  if (val) selectedDateTime = null;
+                });
+              },
+            ),
+            if (!useCurrentTime)
+              ElevatedButton(
+                onPressed: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 30)),
+                  );
+                  if (date != null) {
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.now(),
+                    );
+                    if (time != null) {
+                      setState(() {
+                        selectedDateTime = DateTime(
+                          date.year,
+                          date.month,
+                          date.day,
+                          time.hour,
+                          time.minute,
+                        );
+                      });
+                    }
+                  }
+                },
+                child: Text(
+                  selectedDateTime != null
+                      ? '📅 Selected: ${selectedDateTime.toString()}'
+                      : 'Choose Date & Time',
+                ),
+              ),
             const SizedBox(height: 30),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
