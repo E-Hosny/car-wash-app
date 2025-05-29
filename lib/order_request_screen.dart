@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'my_orders_screen.dart';
 import 'add_car_screen.dart';
+import 'main_navigation_screen.dart';
 
 class OrderRequestScreen extends StatefulWidget {
   final String token;
@@ -108,7 +109,8 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => MyOrdersScreen(token: widget.token),
+          builder: (context) =>
+              MainNavigationScreen(token: widget.token, initialIndex: 1),
         ),
       );
     } else {

@@ -52,7 +52,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   String formatDateTime(String? datetime) {
     if (datetime == null) return 'N/A';
-    DateTime dt = DateTime.tryParse(datetime) ?? DateTime.now();
+    DateTime dt = (DateTime.tryParse(datetime) ?? DateTime.now()).toLocal();
     return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 

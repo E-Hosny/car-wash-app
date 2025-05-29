@@ -4,18 +4,29 @@ import 'my_orders_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final String token;
-  const MainNavigationScreen({super.key, required this.token});
+  final int initialIndex;
+
+  const MainNavigationScreen({
+    super.key,
+    required this.token,
+    this.initialIndex = 0, // يبدأ بالصفحة الأولى كافتراضي
+  });
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int currentIndex = 0;
+  late int currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    currentIndex = widget.initialIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
-    // الصفحات اللي هنبدل بينهم
     final screens = [
       OrderRequestScreen(token: widget.token),
       MyOrdersScreen(token: widget.token),
