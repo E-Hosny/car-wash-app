@@ -96,12 +96,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
       );
 
       // ⬇️ الانتقال إلى صفحة الطلب بعد نجاح الإضافة
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => OrderRequestScreen(token: widget.token),
-        ),
-      );
+      Navigator.pop(context, true);
     } else {
       print(res.body);
       ScaffoldMessenger.of(context).showSnackBar(

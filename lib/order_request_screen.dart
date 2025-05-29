@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'my_orders_screen.dart';
+import 'add_car_screen.dart';
 
 class OrderRequestScreen extends StatefulWidget {
   final String token;
@@ -156,8 +157,45 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
               );
             }).toList(),
             const SizedBox(height: 25),
-            const Text('🚘 Select Your Car',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '🚘 Select Your Car',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    final added = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddCarScreen(token: widget.token),
+                      ),
+                    );
+
+                    if (added == true) {
+                      fetchUserCars();
+                    }
+                  },
+                  icon: const Icon(Icons.add_circle, color: Colors.blue),
+                  label: const Text(
+                    'Add Car',
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    backgroundColor: Colors.blue.shade50,
+                  ),
+                ),
+              ],
+            ),
             ...cars.map((c) {
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 6),
