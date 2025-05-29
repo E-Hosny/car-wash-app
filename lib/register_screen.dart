@@ -68,7 +68,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                Image.asset('assets/logo.png', width: 150, height: 150),
+                Image.asset('assets/logo.png', width: 250, height: 250),
                 const SizedBox(height: 30),
                 const Text(
                   'Create a New Account',
