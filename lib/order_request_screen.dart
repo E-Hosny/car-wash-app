@@ -20,6 +20,8 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   List selectedServices = [];
   int? selectedCarId;
 
+  double totalPrice = 0;
+
   @override
   void initState() {
     super.initState();
@@ -53,11 +55,23 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     }
   }
 
+  void toggleService(int id, double price, bool selected) {
+    setState(() {
+      if (selected) {
+        selectedServices.add(id);
+        totalPrice += price;
+      } else {
+        selectedServices.remove(id);
+        totalPrice -= price;
+      }
+    });
+  }
+
   Future<void> submitOrder() async {
     if (selectedCarId == null || selectedServices.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Please choose car and at least one service')),
+            content: Text('Please choose a car and at least one service')),
       );
       return;
     }
@@ -94,61 +108,76 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Request Car Wash')),
+      appBar: AppBar(title: const Text('🚗 Car Wash Request')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('📍 Select Location (mock)',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('📍 Location (Mock)',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Container(
               height: 200,
-              color: Colors.grey[300],
-              alignment: Alignment.center,
-              child: const Text('Map Placeholder'),
-            ),
-            const SizedBox(height: 20),
-            const Text('🧼 Select Services',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            ...services.map((s) {
-              return CheckboxListTile(
-                value: selectedServices.contains(s['id']),
-                title: Text(s['name']),
-                subtitle: Text(s['description']),
-                onChanged: (val) {
-                  setState(() {
-                    if (val == true) {
-                      selectedServices.add(s['id']);
-                    } else {
-                      selectedServices.remove(s['id']);
-                    }
-                  });
-                },
-              );
-            }),
-            const SizedBox(height: 20),
-            const Text('🚗 Choose Car',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            ...cars.map((c) {
-              return RadioListTile<int>(
-                value: c['id'],
-                groupValue: selectedCarId,
-                title: Text(
-                    '${c['brand']['name']} ${c['model']['name']} (${c['year']['year']})'),
-                subtitle: Text('Color: ${c['color']}'),
-                onChanged: (val) => setState(() => selectedCarId = val),
-              );
-            }),
-            const SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: submitOrder,
-                child: const Text('✅ Confirm Order'),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(12),
               ),
+              alignment: Alignment.center,
+              child:
+                  const Text('Map Placeholder', style: TextStyle(fontSize: 16)),
             ),
+            const SizedBox(height: 25),
+            const Text('🧼 Choose Services',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ...services.map((s) {
+              final price = double.tryParse(s['price'].toString()) ?? 0.0;
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                child: CheckboxListTile(
+                  value: selectedServices.contains(s['id']),
+                  title: Text('${s['name']} - ${price.toStringAsFixed(2)} SAR'),
+                  subtitle: Text(s['description']),
+                  onChanged: (val) => toggleService(s['id'], price, val!),
+                ),
+              );
+            }).toList(),
+            const SizedBox(height: 25),
+            const Text('🚘 Select Your Car',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ...cars.map((c) {
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                child: RadioListTile<int>(
+                  value: c['id'],
+                  groupValue: selectedCarId,
+                  title: Text('${c['brand']['name']} ${c['model']['name']}'),
+                  subtitle:
+                      Text('Year: ${c['year']['year']} • Color: ${c['color']}'),
+                  onChanged: (val) => setState(() => selectedCarId = val),
+                ),
+              );
+            }).toList(),
+            const SizedBox(height: 30),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('🧾 Total: ${totalPrice.toStringAsFixed(2)} SAR',
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
+                ElevatedButton.icon(
+                  onPressed: submitOrder,
+                  icon: const Icon(Icons.check_circle),
+                  label: const Text('Confirm Order'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            )
           ],
         ),
       ),
