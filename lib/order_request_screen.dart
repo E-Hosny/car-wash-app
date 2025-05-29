@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'my_orders_screen.dart';
 
 class OrderRequestScreen extends StatefulWidget {
   final String token;
@@ -96,6 +97,16 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     if (res.statusCode == 200 || res.statusCode == 201) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ Order placed successfully')),
+      );
+
+      // الانتظار 2 ثواني لعرض الرسالة ثم الانتقال
+      await Future.delayed(const Duration(seconds: 2));
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MyOrdersScreen(token: widget.token),
+        ),
       );
     } else {
       print(res.body);
