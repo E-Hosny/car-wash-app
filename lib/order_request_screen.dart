@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'my_orders_screen.dart';
 import 'add_car_screen.dart';
 import 'main_navigation_screen.dart';
 
@@ -39,7 +38,6 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       Uri.parse('http://10.0.2.2:8000/api/services'),
       headers: {'Authorization': 'Bearer ${widget.token}'},
     );
-
     if (res.statusCode == 200) {
       setState(() {
         services = jsonDecode(res.body);
@@ -52,7 +50,6 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       Uri.parse('http://10.0.2.2:8000/api/cars'),
       headers: {'Authorization': 'Bearer ${widget.token}'},
     );
-
     if (res.statusCode == 200) {
       setState(() {
         cars = jsonDecode(res.body);
@@ -76,7 +73,9 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     if (selectedCarId == null || selectedServices.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Please choose a car and at least one service')),
+          content: Text('Please select a car and at least one service'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
       return;
     }
@@ -101,7 +100,10 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
 
     if (res.statusCode == 200 || res.statusCode == 201) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Order placed successfully')),
+        const SnackBar(
+          content: Text('✅ Order placed successfully'),
+          backgroundColor: Colors.green,
+        ),
       );
 
       await Future.delayed(const Duration(seconds: 2));
@@ -124,98 +126,150 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('🚗 Car Wash Request')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Car Wash Request',
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+            )),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('📍 Location (Mock)',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
+            sectionTitle('Location'),
             Container(
-              height: 200,
+              height: 180,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade300),
               ),
               alignment: Alignment.center,
               child:
-                  const Text('Map Placeholder', style: TextStyle(fontSize: 16)),
+                  const Icon(Icons.map_outlined, size: 60, color: Colors.grey),
             ),
-            const SizedBox(height: 25),
-            const Text('🧼 Choose Services',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 28),
+            sectionTitle('Select Services'),
             ...services.map((s) {
               final price = double.tryParse(s['price'].toString()) ?? 0.0;
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                child: CheckboxListTile(
-                  value: selectedServices.contains(s['id']),
-                  title: Text('${s['name']} - ${price.toStringAsFixed(2)} SAR'),
-                  subtitle: Text(s['description']),
-                  onChanged: (val) => toggleService(s['id'], price, val!),
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: selectedServices.contains(s['id'])
+                        ? Colors.black
+                        : Colors.grey.shade300,
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: ListTile(
+                  leading: Checkbox(
+                    value: selectedServices.contains(s['id']),
+                    activeColor: Colors.black,
+                    onChanged: (val) =>
+                        toggleService(s['id'], price, val ?? false),
+                  ),
+                  title: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(s['name'],
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
+                      Text(
+                        '${price.toStringAsFixed(2)} AED',
+                        style: const TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16),
+                      ),
+                    ],
+                  ),
+                  subtitle: Text(s['description'] ?? '',
+                      style: const TextStyle(color: Colors.grey, fontSize: 14)),
                 ),
               );
             }).toList(),
-            const SizedBox(height: 25),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  '🚘 Select Your Car',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                TextButton.icon(
-                  onPressed: () async {
-                    final added = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddCarScreen(token: widget.token),
-                      ),
-                    );
-
-                    if (added == true) {
-                      fetchUserCars();
-                    }
-                  },
-                  icon: const Icon(Icons.add_circle, color: Colors.blue),
-                  label: const Text(
-                    'Add Car',
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
-                    ),
+            const SizedBox(height: 28),
+            sectionTitle('Select Your Car'),
+            TextButton.icon(
+              onPressed: () async {
+                final added = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddCarScreen(token: widget.token),
                   ),
-                  style: TextButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    backgroundColor: Colors.blue.shade50,
-                  ),
-                ),
-              ],
+                );
+                if (added == true) fetchUserCars();
+              },
+              icon: const Icon(Icons.add_circle_outline, color: Colors.black),
+              label: const Text('Add Car',
+                  style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16)),
             ),
             ...cars.map((c) {
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 6),
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: selectedCarId == c['id']
+                        ? Colors.black
+                        : Colors.grey.shade300,
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
                 child: RadioListTile<int>(
                   value: c['id'],
                   groupValue: selectedCarId,
-                  title: Text('${c['brand']['name']} ${c['model']['name']}'),
-                  subtitle:
-                      Text('Year: ${c['year']['year']} • Color: ${c['color']}'),
+                  title: Text('${c['brand']['name']} ${c['model']['name']}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  subtitle: Text(
+                      'Year: ${c['year']['year']} • Color: ${c['color']}',
+                      style: const TextStyle(color: Colors.grey, fontSize: 14)),
                   onChanged: (val) => setState(() => selectedCarId = val),
+                  activeColor: Colors.black,
                 ),
               );
             }).toList(),
-            const SizedBox(height: 25),
-            const Text('🕒 Schedule Time',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 28),
+            sectionTitle('Schedule Time'),
             SwitchListTile(
-              title: const Text('Use current time'),
+              title: const Text('Use current time',
+                  style: TextStyle(fontSize: 16)),
               value: useCurrentTime,
               onChanged: (val) {
                 setState(() {
@@ -253,33 +307,56 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 },
                 child: Text(
                   selectedDateTime != null
-                      ? '📅 Selected: ${selectedDateTime.toString()}'
-                      : 'Choose Date & Time',
+                      ? 'Selected: ${selectedDateTime.toString()}'
+                      : 'Pick Date & Time',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 36),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('🧾 Total: ${totalPrice.toStringAsFixed(2)} SAR',
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  'Total: ${totalPrice.toStringAsFixed(2)} AED',
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w600),
+                ),
                 ElevatedButton.icon(
                   onPressed: submitOrder,
-                  icon: const Icon(Icons.check_circle),
-                  label: const Text('Confirm Order'),
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('Confirm Order',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                    backgroundColor: Colors.green,
+                    backgroundColor: Colors.black,
                     foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ],
-            )
+            ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
+
+  Widget sectionTitle(String title) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(
+          title,
+          style: const TextStyle(
+              fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black),
+        ),
+      );
 }

@@ -9,7 +9,7 @@ class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({
     super.key,
     required this.token,
-    this.initialIndex = 0, // يبدأ بالصفحة الأولى كافتراضي
+    this.initialIndex = 0,
   });
 
   @override
@@ -35,19 +35,27 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return Scaffold(
       body: screens[currentIndex],
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.white,
         currentIndex: currentIndex,
         onTap: (index) {
           setState(() {
             currentIndex = index;
           });
         },
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.grey,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+        type: BottomNavigationBarType.fixed,
+        elevation: 10,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home, color: Colors.black),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt),
+            icon: Icon(Icons.list_alt_outlined),
+            activeIcon: Icon(Icons.list_alt, color: Colors.black),
             label: 'My Orders',
           ),
         ],

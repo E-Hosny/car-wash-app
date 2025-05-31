@@ -95,7 +95,6 @@ class _AddCarScreenState extends State<AddCarScreen> {
         const SnackBar(content: Text('✅ Car added successfully')),
       );
 
-      // ⬇️ الانتقال إلى صفحة الطلب بعد نجاح الإضافة
       Navigator.pop(context, true);
     } else {
       print(res.body);
@@ -108,70 +107,111 @@ class _AddCarScreenState extends State<AddCarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Car')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Add Car',
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+            )),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: SingleChildScrollView(
           child: Column(
             children: [
-              DropdownButtonFormField<int>(
+              buildDropdown(
+                hint: 'Select Brand',
                 value: selectedBrandId,
-                hint: const Text('Select Brand'),
-                items: brands.map<DropdownMenuItem<int>>((b) {
-                  return DropdownMenuItem<int>(
-                    value: b['id'],
-                    child: Text(b['name']),
-                  );
-                }).toList(),
+                items: brands,
                 onChanged: (val) {
                   setState(() {
                     selectedBrandId = val;
                     selectedModelId = null;
                     models = [];
                   });
-                  if (val != null) {
-                    fetchModels(val);
-                  }
+                  if (val != null) fetchModels(val);
                 },
               ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<int>(
+              const SizedBox(height: 12),
+              buildDropdown(
+                hint: 'Select Model',
                 value: selectedModelId,
-                hint: const Text('Select Model'),
-                items: models.map<DropdownMenuItem<int>>((m) {
-                  return DropdownMenuItem<int>(
-                    value: m['id'],
-                    child: Text(m['name']),
-                  );
-                }).toList(),
+                items: models,
                 onChanged: (val) => setState(() => selectedModelId = val),
               ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<int>(
+              const SizedBox(height: 12),
+              buildDropdown(
+                hint: 'Select Year',
                 value: selectedYearId,
-                hint: const Text('Select Year'),
-                items: years.map<DropdownMenuItem<int>>((y) {
-                  return DropdownMenuItem<int>(
-                    value: y['id'],
-                    child: Text(y['year'].toString()),
-                  );
-                }).toList(),
+                items: years,
+                labelKey: 'year',
                 onChanged: (val) => setState(() => selectedYearId = val),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               TextField(
                 controller: colorController,
-                decoration: const InputDecoration(labelText: 'Color'),
+                decoration: InputDecoration(
+                  labelText: 'Color',
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: addCar,
-                child: const Text('Add Car'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Add Car',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget buildDropdown({
+    required String hint,
+    required int? value,
+    required List items,
+    required void Function(int?) onChanged,
+    String labelKey = 'name',
+  }) {
+    return DropdownButtonFormField<int>(
+      value: value,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.grey[100],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      hint: Text(hint),
+      items: items.map<DropdownMenuItem<int>>((item) {
+        return DropdownMenuItem<int>(
+          value: item['id'],
+          child: Text(item[labelKey].toString()),
+        );
+      }).toList(),
+      onChanged: onChanged,
     );
   }
 }

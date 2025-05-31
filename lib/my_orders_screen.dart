@@ -35,16 +35,31 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     }
   }
 
+  Color getStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return Colors.orange;
+      case 'in_progress':
+        return Colors.blueGrey;
+      case 'completed':
+        return Colors.green;
+      case 'cancelled':
+        return Colors.redAccent;
+      default:
+        return Colors.black;
+    }
+  }
+
   String getStatusText(String status) {
     switch (status) {
       case 'pending':
-        return '🚧 Pending';
+        return 'Pending';
       case 'in_progress':
-        return '🧼 In Progress';
+        return 'In Progress';
       case 'completed':
-        return '✅ Completed';
+        return 'Completed';
       case 'cancelled':
-        return '❌ Cancelled';
+        return 'Cancelled';
       default:
         return status;
     }
@@ -53,13 +68,24 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   String formatDateTime(String? datetime) {
     if (datetime == null) return 'N/A';
     DateTime dt = (DateTime.tryParse(datetime) ?? DateTime.now()).toLocal();
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Orders')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text(
+          'My Orders',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
       body: orders.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
@@ -70,48 +96,112 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 final car = order['car'];
                 final services = order['services'] ?? [];
 
-                return Card(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  elevation: 3,
+                return Container(
                   margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          getStatusText(order['status']),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.blue,
-                          ),
+                        // الحالة + السعر
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              getStatusText(order['status']),
+                              style: TextStyle(
+                                color: getStatusColor(order['status']),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              '💰 ${order['total'] ?? 0} AED',
+                              style: const TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        Text('📍 Address: ${order['address'] ?? 'N/A'}'),
-                        (car != null &&
-                                car['brand'] != null &&
-                                car['model'] != null)
-                            ? Text(
-                                '🚗 Car: ${car['brand']['name']} ${car['model']['name']}')
-                            : const Text('🚗 Car: Not available'),
-                        Text(
-                          '🧼 Services: ${services.map((s) => s['name']).join(', ')}',
+                        const Divider(height: 20),
+
+                        // العنوان
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined,
+                                color: Colors.black54),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                order['address'] ?? 'N/A',
+                                style: const TextStyle(fontSize: 15),
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          '💰 Total: ${order['total'] ?? 0} SAR',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
+                        const SizedBox(height: 10),
+
+                        // السيارة
+                        Row(
+                          children: [
+                            const Icon(Icons.directions_car_outlined,
+                                color: Colors.black54),
+                            const SizedBox(width: 8),
+                            Text(
+                              car != null
+                                  ? '${car['brand']['name']} ${car['model']['name']}'
+                                  : 'Car: Not available',
+                              style: const TextStyle(fontSize: 15),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          order['scheduled_at'] != null
-                              ? '🕒 Scheduled at: ${formatDateTime(order['scheduled_at'])}'
-                              : '🕒 Ordered at: ${formatDateTime(order['created_at'])}',
-                          style: const TextStyle(color: Colors.grey),
+                        const SizedBox(height: 10),
+
+                        // الخدمات
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.cleaning_services_outlined,
+                                color: Colors.black54),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                services.map((s) => s['name']).join(', '),
+                                style: const TextStyle(fontSize: 15),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // التاريخ
+                        Row(
+                          children: [
+                            const Icon(Icons.access_time_outlined,
+                                color: Colors.black54),
+                            const SizedBox(width: 8),
+                            Text(
+                              order['scheduled_at'] != null
+                                  ? formatDateTime(order['scheduled_at'])
+                                  : formatDateTime(order['created_at']),
+                              style: const TextStyle(
+                                  fontSize: 14, color: Colors.grey),
+                            ),
+                          ],
                         ),
                       ],
                     ),
