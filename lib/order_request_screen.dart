@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 import 'add_car_screen.dart';
 import 'main_navigation_screen.dart';
 
@@ -14,8 +17,10 @@ class OrderRequestScreen extends StatefulWidget {
 }
 
 class _OrderRequestScreenState extends State<OrderRequestScreen> {
-  double latitude = 24.7136;
-  double longitude = 46.6753;
+  double? latitude;
+  double? longitude;
+  GoogleMapController? _mapController;
+  LatLng? selectedLocation;
 
   List services = [];
   List cars = [];
@@ -31,6 +36,18 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     super.initState();
     fetchServices();
     fetchUserCars();
+    determineCurrentPosition();
+  }
+
+  Future<void> determineCurrentPosition() async {
+    await Permission.location.request();
+    Position pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+    setState(() {
+      latitude = pos.latitude;
+      longitude = pos.longitude;
+      selectedLocation = LatLng(latitude!, longitude!);
+    });
   }
 
   Future<void> fetchServices() async {
@@ -70,10 +87,13 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   }
 
   Future<void> submitOrder() async {
-    if (selectedCarId == null || selectedServices.isEmpty) {
+    if (selectedCarId == null ||
+        selectedServices.isEmpty ||
+        selectedLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a car and at least one service'),
+          content:
+              Text('Please select location, car, and at least one service'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -88,9 +108,9 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
         'Authorization': 'Bearer ${widget.token}',
       },
       body: jsonEncode({
-        'latitude': latitude,
-        'longitude': longitude,
-        'address': 'Test Location - Riyadh',
+        'latitude': selectedLocation!.latitude,
+        'longitude': selectedLocation!.longitude,
+        'address': 'Selected from map',
         'car_id': selectedCarId,
         'services': selectedServices,
         'scheduled_at':
@@ -146,15 +166,34 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
           children: [
             sectionTitle('Location'),
             Container(
-              height: 180,
+              height: 200,
               decoration: BoxDecoration(
-                color: Colors.grey[100],
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.grey.shade300),
               ),
-              alignment: Alignment.center,
-              child:
-                  const Icon(Icons.map_outlined, size: 60, color: Colors.grey),
+              child: latitude == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : GoogleMap(
+                      onMapCreated: (controller) => _mapController = controller,
+                      initialCameraPosition: CameraPosition(
+                        target: LatLng(latitude!, longitude!),
+                        zoom: 15,
+                      ),
+                      onTap: (LatLng tappedLocation) {
+                        setState(() {
+                          selectedLocation = tappedLocation;
+                        });
+                      },
+                      markers: selectedLocation != null
+                          ? {
+                              Marker(
+                                markerId: const MarkerId('selected'),
+                                position: selectedLocation!,
+                              )
+                            }
+                          : {},
+                      myLocationEnabled: true,
+                    ),
             ),
             const SizedBox(height: 28),
             sectionTitle('Select Services'),
