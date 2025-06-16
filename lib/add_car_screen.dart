@@ -19,6 +19,21 @@ class _AddCarScreenState extends State<AddCarScreen> {
   int? selectedBrandId;
   int? selectedModelId;
   int? selectedYearId;
+  String? selectedColor;
+
+  // Common car colors list
+  final List<Map<String, dynamic>> carColors = [
+    {'name': 'Black', 'code': '#000000'},
+    {'name': 'White', 'code': '#FFFFFF'},
+    {'name': 'Silver', 'code': '#C0C0C0'},
+    {'name': 'Gray', 'code': '#808080'},
+    {'name': 'Red', 'code': '#FF0000'},
+    {'name': 'Blue', 'code': '#0000FF'},
+    {'name': 'Green', 'code': '#008000'},
+    {'name': 'Brown', 'code': '#A52A2A'},
+    {'name': 'Beige', 'code': '#F5F5DC'},
+    {'name': 'Gold', 'code': '#FFD700'},
+  ];
 
   final TextEditingController colorController = TextEditingController();
 
@@ -75,6 +90,16 @@ class _AddCarScreenState extends State<AddCarScreen> {
   }
 
   Future<void> addCar() async {
+    if (selectedColor == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a car color'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final res = await http.post(
       Uri.parse('http://10.0.2.2:8000/api/cars'),
       headers: {
@@ -86,7 +111,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
         'brand_id': selectedBrandId,
         'model_id': selectedModelId,
         'car_year_id': selectedYearId,
-        'color': colorController.text,
+        'color': selectedColor,
       }),
     );
 
@@ -122,6 +147,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
         padding: const EdgeInsets.all(20),
         child: SingleChildScrollView(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               buildDropdown(
                 hint: 'Select Brand',
@@ -151,17 +177,100 @@ class _AddCarScreenState extends State<AddCarScreen> {
                 labelKey: 'year',
                 onChanged: (val) => setState(() => selectedYearId = val),
               ),
+              const SizedBox(height: 20),
+              const Text(
+                'Select Car Color',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 12),
-              TextField(
-                controller: colorController,
-                decoration: InputDecoration(
-                  labelText: 'Color',
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: carColors.map((color) {
+                        final isSelected = selectedColor == color['name'];
+                        return GestureDetector(
+                          onTap: () =>
+                              setState(() => selectedColor = color['name']),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Color(int.parse(
+                                  color['code'].replaceAll('#', '0xFF'))),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isSelected
+                                    ? Colors.black
+                                    : Colors.grey.shade300,
+                                width: isSelected ? 2 : 1,
+                              ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1),
+                                      )
+                                    ]
+                                  : null,
+                            ),
+                            child: isSelected
+                                ? const Icon(Icons.check,
+                                    color: Colors.white, size: 16)
+                                : null,
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    if (selectedColor != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: Color(int.parse(carColors
+                                    .firstWhere((c) =>
+                                        c['name'] == selectedColor)['code']
+                                    .replaceAll('#', '0xFF'))),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Selected Color: $selectedColor',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
@@ -176,9 +285,10 @@ class _AddCarScreenState extends State<AddCarScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Add Car',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Add Car',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
