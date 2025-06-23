@@ -20,6 +20,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
   int? selectedModelId;
   int? selectedYearId;
   String? selectedColor;
+  final TextEditingController licensePlateController = TextEditingController();
 
   // Common car colors list
   final List<Map<String, dynamic>> carColors = [
@@ -112,6 +113,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
         'model_id': selectedModelId,
         'car_year_id': selectedYearId,
         'color': selectedColor,
+        'license_plate': licensePlateController.text.isEmpty
+            ? null
+            : licensePlateController.text,
       }),
     );
 
@@ -127,6 +131,12 @@ class _AddCarScreenState extends State<AddCarScreen> {
         const SnackBar(content: Text('❌ Failed to add car')),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    licensePlateController.dispose();
+    super.dispose();
   }
 
   @override
@@ -176,6 +186,27 @@ class _AddCarScreenState extends State<AddCarScreen> {
                 items: years,
                 labelKey: 'year',
                 onChanged: (val) => setState(() => selectedYearId = val),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'License Plate (Optional)',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: licensePlateController,
+                decoration: InputDecoration(
+                  hintText: 'Enter license plate number',
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
               const Text(

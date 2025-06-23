@@ -296,9 +296,19 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                   title: Text('${c['brand']['name']} ${c['model']['name']}',
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 16)),
-                  subtitle: Text(
-                      'Year: ${c['year']['year']} • Color: ${c['color']}',
-                      style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Year: ${c['year']['year']} • Color: ${c['color']}',
+                          style: const TextStyle(
+                              color: Colors.grey, fontSize: 14)),
+                      if (c['license_plate'] != null &&
+                          c['license_plate'].toString().isNotEmpty)
+                        Text('License Plate: ${c['license_plate']}',
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 14)),
+                    ],
+                  ),
                   onChanged: (val) => setState(() => selectedCarId = val),
                   activeColor: Colors.black,
                 ),
