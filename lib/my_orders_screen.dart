@@ -120,19 +120,19 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              getStatusText(order['status']),
-                              style: TextStyle(
-                                color: getStatusColor(order['status']),
+                              'Order #${order['id']} - ${order['status']}',
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                fontSize: 18,
+                                color: Colors.black87,
                               ),
                             ),
                             Text(
-                              '💰 ${order['total'] ?? 0} AED',
+                              '💰 ${order['total']} AED',
                               style: const TextStyle(
                                 color: Colors.green,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                fontSize: 18,
                               ),
                             ),
                           ],
@@ -162,9 +162,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                                 color: Colors.black54),
                             const SizedBox(width: 8),
                             Text(
-                              car != null
-                                  ? '${car['brand']['name']} ${car['model']['name']}'
-                                  : 'Car: Not available',
+                              'Car: ${car != null ? '${car['brand']['name']} ${car['model']['name']}' : 'Car: Not available'}',
                               style: const TextStyle(fontSize: 15),
                             ),
                           ],
@@ -180,7 +178,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                services.map((s) => s['name']).join(', '),
+                                'Services: ${services.map((s) => s['name']).join(" • ")}',
                                 style: const TextStyle(fontSize: 15),
                               ),
                             ),
@@ -195,11 +193,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                                 color: Colors.black54),
                             const SizedBox(width: 8),
                             Text(
-                              order['scheduled_at'] != null
+                              formatDateTime(order['scheduled_at']) != 'N/A'
                                   ? formatDateTime(order['scheduled_at'])
                                   : formatDateTime(order['created_at']),
                               style: const TextStyle(
-                                  fontSize: 14, color: Colors.grey),
+                                  fontSize: 14, color: Colors.black54),
                             ),
                           ],
                         ),

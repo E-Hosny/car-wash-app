@@ -118,6 +118,8 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       }),
     );
 
+    if (!mounted) return;
+
     if (res.statusCode == 200 || res.statusCode == 201) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -127,6 +129,8 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       );
 
       await Future.delayed(const Duration(seconds: 2));
+
+      if (!mounted) return;
 
       Navigator.pushReplacement(
         context,
@@ -148,7 +152,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Car Wash Request',
+        title: const Text('New Order',
             style: TextStyle(
               color: Colors.black,
               fontWeight: FontWeight.bold,
@@ -196,7 +200,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                     ),
             ),
             const SizedBox(height: 28),
-            sectionTitle('Select Services'),
+            sectionTitle('Services'),
             ...services.map((s) {
               final price = double.tryParse(s['price'].toString()) ?? 0.0;
               return AnimatedContainer(
@@ -250,7 +254,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
               );
             }).toList(),
             const SizedBox(height: 28),
-            sectionTitle('Select Your Car'),
+            sectionTitle('Your Car'),
             TextButton.icon(
               onPressed: () async {
                 final added = await Navigator.push(
@@ -262,7 +266,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 if (added == true) fetchUserCars();
               },
               icon: const Icon(Icons.add_circle_outline, color: Colors.black),
-              label: const Text('Add Car',
+              label: const Text('Add a new car',
                   style: TextStyle(
                       color: Colors.black,
                       fontWeight: FontWeight.w500,
@@ -315,10 +319,10 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
               );
             }).toList(),
             const SizedBox(height: 28),
-            sectionTitle('Schedule Time'),
+            sectionTitle('Schedule'),
             SwitchListTile(
-              title: const Text('Use current time',
-                  style: TextStyle(fontSize: 16)),
+              title:
+                  const Text('Request for now', style: TextStyle(fontSize: 16)),
               value: useCurrentTime,
               onChanged: (val) {
                 setState(() {
@@ -357,7 +361,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 child: Text(
                   selectedDateTime != null
                       ? 'Selected: ${selectedDateTime.toString()}'
-                      : 'Pick Date & Time',
+                      : 'Schedule for later',
                   style: const TextStyle(fontSize: 16),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -379,7 +383,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 ElevatedButton.icon(
                   onPressed: submitOrder,
                   icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Confirm Order',
+                  label: const Text('Place Order',
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(

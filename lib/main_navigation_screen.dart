@@ -43,20 +43,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           });
         },
         selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: Colors.grey[600],
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
         type: BottomNavigationBarType.fixed,
         elevation: 10,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home, color: Colors.black),
-            label: 'Home',
+            icon: Icon(Icons.local_car_wash_outlined),
+            activeIcon: Icon(Icons.local_car_wash),
+            label: 'New Order',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt_outlined),
-            activeIcon: Icon(Icons.list_alt, color: Colors.black),
-            label: 'My Orders',
+            icon: Icon(Icons.receipt_long_outlined),
+            activeIcon: Icon(Icons.receipt_long),
+            label: 'Orders',
           ),
         ],
       ),
