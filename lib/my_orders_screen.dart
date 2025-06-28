@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   final String token;
@@ -21,8 +22,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   Future<void> fetchOrders() async {
+    final baseUrl = dotenv.env['BASE_URL']!;
     final res = await http.get(
-      Uri.parse('http://10.0.2.2:8000/api/orders/my'),
+      Uri.parse('$baseUrl/api/orders/my'),
       headers: {'Authorization': 'Bearer ${widget.token}'},
     );
 

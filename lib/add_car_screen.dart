@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'order_request_screen.dart';
 
 class AddCarScreen extends StatefulWidget {
@@ -46,8 +47,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
   }
 
   Future<void> fetchBrands() async {
+    final baseUrl = dotenv.env['BASE_URL']!;
     final res = await http.get(
-      Uri.parse('http://10.0.2.2:8000/api/brands'),
+      Uri.parse('$baseUrl/api/brands'),
       headers: {'Authorization': 'Bearer ${widget.token}'},
     );
     if (res.statusCode == 200) {
@@ -59,8 +61,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
   }
 
   Future<void> fetchModels(int brandId) async {
+    final baseUrl = dotenv.env['BASE_URL']!;
     final res = await http.get(
-      Uri.parse('http://10.0.2.2:8000/api/brands/$brandId/models'),
+      Uri.parse('$baseUrl/api/brands/$brandId/models'),
       headers: {
         'Authorization': 'Bearer ${widget.token}',
         'Accept': 'application/json',
@@ -78,8 +81,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
   }
 
   Future<void> fetchYears() async {
+    final baseUrl = dotenv.env['BASE_URL']!;
     final res = await http.get(
-      Uri.parse('http://10.0.2.2:8000/api/car-years'),
+      Uri.parse('$baseUrl/api/car-years'),
       headers: {'Authorization': 'Bearer ${widget.token}'},
     );
     if (res.statusCode == 200) {
@@ -101,8 +105,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
       return;
     }
 
+    final baseUrl = dotenv.env['BASE_URL']!;
     final res = await http.post(
-      Uri.parse('http://10.0.2.2:8000/api/cars'),
+      Uri.parse('$baseUrl/api/cars'),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

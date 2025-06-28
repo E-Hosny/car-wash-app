@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'add_car_screen.dart';
 import 'main_navigation_screen.dart';
 
@@ -26,7 +27,8 @@ class _LoginScreenState extends State<LoginScreen> {
       generalError = null;
     });
 
-    final url = Uri.parse('http://10.0.2.2:8000/api/login');
+    final baseUrl = dotenv.env['BASE_URL']!;
+    final url = Uri.parse('$baseUrl/api/login');
 
     try {
       final response = await http.post(

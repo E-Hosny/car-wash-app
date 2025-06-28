@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'add_car_screen.dart';
 import 'main_navigation_screen.dart';
 
@@ -51,8 +52,9 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   }
 
   Future<void> fetchServices() async {
+    final baseUrl = dotenv.env['BASE_URL']!;
     final res = await http.get(
-      Uri.parse('http://10.0.2.2:8000/api/services'),
+      Uri.parse('$baseUrl/api/services'),
       headers: {'Authorization': 'Bearer ${widget.token}'},
     );
     if (res.statusCode == 200) {
@@ -63,8 +65,9 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   }
 
   Future<void> fetchUserCars() async {
+    final baseUrl = dotenv.env['BASE_URL']!;
     final res = await http.get(
-      Uri.parse('http://10.0.2.2:8000/api/cars'),
+      Uri.parse('$baseUrl/api/cars'),
       headers: {'Authorization': 'Bearer ${widget.token}'},
     );
     if (res.statusCode == 200) {
@@ -100,8 +103,9 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       return;
     }
 
+    final baseUrl = dotenv.env['BASE_URL']!;
     final res = await http.post(
-      Uri.parse('http://10.0.2.2:8000/api/orders'),
+      Uri.parse('$baseUrl/api/orders'),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
