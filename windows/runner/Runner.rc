@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
+            VALUE "CompanyName", "com.washluxuria" "\0"
             VALUE "FileDescription", "car_wash_app" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "car_wash_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.washluxuria. All rights reserved." "\0"
             VALUE "OriginalFilename", "car_wash_app.exe" "\0"
             VALUE "ProductName", "car_wash_app" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
