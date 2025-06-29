@@ -8,7 +8,7 @@
 PRODUCT_NAME = car_wash_app
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.carWashApp
+PRODUCT_BUNDLE_IDENTIFIER = com.washluxuria.carwash
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2025 com.washluxuria. All rights reserved.
