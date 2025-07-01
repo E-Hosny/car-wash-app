@@ -148,15 +148,20 @@ class _AddCarScreenState extends State<AddCarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Add Car',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-            )),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: Colors.black),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(120),
+        child: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 1,
+          iconTheme: const IconThemeData(color: Colors.black),
+          centerTitle: true,
+          title: null,
+          flexibleSpace: SafeArea(
+            child: Center(
+              child: Image.asset('assets/logo.png', height: 100),
+            ),
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
