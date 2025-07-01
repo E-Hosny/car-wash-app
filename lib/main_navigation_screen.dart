@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'order_request_screen.dart';
 import 'my_orders_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'login_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final String token;
@@ -33,6 +35,27 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ];
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: Colors.black),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'تسجيل الخروج',
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('auth_token');
+              if (!mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (route) => false,
+              );
+            },
+          ),
+        ],
+      ),
       body: screens[currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
