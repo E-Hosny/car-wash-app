@@ -148,27 +148,34 @@ class _AddCarScreenState extends State<AddCarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(120),
-        child: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 1,
-          iconTheme: const IconThemeData(color: Colors.black),
-          centerTitle: true,
-          title: null,
-          flexibleSpace: SafeArea(
-            child: Center(
-              child: Image.asset('assets/logo.png', height: 100),
-            ),
-          ),
-        ),
-      ),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24.0),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 16, bottom: 16),
+                child: Center(
+                  child: Image.asset(
+                    'assets/logo.png',
+                    height: 120,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(
+                    top: 8.0, left: 0.0, right: 0.0, bottom: 0.0),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.black),
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'Back',
+                  ),
+                ),
+              ),
               buildDropdown(
                 hint: 'Select Brand',
                 value: selectedBrandId,
