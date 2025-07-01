@@ -5,7 +5,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'login_screen.dart'; // تأكد إنه موجود بنفس المسار أو صحح المسار
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  final String? initialPhone;
+  const RegisterScreen({Key? key, this.initialPhone}) : super(key: key);
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -17,6 +18,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialPhone != null) {
+      phoneController.text = widget.initialPhone!;
+    }
+  }
+
+  String normalizePhone(String input) {
+    String phone = input.replaceAll(RegExp(r'[^0-9]'), '');
+    if (phone.startsWith('00')) phone = phone.substring(2);
+    if (phone.startsWith('966')) return phone;
+    if (phone.startsWith('5')) return '966$phone';
+    if (phone.startsWith('05')) return '966${phone.substring(1)}';
+    if (phone.startsWith('971')) return phone;
+    if (phone.startsWith('0')) return '971${phone.substring(1)}';
+    return phone;
+  }
+
   Future<void> register() async {
     final baseUrl = dotenv.env['BASE_URL']!;
     final url = Uri.parse('$baseUrl/api/register');
@@ -27,7 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': nameController.text,
-          'phone': phoneController.text,
+          'phone': normalizePhone(phoneController.text.trim()),
           'email': emailController.text,
           'password': passwordController.text,
           'password_confirmation': passwordController.text,
