@@ -50,12 +50,20 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title:
-            const Text('Pick Location', style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.black),
-        elevation: 1,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(120),
+        child: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 1,
+          iconTheme: const IconThemeData(color: Colors.black),
+          centerTitle: true,
+          title: null,
+          flexibleSpace: SafeArea(
+            child: Center(
+              child: Image.asset('assets/logo.png', height: 100),
+            ),
+          ),
+        ),
       ),
       body: Stack(
         children: [
