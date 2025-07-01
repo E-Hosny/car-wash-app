@@ -36,6 +36,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   DateTime? selectedDateTime;
 
   bool isMapInteracting = false;
+  bool isSubmittingOrder = false;
 
   @override
   void initState() {
@@ -109,7 +110,9 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       );
       return;
     }
-
+    setState(() {
+      isSubmittingOrder = true;
+    });
     final baseUrl = dotenv.env['BASE_URL']!;
     final res = await http.post(
       Uri.parse('$baseUrl/api/orders'),
@@ -128,9 +131,10 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
             useCurrentTime ? null : selectedDateTime?.toIso8601String(),
       }),
     );
-
     if (!mounted) return;
-
+    setState(() {
+      isSubmittingOrder = false;
+    });
     if (res.statusCode == 200 || res.statusCode == 201) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -138,11 +142,8 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
           backgroundColor: Colors.green,
         ),
       );
-
       await Future.delayed(const Duration(seconds: 2));
-
       if (!mounted) return;
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -177,6 +178,16 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 16, bottom: 16),
+                child: Center(
+                  child: Image.asset(
+                    'assets/logo.png',
+                    height: 120,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
               sectionTitle('Location'),
               ElevatedButton.icon(
                 onPressed: () async {
@@ -431,11 +442,22 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: ElevatedButton.icon(
-                      onPressed: submitOrder,
-                      icon: const Icon(Icons.check_circle_outline),
-                      label: const Text('Place Order',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold)),
+                      onPressed: isSubmittingOrder ? null : submitOrder,
+                      icon: isSubmittingOrder
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : const Icon(Icons.check_circle_outline),
+                      label: Text(
+                        isSubmittingOrder ? 'Placing Order...' : 'Place Order',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black,
                         foregroundColor: Colors.white,

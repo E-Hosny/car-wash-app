@@ -40,7 +40,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.black),
         centerTitle: true,
-        title: Image.asset('assets/logo.png', height: 60),
+        title: null,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
