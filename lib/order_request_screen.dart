@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'add_car_screen.dart';
 import 'main_navigation_screen.dart';
+import 'map_picker_screen.dart';
 
 class OrderRequestScreen extends StatefulWidget {
   final String token;
@@ -31,6 +32,8 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
 
   bool useCurrentTime = true;
   DateTime? selectedDateTime;
+
+  bool isMapInteracting = false;
 
   @override
   void initState() {
@@ -169,40 +172,55 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
+        physics: isMapInteracting ? const NeverScrollableScrollPhysics() : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             sectionTitle('Location'),
-            Container(
-              height: 200,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: latitude == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : GoogleMap(
-                      onMapCreated: (controller) => _mapController = controller,
-                      initialCameraPosition: CameraPosition(
-                        target: LatLng(latitude!, longitude!),
-                        zoom: 15,
-                      ),
-                      onTap: (LatLng tappedLocation) {
-                        setState(() {
-                          selectedLocation = tappedLocation;
-                        });
-                      },
-                      markers: selectedLocation != null
-                          ? {
-                              Marker(
-                                markerId: const MarkerId('selected'),
-                                position: selectedLocation!,
-                              )
-                            }
-                          : {},
-                      myLocationEnabled: true,
+            ElevatedButton.icon(
+              onPressed: () async {
+                if (latitude == null || longitude == null) return;
+                final picked = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MapPickerScreen(
+                      initialLocation:
+                          selectedLocation ?? LatLng(latitude!, longitude!),
                     ),
+                  ),
+                );
+                if (picked != null && picked is LatLng) {
+                  setState(() {
+                    selectedLocation = picked;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Location selected!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.location_on),
+              label: Text(selectedLocation == null
+                  ? 'Pick location on map'
+                  : 'Change location'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
+            if (selectedLocation != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                child: Text(
+                  'Selected: (${selectedLocation!.latitude.toStringAsFixed(6)}, ${selectedLocation!.longitude.toStringAsFixed(6)})',
+                  style: const TextStyle(fontSize: 14, color: Colors.black54),
+                ),
+              ),
             const SizedBox(height: 28),
             sectionTitle('Services'),
             ...services.map((s) {
