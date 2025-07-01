@@ -49,6 +49,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     await Permission.location.request();
     Position pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high);
+    if (!mounted) return;
     setState(() {
       latitude = pos.latitude;
       longitude = pos.longitude;
@@ -76,6 +77,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       headers: {'Authorization': 'Bearer ${widget.token}'},
     );
     if (res.statusCode == 200) {
+      if (!mounted) return;
       setState(() {
         cars = jsonDecode(res.body);
       });
@@ -160,21 +162,6 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(120),
-        child: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 1,
-          iconTheme: const IconThemeData(color: Colors.black),
-          centerTitle: true,
-          title: null,
-          flexibleSpace: SafeArea(
-            child: Center(
-              child: Image.asset('assets/logo.png', height: 100),
-            ),
-          ),
-        ),
-      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(

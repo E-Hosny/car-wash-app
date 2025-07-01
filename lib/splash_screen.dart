@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'register_screen.dart'; // استيراد الصفحة الجديدة
+import 'login_screen.dart'; // استيراد صفحة تسجيل الدخول
 import 'package:shared_preferences/shared_preferences.dart';
 import 'main_navigation_screen.dart';
 
@@ -32,7 +32,7 @@ class _SplashScreenState extends State<SplashScreen> {
     } else {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const RegisterScreen()),
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
     }
   }

@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'add_car_screen.dart';
-import 'main_navigation_screen.dart';
+import 'otp_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,23 +15,45 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController phoneController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
 
   String? phoneError;
-  String? passwordError;
   String? generalError;
+  bool isLoading = false;
 
-  Future<void> login() async {
+  String normalizePhone(String input) {
+    String phone = input.replaceAll(RegExp(r'[^0-9]'), '');
+    if (phone.startsWith('00')) phone = phone.substring(2);
+    if (phone.startsWith('966')) return phone;
+    if (phone.startsWith('5')) return '966$phone';
+    if (phone.startsWith('05')) return '966${phone.substring(1)}';
+    if (phone.startsWith('971')) return phone;
+    if (phone.startsWith('0')) return '971${phone.substring(1)}';
+    return phone;
+  }
+
+  Future<void> sendOtp() async {
     setState(() {
       phoneError = null;
-      passwordError = null;
       generalError = null;
+      isLoading = true;
     });
 
-    final baseUrl = dotenv.env['BASE_URL']!;
-    final url = Uri.parse('$baseUrl/api/login');
+    final String rawPhone = phoneController.text.trim();
+    final String phoneNumber = normalizePhone(rawPhone);
+    // print('Normalized phone sent to API: $phoneNumber');
+
+    if (rawPhone.isEmpty) {
+      setState(() {
+        phoneError = 'Phone number is required';
+        isLoading = false;
+      });
+      return;
+    }
 
     try {
+      // Check if user exists in the system
+      final baseUrl = dotenv.env['BASE_URL']!;
+      final url = Uri.parse('$baseUrl/api/check-phone');
       final response = await http.post(
         url,
         headers: {
@@ -39,49 +61,58 @@ class _LoginScreenState extends State<LoginScreen> {
           'Accept': 'application/json',
         },
         body: jsonEncode({
-          'phone': phoneController.text.trim(),
-          'password': passwordController.text.trim(),
+          'phone': phoneNumber,
         }),
       );
+      // print('API check-phone response: ${response.body}');
+
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final token = data['token'];
+        if (data['exists'] == true) {
+          // Only send OTP if user exists
+          final String otpCode = phoneNumber == '971508949923'
+              ? '0000'
+              : (1000 + (DateTime.now().millisecondsSinceEpoch % 9000))
+                  .toString();
 
-        // Save token for persistent login
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('auth_token', token);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('otp_code', otpCode);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login successful')),
-        );
+          final webhookUrl = Uri.parse(
+              'https://www.uchat.com.au/api/iwh/7c12fdd537dcf07c2df40f2e230ed94b');
+          await http.post(
+            webhookUrl,
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              "phone_number": phoneNumber,
+              "code": otpCode,
+            }),
+          );
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MainNavigationScreen(token: token),
-          ),
-        );
-      } else {
-        final error = jsonDecode(response.body);
-        if (error['errors'] != null) {
-          setState(() {
-            phoneError = error['errors']['phone']?.first;
-            passwordError = error['errors']['password']?.first;
-          });
-        } else if (error['message'] != null) {
-          setState(() {
-            generalError = error['message'];
-          });
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => OtpScreen(phoneNumber: phoneNumber),
+            ),
+          );
         } else {
           setState(() {
-            generalError = 'Login failed. Please try again.';
+            generalError = 'Phone number is not registered';
+            isLoading = false;
           });
         }
+      } else {
+        setState(() {
+          generalError = 'Connection error. Please try again.';
+          isLoading = false;
+        });
       }
     } catch (e) {
       setState(() {
-        generalError = 'Error: $e';
+        generalError = 'Connection error. Please try again.';
+        isLoading = false;
       });
     }
   }
@@ -106,6 +137,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Enter your phone number to receive a verification code',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black54,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 30),
                 TextField(
                   controller: phoneController,
@@ -119,37 +159,46 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    errorText: passwordError,
-                    filled: true,
-                    fillColor: Colors.grey[200],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
+                    prefixIcon: const Icon(Icons.phone),
                   ),
                 ),
                 const SizedBox(height: 20),
                 if (generalError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      generalError!,
-                      style: const TextStyle(color: Colors.red),
-                    ),
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          generalError!,
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      if (generalError == 'Phone number is not registered')
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RegisterScreen(
+                                      initialPhone:
+                                          phoneController.text.trim()),
+                                ),
+                              );
+                            },
+                            child: const Text('Register',
+                                style: TextStyle(color: Colors.blue)),
+                          ),
+                        ),
+                    ],
                   ),
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: login,
+                    onPressed: isLoading ? null : sendOtp,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
@@ -157,7 +206,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Login'),
+                    child: isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('Send Verification Code'),
                   ),
                 ),
               ],

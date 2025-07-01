@@ -39,10 +39,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         backgroundColor: Colors.white,
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.black),
+        centerTitle: true,
+        title: Image.asset('assets/logo.png', height: 60),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'تسجيل الخروج',
+            tooltip: 'Logout',
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('auth_token');
