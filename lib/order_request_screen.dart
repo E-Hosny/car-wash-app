@@ -23,6 +23,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   double? longitude;
   GoogleMapController? _mapController;
   LatLng? selectedLocation;
+  String? selectedAddress;
 
   List services = [];
   List cars = [];
@@ -117,7 +118,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       body: jsonEncode({
         'latitude': selectedLocation!.latitude,
         'longitude': selectedLocation!.longitude,
-        'address': 'Selected from map',
+        'address': selectedAddress ?? 'Selected from map',
         'car_id': selectedCarId,
         'services': selectedServices,
         'scheduled_at':
@@ -189,9 +190,13 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                     ),
                   ),
                 );
-                if (picked != null && picked is LatLng) {
+                if (picked != null &&
+                    picked is Map &&
+                    picked['latlng'] != null &&
+                    picked['address'] != null) {
                   setState(() {
-                    selectedLocation = picked;
+                    selectedLocation = picked['latlng'];
+                    selectedAddress = picked['address'];
                   });
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -216,9 +221,21 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
             if (selectedLocation != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-                child: Text(
-                  'Selected: (${selectedLocation!.latitude.toStringAsFixed(6)}, ${selectedLocation!.longitude.toStringAsFixed(6)})',
-                  style: const TextStyle(fontSize: 14, color: Colors.black54),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (selectedAddress != null)
+                      Text(
+                        selectedAddress!,
+                        style: const TextStyle(
+                            fontSize: 15, color: Colors.black87),
+                      ),
+                    Text(
+                      '(${selectedLocation!.latitude.toStringAsFixed(6)}, ${selectedLocation!.longitude.toStringAsFixed(6)})',
+                      style:
+                          const TextStyle(fontSize: 13, color: Colors.black54),
+                    ),
+                  ],
                 ),
               ),
             const SizedBox(height: 28),
