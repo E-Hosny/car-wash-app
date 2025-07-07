@@ -9,7 +9,8 @@
     <application
         android:label="car_wash_app"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/NormalTheme">
 
         <!-- مفتاح Google Maps API يوضع داخل <application> -->
         <meta-data

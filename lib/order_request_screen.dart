@@ -8,6 +8,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'add_car_screen.dart';
 import 'main_navigation_screen.dart';
 import 'map_picker_screen.dart';
+import 'payment_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class OrderRequestScreen extends StatefulWidget {
@@ -110,53 +111,34 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       );
       return;
     }
-    setState(() {
-      isSubmittingOrder = true;
-    });
-    final baseUrl = dotenv.env['BASE_URL']!;
-    final res = await http.post(
-      Uri.parse('$baseUrl/api/orders'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': 'Bearer ${widget.token}',
-      },
-      body: jsonEncode({
-        'latitude': selectedLocation!.latitude,
-        'longitude': selectedLocation!.longitude,
-        'address': selectedAddress ?? 'Selected from map',
-        'car_id': selectedCarId,
-        'services': selectedServices,
-        'scheduled_at':
-            useCurrentTime ? null : selectedDateTime?.toIso8601String(),
-      }),
+
+    // إنشاء بيانات الطلب
+    final orderData = {
+      'latitude': selectedLocation!.latitude,
+      'longitude': selectedLocation!.longitude,
+      'address': selectedAddress ?? 'Selected from map',
+      'car_id': selectedCarId,
+      'services': selectedServices,
+      'scheduled_at':
+          useCurrentTime ? null : selectedDateTime?.toIso8601String(),
+      'total': totalPrice,
+    };
+
+    // إنشاء معرف فريد للطلب
+    final orderId = DateTime.now().millisecondsSinceEpoch.toString();
+
+    // الانتقال إلى شاشة الدفع
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentScreen(
+          token: widget.token,
+          amount: totalPrice,
+          orderId: orderId,
+          orderData: orderData,
+        ),
+      ),
     );
-    if (!mounted) return;
-    setState(() {
-      isSubmittingOrder = false;
-    });
-    if (res.statusCode == 200 || res.statusCode == 201) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Order placed successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      await Future.delayed(const Duration(seconds: 2));
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) =>
-              MainNavigationScreen(token: widget.token, initialIndex: 1),
-        ),
-      );
-    } else {
-      print(res.body);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Failed to place order')),
-      );
-    }
   }
 
   @override
@@ -442,20 +424,11 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: ElevatedButton.icon(
-                      onPressed: isSubmittingOrder ? null : submitOrder,
-                      icon: isSubmittingOrder
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2.5,
-                              ),
-                            )
-                          : const Icon(Icons.check_circle_outline),
-                      label: Text(
-                        isSubmittingOrder ? 'Placing Order...' : 'Place Order',
-                        style: const TextStyle(
+                      onPressed: submitOrder,
+                      icon: const Icon(Icons.payment),
+                      label: const Text(
+                        'Proceed to Payment',
+                        style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(

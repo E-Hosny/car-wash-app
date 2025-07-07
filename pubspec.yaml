@@ -47,9 +47,7 @@ dependencies:
   google_fonts: ^4.0.4
   
   # Stripe payment integration
-  stripe_platform_interface: ^8.0.0
-  stripe_android: ^8.0.0
-  stripe_ios: ^8.0.0
+  flutter_stripe: ^10.1.0
 
 dev_dependencies:
   flutter_test:
