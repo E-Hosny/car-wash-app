@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../car_wash_provider"
+		},
+		{
+			"path": "../xampp/htdocs/car-wash-api"
 		}
 	]
 }

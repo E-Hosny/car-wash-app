@@ -45,6 +45,11 @@ dependencies:
   geocoding: ^4.0.0
   shared_preferences: ^2.5.3
   google_fonts: ^4.0.4
+  
+  # Stripe payment integration
+  stripe_platform_interface: ^8.0.0
+  stripe_android: ^8.0.0
+  stripe_ios: ^8.0.0
 
 dev_dependencies:
   flutter_test:
