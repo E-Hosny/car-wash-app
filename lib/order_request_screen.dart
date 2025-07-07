@@ -10,6 +10,7 @@ import 'main_navigation_screen.dart';
 import 'map_picker_screen.dart';
 import 'payment_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
 
 class OrderRequestScreen extends StatefulWidget {
   final String token;
@@ -39,12 +40,17 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   bool isMapInteracting = false;
   bool isSubmittingOrder = false;
 
+  List<Map<String, dynamic>> savedAddresses = [];
+  Map<String, dynamic>? selectedSavedAddress;
+  bool isLoadingAddresses = false;
+
   @override
   void initState() {
     super.initState();
     fetchServices();
     fetchUserCars();
     determineCurrentPosition();
+    fetchSavedAddresses();
   }
 
   Future<void> determineCurrentPosition() async {
@@ -83,6 +89,23 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       setState(() {
         cars = jsonDecode(res.body);
       });
+    }
+  }
+
+  Future<void> fetchSavedAddresses() async {
+    setState(() => isLoadingAddresses = true);
+    final baseUrl = dotenv.env['BASE_URL']!;
+    final res = await http.get(
+      Uri.parse('$baseUrl/api/addresses'),
+      headers: {'Authorization': 'Bearer ${widget.token}'},
+    );
+    if (res.statusCode == 200) {
+      setState(() {
+        savedAddresses = List<Map<String, dynamic>>.from(jsonDecode(res.body));
+        isLoadingAddresses = false;
+      });
+    } else {
+      setState(() => isLoadingAddresses = false);
     }
   }
 
@@ -141,6 +164,113 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     );
   }
 
+  Future<void> addNewAddressDialog(LatLng latlng, String address) async {
+    final labelController = TextEditingController();
+    final streetController = TextEditingController();
+    final buildingController = TextEditingController();
+    final floorController = TextEditingController();
+    final apartmentController = TextEditingController();
+    final notesController = TextEditingController();
+    bool isSaving = false;
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Add Address Details',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: labelController,
+                  decoration:
+                      InputDecoration(labelText: 'Label (e.g. Home, Work)'),
+                ),
+                TextField(
+                  controller: streetController,
+                  decoration: InputDecoration(labelText: 'Street'),
+                ),
+                TextField(
+                  controller: buildingController,
+                  decoration: InputDecoration(labelText: 'Building'),
+                ),
+                TextField(
+                  controller: floorController,
+                  decoration: InputDecoration(labelText: 'Floor'),
+                ),
+                TextField(
+                  controller: apartmentController,
+                  decoration: InputDecoration(labelText: 'Apartment'),
+                ),
+                TextField(
+                  controller: notesController,
+                  decoration: InputDecoration(labelText: 'Notes'),
+                ),
+                const SizedBox(height: 12),
+                Text('Location: $address',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      setState(() => isSaving = true);
+                      final baseUrl = dotenv.env['BASE_URL']!;
+                      final res = await http.post(
+                        Uri.parse('$baseUrl/api/addresses'),
+                        headers: {
+                          'Authorization': 'Bearer ${widget.token}',
+                          'Content-Type': 'application/json',
+                        },
+                        body: jsonEncode({
+                          'label': labelController.text,
+                          'street': streetController.text,
+                          'building': buildingController.text,
+                          'floor': floorController.text,
+                          'apartment': apartmentController.text,
+                          'notes': notesController.text,
+                          'address': address,
+                          'latitude': latlng.latitude,
+                          'longitude': latlng.longitude,
+                        }),
+                      );
+                      setState(() => isSaving = false);
+                      if (res.statusCode == 201) {
+                        await fetchSavedAddresses();
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Address saved!'),
+                              backgroundColor: Colors.green),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Failed to save address'),
+                              backgroundColor: Colors.red),
+                        );
+                      }
+                    },
+              child: isSaving
+                  ? const CircularProgressIndicator()
+                  : const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -170,8 +300,55 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                   ),
                 ),
               ),
-              sectionTitle('Location'),
+              sectionTitle('Address'),
+              if (isLoadingAddresses)
+                const Center(child: CircularProgressIndicator()),
+              if (!isLoadingAddresses && savedAddresses.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ...savedAddresses.map((addr) => Card(
+                          color: selectedSavedAddress != null &&
+                                  selectedSavedAddress!['id'] == addr['id']
+                              ? Colors.green[50]
+                              : Colors.white,
+                          child: ListTile(
+                            title: Text(
+                                addr['label'] ?? addr['address'] ?? 'Address',
+                                style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold)),
+                            subtitle: Text(
+                                '${addr['street'] ?? ''} ${addr['building'] ?? ''} ${addr['floor'] ?? ''} ${addr['apartment'] ?? ''}\n${addr['address'] ?? ''}',
+                                style: const TextStyle(fontSize: 13)),
+                            trailing: selectedSavedAddress != null &&
+                                    selectedSavedAddress!['id'] == addr['id']
+                                ? const Icon(Icons.check_circle,
+                                    color: Colors.green)
+                                : null,
+                            onTap: () {
+                              setState(() {
+                                selectedSavedAddress = addr;
+                                selectedLocation = LatLng(
+                                  double.parse(addr['latitude'].toString()),
+                                  double.parse(addr['longitude'].toString()),
+                                );
+                                selectedAddress = addr['address'];
+                              });
+                            },
+                          ),
+                        )),
+                    const SizedBox(height: 8),
+                  ],
+                ),
               ElevatedButton.icon(
+                icon: const Icon(Icons.add_location_alt),
+                label: const Text('Add New Address'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
                 onPressed: () async {
                   if (latitude == null || longitude == null) return;
                   final picked = await Navigator.push(
@@ -187,50 +364,11 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                       picked is Map &&
                       picked['latlng'] != null &&
                       picked['address'] != null) {
-                    setState(() {
-                      selectedLocation = picked['latlng'];
-                      selectedAddress = picked['address'];
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Location selected!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+                    await addNewAddressDialog(
+                        picked['latlng'], picked['address']);
                   }
                 },
-                icon: const Icon(Icons.location_on),
-                label: Text(selectedLocation == null
-                    ? 'Pick location on map'
-                    : 'Change location'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                ),
               ),
-              if (selectedLocation != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (selectedAddress != null)
-                        Text(
-                          selectedAddress!,
-                          style: const TextStyle(
-                              fontSize: 15, color: Colors.black87),
-                        ),
-                      Text(
-                        '(${selectedLocation!.latitude.toStringAsFixed(6)}, ${selectedLocation!.longitude.toStringAsFixed(6)})',
-                        style: const TextStyle(
-                            fontSize: 13, color: Colors.black54),
-                      ),
-                    ],
-                  ),
-                ),
               const SizedBox(height: 28),
               sectionTitle('Services'),
               ...services.map((s) {
