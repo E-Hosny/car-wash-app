@@ -161,9 +161,40 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                                         color: Colors.black54),
                                     const SizedBox(width: 8),
                                     Expanded(
-                                      child: Text(
-                                        order['address'] ?? 'N/A',
-                                        style: const TextStyle(fontSize: 15),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if ((order['street'] ?? '')
+                                              .toString()
+                                              .isNotEmpty)
+                                            Text('Street: ${order['street']}',
+                                                style: const TextStyle(
+                                                    fontSize: 14)),
+                                          if ((order['building'] ?? '')
+                                              .toString()
+                                              .isNotEmpty)
+                                            Text(
+                                                'Building: ${order['building']}',
+                                                style: const TextStyle(
+                                                    fontSize: 14)),
+                                          if ((order['floor'] ?? '')
+                                              .toString()
+                                              .isNotEmpty)
+                                            Text('Floor: ${order['floor']}',
+                                                style: const TextStyle(
+                                                    fontSize: 14)),
+                                          if ((order['apartment'] ?? '')
+                                              .toString()
+                                              .isNotEmpty)
+                                            Text(
+                                                'Apartment: ${order['apartment']}',
+                                                style: const TextStyle(
+                                                    fontSize: 14)),
+                                          Text(order['address'] ?? 'N/A',
+                                              style: const TextStyle(
+                                                  fontSize: 15)),
+                                        ],
                                       ),
                                     ),
                                   ],

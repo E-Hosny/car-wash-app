@@ -140,6 +140,10 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       'latitude': selectedLocation!.latitude,
       'longitude': selectedLocation!.longitude,
       'address': selectedAddress ?? 'Selected from map',
+      'street': selectedSavedAddress?['street'],
+      'building': selectedSavedAddress?['building'],
+      'floor': selectedSavedAddress?['floor'],
+      'apartment': selectedSavedAddress?['apartment'],
       'car_id': selectedCarId,
       'services': selectedServices,
       'scheduled_at':
