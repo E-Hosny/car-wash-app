@@ -48,13 +48,49 @@ class _OtpScreenState extends State<OtpScreen> {
 
   String normalizePhone(String input) {
     String phone = input.replaceAll(RegExp(r'[^0-9]'), '');
+
+    // Remove leading zeros
     if (phone.startsWith('00')) phone = phone.substring(2);
+
+    // Handle Saudi Arabia (+966) - for testing from Saudi Arabia
     if (phone.startsWith('966')) return phone;
-    if (phone.startsWith('5')) return '966$phone';
-    if (phone.startsWith('05')) return '966${phone.substring(1)}';
+    if (phone.startsWith('5') && phone.length == 9) return '966$phone';
+    if (phone.startsWith('05') && phone.length == 10)
+      return '966${phone.substring(1)}';
+
+    // Handle UAE (+971) - default for UAE users
     if (phone.startsWith('971')) return phone;
-    if (phone.startsWith('0')) return '971${phone.substring(1)}';
-    return phone;
+    if (phone.startsWith('5') && phone.length == 9)
+      return '971$phone'; // UAE mobile
+    if (phone.startsWith('05') && phone.length == 10)
+      return '971${phone.substring(1)}'; // UAE mobile with 0
+    if (phone.startsWith('0') && phone.length == 9)
+      return '971${phone.substring(1)}'; // UAE landline
+
+    // Default to UAE if no country code detected
+    return '971$phone';
+  }
+
+  bool isValidUAEPhone(String input) {
+    String phone = input.replaceAll(RegExp(r'[^0-9]'), '');
+
+    // Remove leading zeros
+    if (phone.startsWith('00')) phone = phone.substring(2);
+
+    // Check if it's a valid UAE phone number
+    if (phone.startsWith('971') && phone.length == 12) return true;
+    if (phone.startsWith('5') && phone.length == 9) return true;
+    if (phone.startsWith('05') && phone.length == 10) return true;
+    if (phone.startsWith('0') && phone.length == 9) return true;
+
+    // Check if it's a valid Saudi phone number (for testing)
+    if (phone.startsWith('966') && phone.length == 12) return true;
+    if (phone.startsWith('5') && phone.length == 9)
+      return true; // Could be Saudi or UAE
+    if (phone.startsWith('05') && phone.length == 10)
+      return true; // Could be Saudi or UAE
+
+    return false;
   }
 
   Future<void> _verifyOtp() async {
