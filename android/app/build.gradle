@@ -12,6 +12,15 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+// ✅ تحميل متغيرات flutterVersionCode و flutterVersionName من local.properties
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+
 android {
     namespace = "com.washluxuria.carwash"
     compileSdk = 35
@@ -30,8 +39,8 @@ android {
         applicationId = "com.washluxuria.carwash"
         minSdk = 21
         targetSdk = 35  
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
     }
 
     signingConfigs {
