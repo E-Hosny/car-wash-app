@@ -41,6 +41,6 @@ class StripeService {
 
   // الحصول على Publishable Key
   static String getPublishableKey() {
-    return _publishableKey;
+    return dotenv.env['STRIPE_PUBLISHABLE_KEY']!;
   }
 }
