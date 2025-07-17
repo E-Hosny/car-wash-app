@@ -279,7 +279,7 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
       // Create payment intent using StripeService
       final paymentData = await StripeService.createPaymentIntent(
         amount: widget.package['price'].toDouble(),
-        currency: 'sar',
+        currency: 'aed',
         orderId:
             'package_${widget.package['id']}_${DateTime.now().millisecondsSinceEpoch}',
         token: await getToken() ?? '',

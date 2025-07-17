@@ -292,7 +292,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                                 ),
                               ),
                               Text(
-                                '${package['price']} SAR',
+                                '${package['price']} AED',
                                 style: GoogleFonts.poppins(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
@@ -499,7 +499,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                       ),
                     ),
                     Text(
-                      '${package['price']} SAR',
+                      '${package['price']} AED',
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

@@ -758,7 +758,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                           )
                         else
                           Text(
-                            '${price.toStringAsFixed(2)} SAR',
+                            '${price.toStringAsFixed(2)} AED',
                             style: const TextStyle(
                                 color: Colors.black,
                                 fontWeight: FontWeight.w600,
@@ -1022,7 +1022,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                       ),
                     ),
                     Text(
-                      '${package['price']} SAR',
+                      '${package['price']} AED',
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

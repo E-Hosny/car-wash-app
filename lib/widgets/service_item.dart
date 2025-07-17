@@ -118,7 +118,7 @@ class ServiceItem extends StatelessWidget {
       );
     } else {
       return Text(
-        '${price.toStringAsFixed(2)} SAR',
+        '${price.toStringAsFixed(2)} AED',
         style: AppTheme.bodyLarge.copyWith(
           color: AppTheme.primaryColor,
           fontWeight: FontWeight.w600,

@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/stripe_service.dart';
 import 'main_navigation_screen.dart';
+import 'screens/package_success_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
   final String token;
@@ -36,6 +37,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
   void initState() {
     super.initState();
     _initializeStripe();
+
+    // استخدام payment intent الموجود من all_packages_screen
+    final bool isPackagePurchase =
+        widget.orderData['is_package_purchase'] == true;
+    if (isPackagePurchase && widget.orderData['payment_intent_id'] != null) {
+      setState(() {
+        _paymentIntentId = widget.orderData['payment_intent_id'];
+      });
+    }
   }
 
   Future<void> _initializeStripe() async {
@@ -79,9 +89,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final bool isPackagePurchase =
         widget.orderData['is_package_purchase'] == true;
 
-    // Check if using package or purchasing package
-    if (widget.orderData['use_package'] == true || isPackagePurchase) {
-      // Skip payment for package orders or package purchases
+    // Check if using package (not purchasing package)
+    if (widget.orderData['use_package'] == true) {
+      // Skip payment for package orders only
       setState(() {
         _isProcessing = true;
         _errorMessage = null;
@@ -93,23 +103,20 @@ class _PaymentScreenState extends State<PaymentScreen> {
           await _showThankYouDialog();
         } else {
           setState(() {
-            _errorMessage = isPackagePurchase
-                ? 'Failed to purchase package'
-                : 'Failed to create order';
+            _errorMessage = 'Failed to create order';
             _isProcessing = false;
           });
         }
       } catch (e) {
         setState(() {
-          _errorMessage = isPackagePurchase
-              ? 'Failed to purchase package: $e'
-              : 'Failed to create order: $e';
+          _errorMessage = 'Failed to create order: $e';
           _isProcessing = false;
         });
       }
       return;
     }
 
+    // For package purchases, we need to process actual payment
     if (_paymentIntentId == null) {
       setState(() {
         _errorMessage = 'Payment intent not created';
@@ -128,13 +135,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
       if (orderResponse == null) {
         setState(() {
-          _errorMessage = 'Failed to create order';
+          _errorMessage = isPackagePurchase
+              ? 'Failed to create package purchase'
+              : 'Failed to create order';
           _isProcessing = false;
         });
         return;
       }
 
-      // معالجة الدفع
+      // معالجة الدفع الفعلي
       await Stripe.instance.confirmPayment(
         paymentIntentClientSecret: _paymentIntentId!,
         data: PaymentMethodParams.card(
@@ -142,30 +151,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
 
-      // التحقق من حالة الدفع
-      if (true) {
-        // تم الدفع بنجاح
-        // تحديث حالة الطلب إلى مدفوع
-        if (orderResponse != null && orderResponse['id'] != null) {
-          await _updateOrderPaymentStatus(orderResponse['id']);
-        } else {
-          setState(() {
-            _errorMessage = 'Order creation failed: No order ID returned.';
-            _isProcessing = false;
-          });
-          return;
-        }
-
-        await _showThankYouDialog();
-      } else {
-        setState(() {
-          _errorMessage = 'Payment failed: Unknown error';
-          _isProcessing = false;
-        });
+      // تم الدفع بنجاح
+      // تحديث حالة الطلب إلى مدفوع (فقط للطلبات العادية)
+      if (!isPackagePurchase && orderResponse['id'] != null) {
+        await _updateOrderPaymentStatus(orderResponse['id']);
       }
+
+      await _showThankYouDialog();
     } catch (e) {
       setState(() {
-        _errorMessage = 'Payment failed: $e';
+        _errorMessage = isPackagePurchase
+            ? 'Package purchase failed: $e'
+            : 'Payment failed: $e';
         _isProcessing = false;
       });
     }
@@ -247,65 +244,78 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final bool isPackagePurchase =
         widget.orderData['is_package_purchase'] == true;
 
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.celebration, color: Colors.green, size: 64),
-              const SizedBox(height: 16),
-              Text(
-                'Thank You!',
-                style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                isPackagePurchase
-                    ? 'Your package was purchased successfully!\nYou can now use it for services.'
-                    : 'Your payment was successful.\nYour order is being processed.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MainNavigationScreen(
-                        token: widget.token,
-                        initialIndex: 2, // Changed to Orders tab (index 2)
-                      ),
-                    ),
-                  );
-                },
-                child: Text('View Orders',
-                    style: GoogleFonts.poppins(fontSize: 16)),
-              ),
-            ],
+    if (isPackagePurchase) {
+      // للباقات، انتقل إلى شاشة التهنئة المخصصة
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PackageSuccessScreen(
+            token: widget.token,
+            packageData: widget.orderData,
           ),
         ),
-      ),
-    );
+      );
+    } else {
+      // للطلبات العادية، اعرض الحوار العادي
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.celebration, color: Colors.green, size: 64),
+                const SizedBox(height: 16),
+                Text(
+                  'Thank You!',
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Your payment was successful.\nYour order is being processed.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 12),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MainNavigationScreen(
+                          token: widget.token,
+                          initialIndex: 2, // Orders tab (index 2)
+                        ),
+                      ),
+                    );
+                  },
+                  child: Text('View Orders',
+                      style: GoogleFonts.poppins(fontSize: 16)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -549,15 +559,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ),
                 ),
 
-              // زر تأكيد طلب الباقة أو شراء باقة
-              if (isPackageOrder || isPackagePurchase)
+              // زر تأكيد طلب الباقة (لا يحتاج دفع)
+              if (isPackageOrder)
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
                     boxShadow: [
                       BoxShadow(
-                        color: (isPackagePurchase ? Colors.green : Colors.blue)
-                            .withOpacity(0.2),
+                        color: Colors.blue.withOpacity(0.2),
                         blurRadius: 15,
                         offset: const Offset(0, 8),
                       ),
@@ -567,8 +576,78 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   child: ElevatedButton(
                     onPressed: _isProcessing ? null : _processPayment,
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: _isProcessing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.card_giftcard, size: 20),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Confirm Package Order',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+
+              // حقل إدخال بيانات البطاقة وزر الدفع لشراء الباقات
+              if (_paymentIntentId != null &&
+                  (isPackagePurchase ||
+                      (!isPackageOrder && !isPackagePurchase))) ...[
+                const SizedBox(height: 20),
+                // حقل إدخال بيانات البطاقة
+                CardField(
+                  onCardChanged: (card) {
+                    setState(() {
+                      _card = card;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Card Details',
+                  ),
+                  style: GoogleFonts.poppins(fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isPackagePurchase ? Colors.green : Colors.black)
+                            .withOpacity(0.2),
+                        blurRadius: 15,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: (_isProcessing || !(_card?.complete ?? false))
+                        ? null
+                        : _processPayment,
+                    style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          isPackagePurchase ? Colors.green : Colors.blue,
+                          isPackagePurchase ? Colors.green : Colors.black,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       shape: RoundedRectangleBorder(
@@ -590,79 +669,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               Icon(
                                   isPackagePurchase
                                       ? Icons.shopping_cart
-                                      : Icons.card_giftcard,
+                                      : Icons.payment,
                                   size: 20),
                               const SizedBox(width: 10),
                               Text(
                                 isPackagePurchase
-                                    ? 'Purchase Package'
-                                    : 'Confirm Package Order',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-
-              if (_paymentIntentId != null) ...[
-                const SizedBox(height: 20),
-                // حقل إدخال بيانات البطاقة
-                CardField(
-                  onCardChanged: (card) {
-                    setState(() {
-                      _card = card;
-                    });
-                  },
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Card Details',
-                  ),
-                  style: GoogleFonts.poppins(fontSize: 16),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: (_isProcessing || !(_card?.complete ?? false))
-                        ? null
-                        : _processPayment,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
-                    child: _isProcessing
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.payment, size: 20),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Pay ${widget.amount.toStringAsFixed(2)} AED',
+                                    ? 'Purchase Package - ${widget.amount.toStringAsFixed(2)} AED'
+                                    : 'Pay ${widget.amount.toStringAsFixed(2)} AED',
                                 style: GoogleFonts.poppins(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,

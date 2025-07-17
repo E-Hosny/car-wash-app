@@ -119,7 +119,7 @@ class AppTranslations {
       'points_required': 'points required',
       'points': 'Points',
       'price': 'Price',
-      'riyal': 'SAR',
+      'riyal': 'AED',
 
       // Services
       'services': 'Services',
