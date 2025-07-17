@@ -293,12 +293,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     MaterialPageRoute(
                       builder: (context) => MainNavigationScreen(
                         token: widget.token,
-                        initialIndex: 1,
+                        initialIndex: 2, // Changed to Orders tab (index 2)
                       ),
                     ),
                   );
                 },
-                child: Text('Back to Home',
+                child: Text('View Orders',
                     style: GoogleFonts.poppins(fontSize: 16)),
               ),
             ],

@@ -3,6 +3,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../all_packages_screen.dart';
+import '../order_request_screen.dart';
+import '../main_navigation_screen.dart';
 
 class MyPackageScreen extends StatefulWidget {
   final String token;
@@ -186,7 +189,17 @@ class _MyPackageScreenState extends State<MyPackageScreen> {
                           const SizedBox(height: 24),
                           ElevatedButton(
                             onPressed: () {
-                              Navigator.pushNamed(context, '/packages');
+                              // Navigate back to main navigation screen with Packages tab selected
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => MainNavigationScreen(
+                                    token: widget.token,
+                                    initialIndex: 1, // Packages tab
+                                  ),
+                                ),
+                                (route) => false,
+                              );
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.black,
@@ -490,13 +503,18 @@ class _MyPackageScreenState extends State<MyPackageScreen> {
                                           ),
                                         ),
                                         onTap: () {
-                                          Navigator.pushNamed(
+                                          // Navigate back to main navigation screen with New Order tab selected
+                                          Navigator.pushAndRemoveUntil(
                                             context,
-                                            '/create-order',
-                                            arguments: {
-                                              'usePackage': true,
-                                              'serviceId': service['id'],
-                                            },
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  MainNavigationScreen(
+                                                token: widget.token,
+                                                initialIndex:
+                                                    0, // New Order tab
+                                              ),
+                                            ),
+                                            (route) => false,
                                           );
                                         },
                                       ),
@@ -510,12 +528,16 @@ class _MyPackageScreenState extends State<MyPackageScreen> {
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: () {
-                                Navigator.pushNamed(
+                                // Navigate back to main navigation screen with Orders tab selected
+                                Navigator.pushAndRemoveUntil(
                                   context,
-                                  '/create-order',
-                                  arguments: {
-                                    'usePackage': true,
-                                  },
+                                  MaterialPageRoute(
+                                    builder: (context) => MainNavigationScreen(
+                                      token: widget.token,
+                                      initialIndex: 0, // New Order tab
+                                    ),
+                                  ),
+                                  (route) => false,
                                 );
                               },
                               style: ElevatedButton.styleFrom(

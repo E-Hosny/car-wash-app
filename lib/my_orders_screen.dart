@@ -29,12 +29,15 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       headers: {'Authorization': 'Bearer ${widget.token}'},
     );
 
-    if (res.statusCode == 200) {
-      setState(() {
-        orders = jsonDecode(res.body);
-      });
-    } else {
-      print('❌ Failed to fetch orders: ${res.body}');
+    // Check if widget is still mounted before calling setState
+    if (mounted) {
+      if (res.statusCode == 200) {
+        setState(() {
+          orders = jsonDecode(res.body);
+        });
+      } else {
+        print('❌ Failed to fetch orders: ${res.body}');
+      }
     }
   }
 

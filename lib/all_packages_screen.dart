@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'translations.dart';
 import 'payment_screen.dart';
 
 class AllPackagesScreen extends StatefulWidget {
@@ -17,6 +16,7 @@ class AllPackagesScreen extends StatefulWidget {
 
 class _AllPackagesScreenState extends State<AllPackagesScreen> {
   List<dynamic> packages = [];
+  Map<String, dynamic>? userPackage;
   bool isLoading = true;
   String? error;
 
@@ -24,6 +24,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
   void initState() {
     super.initState();
     fetchPackages();
+    fetchUserPackage();
   }
 
   Future<void> fetchPackages() async {
@@ -61,6 +62,33 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
         error = 'Connection error: ${e.toString()}';
         isLoading = false;
       });
+    }
+  }
+
+  Future<void> fetchUserPackage() async {
+    try {
+      final baseUrl = dotenv.env['BASE_URL'];
+      if (baseUrl == null || baseUrl.isEmpty) return;
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/packages/my/current'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${widget.token}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (mounted) {
+          setState(() {
+            userPackage = data['data'];
+          });
+        }
+      }
+    } catch (e) {
+      // Handle error silently
+      print('Error fetching user package: $e');
     }
   }
 
@@ -163,6 +191,10 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
   }
 
   Widget _buildPackageCard(Map<String, dynamic> package) {
+    // Check if this is the user's current package
+    final isCurrentPackage =
+        userPackage != null && userPackage!['package']['id'] == package['id'];
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -174,154 +206,216 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: Colors.grey.shade200, width: 1),
+        border: Border.all(
+          color: isCurrentPackage ? Colors.green : Colors.grey.shade200,
+          width: isCurrentPackage ? 2 : 1,
+        ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          // صورة الباقة
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-            child: Container(
-              height: 90,
-              width: double.infinity,
-              color: Colors.grey.shade100,
-              child: package['image'] != null
-                  ? Image.network(
-                      '${dotenv.env['BASE_URL'] ?? 'http://localhost:8000'}/storage/${package['image']}',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Center(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // صورة الباقة
+              ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(18)),
+                child: Container(
+                  height: 90,
+                  width: double.infinity,
+                  color: Colors.grey.shade100,
+                  child: package['image'] != null
+                      ? Image.network(
+                          '${dotenv.env['BASE_URL'] ?? 'http://localhost:8000'}/storage/${package['image']}',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
+                              child: Icon(
+                                Icons.card_giftcard,
+                                size: 40,
+                                color: Colors.black,
+                              ),
+                            );
+                          },
+                        )
+                      : Center(
                           child: Icon(
                             Icons.card_giftcard,
                             size: 40,
                             color: Colors.black,
                           ),
-                        );
-                      },
-                    )
-                  : Center(
-                      child: Icon(
-                        Icons.card_giftcard,
-                        size: 40,
+                        ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      package['name'] ?? 'Premium Package',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12), // Reduced from 14
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  package['name'] ?? 'Premium Package',
-                  style: GoogleFonts.poppins(
-                    fontSize: 15, // Reduced from 16
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3), // Reduced from 4
-                if (package['description'] != null)
-                  Text(
-                    package['description'],
-                    style: GoogleFonts.poppins(
-                      fontSize: 11, // Reduced from 12
-                      color: Colors.grey.shade700,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                const SizedBox(height: 8), // Reduced from 10
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      flex: 1,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Price',
-                            style: GoogleFonts.poppins(
-                              fontSize: 10,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          Text(
-                            '${package['price']} SAR',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12, // Reduced from 14
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                    const SizedBox(height: 3),
+                    if (package['description'] != null)
+                      Text(
+                        package['description'],
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey.shade700,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Price',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              Text(
+                                '${package['price']} SAR',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 1,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Points',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              Text(
+                                '${package['points']} Points',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8), // Add spacing between columns
-                    Expanded(
-                      flex: 1,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Points',
-                            style: GoogleFonts.poppins(
-                              fontSize: 10,
-                              color: Colors.grey.shade600,
-                            ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: isCurrentPackage
+                            ? null
+                            : () => _showPurchaseDialog(package),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              isCurrentPackage ? Colors.green : Colors.black,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          Text(
-                            '${package['points']} Points',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12, // Reduced from 14
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          elevation: 0,
+                        ),
+                        child: isCurrentPackage
+                            ? Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.check_circle,
+                                      color: Colors.white, size: 16),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Your Package',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 1.1,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Text(
+                                'Buy',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8), // Reduced from 10
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => _showPurchaseDialog(package),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 8), // Reduced from 10
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      'Buy',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12, // Reduced from 13
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+          if (isCurrentPackage)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.2),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check, color: Colors.white, size: 14),
+                    SizedBox(width: 4),
+                    Text(
+                      'Current Package',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );

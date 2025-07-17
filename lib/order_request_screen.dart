@@ -19,6 +19,8 @@ import 'widgets/compact_package_card.dart';
 import 'widgets/enhanced_package_card.dart';
 import 'widgets/package_grid_view.dart';
 import 'widgets/optimized_package_card.dart';
+import 'main_navigation_screen.dart';
+import 'screens/my_package_screen.dart';
 
 class OrderRequestScreen extends StatefulWidget {
   final String token;
@@ -331,7 +333,10 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
           orderData: orderData,
         ),
       ),
-    );
+    ).then((_) {
+      // After payment screen is closed, navigate to orders
+      _navigateToOrders();
+    });
   }
 
   Future<void> addNewAddressDialog(LatLng latlng, String address) async {
@@ -508,7 +513,14 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                         userPackage: userPackage,
                         onPurchase: () => _showPackagePurchaseDialog(package),
                         onViewDetails: () {
-                          Navigator.pushNamed(context, '/my-package');
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MyPackageScreen(
+                                token: widget.token,
+                              ),
+                            ),
+                          );
                         },
                       );
                     },
@@ -1156,6 +1168,19 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
         ),
       );
     }
+  }
+
+  // Navigate to orders screen after successful order
+  void _navigateToOrders() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MainNavigationScreen(
+          token: widget.token,
+          initialIndex: 2, // Orders tab
+        ),
+      ),
+    );
   }
 
   // Calculate total points used for selected services
