@@ -6,11 +6,13 @@ import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'add_car_screen.dart';
-import 'main_navigation_screen.dart';
 import 'map_picker_screen.dart';
 import 'payment_screen.dart';
+import 'all_packages_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
+import 'services/package_service.dart';
+import 'utils/debug_helper.dart';
 
 class OrderRequestScreen extends StatefulWidget {
   final String token;
@@ -24,7 +26,6 @@ class OrderRequestScreen extends StatefulWidget {
 class _OrderRequestScreenState extends State<OrderRequestScreen> {
   double? latitude;
   double? longitude;
-  GoogleMapController? _mapController;
   LatLng? selectedLocation;
   String? selectedAddress;
 
@@ -33,6 +34,14 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   List selectedServices = [];
   int? selectedCarId;
   double totalPrice = 0;
+  bool usePackage = false;
+  Map<String, dynamic>? userPackage;
+  List<dynamic> availableServices = [];
+
+  // إضافة متغيرات للباقات
+  List<dynamic> packages = [];
+  bool isLoadingPackages = true;
+  final PageController _packagePageController = PageController();
 
   bool useCurrentTime = true;
   DateTime? selectedDateTime;
@@ -51,6 +60,49 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     fetchUserCars();
     determineCurrentPosition();
     fetchSavedAddresses();
+    checkUserPackage();
+    fetchPackages(); // إضافة جلب الباقات
+
+    // إضافة مستمع لتحديث مؤشرات الصفحات
+    _packagePageController.addListener(() {
+      setState(() {});
+    });
+  }
+
+  // إضافة دالة جلب الباقات
+  Future<void> fetchPackages() async {
+    try {
+      final baseUrl = dotenv.env['BASE_URL'];
+      if (baseUrl == null || baseUrl.isEmpty) {
+        print('Error: BASE_URL not configured');
+        setState(() {
+          isLoadingPackages = false;
+        });
+        return;
+      }
+
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/packages'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          packages = data['data'] ?? [];
+          isLoadingPackages = false;
+        });
+      } else {
+        setState(() {
+          isLoadingPackages = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching packages: $e');
+      setState(() {
+        isLoadingPackages = false;
+      });
+    }
   }
 
   Future<void> determineCurrentPosition() async {
@@ -66,46 +118,132 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   }
 
   Future<void> fetchServices() async {
-    final baseUrl = dotenv.env['BASE_URL']!;
-    final res = await http.get(
-      Uri.parse('$baseUrl/api/services'),
-      headers: {'Authorization': 'Bearer ${widget.token}'},
-    );
-    if (res.statusCode == 200) {
-      setState(() {
-        services = jsonDecode(res.body);
-      });
+    try {
+      final baseUrl = dotenv.env['BASE_URL'];
+      if (baseUrl == null || baseUrl.isEmpty) {
+        print('Error: BASE_URL not configured');
+        return;
+      }
+
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/services'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+      if (res.statusCode == 200) {
+        final servicesData = jsonDecode(res.body);
+        DebugHelper.logApiResponse('services', servicesData);
+        setState(() {
+          services = servicesData;
+        });
+        DebugHelper.logServiceData(services);
+      }
+    } catch (e) {
+      print('Error fetching services: $e');
     }
   }
 
   Future<void> fetchUserCars() async {
-    final baseUrl = dotenv.env['BASE_URL']!;
-    final res = await http.get(
-      Uri.parse('$baseUrl/api/cars'),
-      headers: {'Authorization': 'Bearer ${widget.token}'},
-    );
-    if (res.statusCode == 200) {
-      if (!mounted) return;
-      setState(() {
-        cars = jsonDecode(res.body);
-      });
+    try {
+      final baseUrl = dotenv.env['BASE_URL'];
+      if (baseUrl == null || baseUrl.isEmpty) {
+        print('Error: BASE_URL not configured');
+        return;
+      }
+
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/cars'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+      if (res.statusCode == 200) {
+        if (!mounted) return;
+        setState(() {
+          cars = jsonDecode(res.body);
+        });
+      }
+    } catch (e) {
+      print('Error fetching user cars: $e');
     }
   }
 
   Future<void> fetchSavedAddresses() async {
     setState(() => isLoadingAddresses = true);
-    final baseUrl = dotenv.env['BASE_URL']!;
-    final res = await http.get(
-      Uri.parse('$baseUrl/api/addresses'),
-      headers: {'Authorization': 'Bearer ${widget.token}'},
-    );
-    if (res.statusCode == 200) {
-      setState(() {
-        savedAddresses = List<Map<String, dynamic>>.from(jsonDecode(res.body));
-        isLoadingAddresses = false;
-      });
-    } else {
+    try {
+      final baseUrl = dotenv.env['BASE_URL'];
+      if (baseUrl == null || baseUrl.isEmpty) {
+        print('Error: BASE_URL not configured');
+        setState(() => isLoadingAddresses = false);
+        return;
+      }
+
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/addresses'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+      if (res.statusCode == 200) {
+        setState(() {
+          savedAddresses =
+              List<Map<String, dynamic>>.from(jsonDecode(res.body));
+          isLoadingAddresses = false;
+        });
+      } else {
+        setState(() => isLoadingAddresses = false);
+      }
+    } catch (e) {
+      print('Error fetching saved addresses: $e');
       setState(() => isLoadingAddresses = false);
+    }
+  }
+
+  Future<void> checkUserPackage() async {
+    try {
+      final baseUrl = dotenv.env['BASE_URL'];
+      if (baseUrl == null || baseUrl.isEmpty) {
+        print('Error: BASE_URL not configured');
+        return;
+      }
+
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/packages/my/current'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          userPackage = data['data'];
+        });
+        fetchAvailableServices();
+      }
+    } catch (e) {
+      print('Error checking user package: $e');
+      // Handle error silently
+    }
+  }
+
+  Future<void> fetchAvailableServices() async {
+    try {
+      final baseUrl = dotenv.env['BASE_URL'];
+      if (baseUrl == null || baseUrl.isEmpty) {
+        print('Error: BASE_URL not configured');
+        return;
+      }
+
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/packages/my/services'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        DebugHelper.logApiResponse('packages/my/services', data);
+        setState(() {
+          availableServices = data['data']['available_services'] ?? [];
+        });
+        DebugHelper.logAvailableServices(availableServices);
+      }
+    } catch (e) {
+      print('Error fetching available services: $e');
+      // Handle error silently
     }
   }
 
@@ -113,10 +251,30 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     setState(() {
       if (selected) {
         selectedServices.add(id);
-        totalPrice += price;
+        if (!usePackage) {
+          totalPrice += price;
+        }
       } else {
         selectedServices.remove(id);
-        totalPrice -= price;
+        if (!usePackage) {
+          totalPrice -= price;
+        }
+      }
+    });
+  }
+
+  void togglePackageUsage(bool value) {
+    setState(() {
+      usePackage = value;
+      if (usePackage) {
+        totalPrice = 0; // Free when using package
+      } else {
+        // Recalculate total based on selected services
+        totalPrice = 0;
+        for (int serviceId in selectedServices) {
+          final service = services.firstWhere((s) => s['id'] == serviceId);
+          totalPrice += service['price'];
+        }
       }
     });
   }
@@ -149,6 +307,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       'scheduled_at':
           useCurrentTime ? null : selectedDateTime?.toIso8601String(),
       'total': totalPrice,
+      'use_package': usePackage,
     };
 
     // إنشاء معرف فريد للطلب
@@ -190,28 +349,28 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
               children: [
                 TextField(
                   controller: labelController,
-                  decoration:
-                      InputDecoration(labelText: 'Label (e.g. Home, Work)'),
+                  decoration: const InputDecoration(
+                      labelText: 'Label (e.g. Home, Work)'),
                 ),
                 TextField(
                   controller: streetController,
-                  decoration: InputDecoration(labelText: 'Street'),
+                  decoration: const InputDecoration(labelText: 'Street'),
                 ),
                 TextField(
                   controller: buildingController,
-                  decoration: InputDecoration(labelText: 'Building'),
+                  decoration: const InputDecoration(labelText: 'Building'),
                 ),
                 TextField(
                   controller: floorController,
-                  decoration: InputDecoration(labelText: 'Floor'),
+                  decoration: const InputDecoration(labelText: 'Floor'),
                 ),
                 TextField(
                   controller: apartmentController,
-                  decoration: InputDecoration(labelText: 'Apartment'),
+                  decoration: const InputDecoration(labelText: 'Apartment'),
                 ),
                 TextField(
                   controller: notesController,
-                  decoration: InputDecoration(labelText: 'Notes'),
+                  decoration: const InputDecoration(labelText: 'Notes'),
                 ),
                 const SizedBox(height: 12),
                 Text('Location: $address',
@@ -229,38 +388,59 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                   ? null
                   : () async {
                       setState(() => isSaving = true);
-                      final baseUrl = dotenv.env['BASE_URL']!;
-                      final res = await http.post(
-                        Uri.parse('$baseUrl/api/addresses'),
-                        headers: {
-                          'Authorization': 'Bearer ${widget.token}',
-                          'Content-Type': 'application/json',
-                        },
-                        body: jsonEncode({
-                          'label': labelController.text,
-                          'street': streetController.text,
-                          'building': buildingController.text,
-                          'floor': floorController.text,
-                          'apartment': apartmentController.text,
-                          'notes': notesController.text,
-                          'address': address,
-                          'latitude': latlng.latitude,
-                          'longitude': latlng.longitude,
-                        }),
-                      );
-                      setState(() => isSaving = false);
-                      if (res.statusCode == 201) {
-                        await fetchSavedAddresses();
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Address saved!'),
-                              backgroundColor: Colors.green),
+                      try {
+                        final baseUrl = dotenv.env['BASE_URL'];
+                        if (baseUrl == null || baseUrl.isEmpty) {
+                          setState(() => isSaving = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Configuration error: BASE_URL not found'),
+                                backgroundColor: Colors.red),
+                          );
+                          return;
+                        }
+
+                        final res = await http.post(
+                          Uri.parse('$baseUrl/api/addresses'),
+                          headers: {
+                            'Authorization': 'Bearer ${widget.token}',
+                            'Content-Type': 'application/json',
+                          },
+                          body: jsonEncode({
+                            'label': labelController.text,
+                            'street': streetController.text,
+                            'building': buildingController.text,
+                            'floor': floorController.text,
+                            'apartment': apartmentController.text,
+                            'notes': notesController.text,
+                            'address': address,
+                            'latitude': latlng.latitude,
+                            'longitude': latlng.longitude,
+                          }),
                         );
-                      } else {
+                        setState(() => isSaving = false);
+                        if (res.statusCode == 201) {
+                          await fetchSavedAddresses();
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Address saved!'),
+                                backgroundColor: Colors.green),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Failed to save address'),
+                                backgroundColor: Colors.red),
+                          );
+                        }
+                      } catch (e) {
+                        setState(() => isSaving = false);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Failed to save address'),
+                          SnackBar(
+                              content:
+                                  Text('Error saving address: ${e.toString()}'),
                               backgroundColor: Colors.red),
                         );
                       }
@@ -304,6 +484,256 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                   ),
                 ),
               ),
+
+              // Packages Section - Professional Package Display
+              if (packages.isNotEmpty) ...[
+                sectionTitle('Available Packages'),
+                const SizedBox(height: 16),
+                Container(
+                  height: 320,
+                  child: PageView.builder(
+                    controller: _packagePageController,
+                    itemCount: packages.length,
+                    itemBuilder: (context, index) {
+                      final package = packages[index];
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.white,
+                          border: Border.all(
+                            color: Colors.grey.shade200,
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            // Package Image
+                            Container(
+                              height: 120,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(16),
+                                ),
+                                color: Colors.grey.shade50,
+                              ),
+                              child: package['image'] != null
+                                  ? ClipRRect(
+                                      borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(16),
+                                      ),
+                                      child: Image.network(
+                                        '${dotenv.env['BASE_URL'] ?? 'http://localhost:8000'}/storage/${package['image']}',
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return Container(
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  const BorderRadius.vertical(
+                                                top: Radius.circular(20),
+                                              ),
+                                              color: Colors.grey.shade200,
+                                            ),
+                                            child: Icon(
+                                              Icons.card_giftcard,
+                                              size: 50,
+                                              color: Colors.blue.shade400,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    )
+                                  : Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius:
+                                            const BorderRadius.vertical(
+                                          top: Radius.circular(20),
+                                        ),
+                                        color: Colors.grey.shade200,
+                                      ),
+                                      child: Icon(
+                                        Icons.card_giftcard,
+                                        size: 50,
+                                        color: Colors.blue.shade400,
+                                      ),
+                                    ),
+                            ),
+                            // Package Details
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    package['name'] ?? 'Premium Package',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  if (package['description'] != null)
+                                    Text(
+                                      package['description'],
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  const SizedBox(height: 10),
+                                  // Price and Points
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Price',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${package['price']} SAR',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            'Points',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${package['points']} Points',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  // Buy Button
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        _showPackagePurchaseDialog(package);
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.black,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12),
+                                        elevation: 0,
+                                      ),
+                                      child: Text(
+                                        'Buy Package',
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                // Page Indicators
+                if (packages.length > 1) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      packages.length,
+                      (index) {
+                        final currentPage = _packagePageController.hasClients
+                            ? _packagePageController.page?.round() ?? 0
+                            : 0;
+                        return Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: index == currentPage
+                                ? Colors.black
+                                : Colors.grey.shade300,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+                // View All Packages Button
+                if (packages.length > 1) ...[
+                  const SizedBox(height: 16),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AllPackagesScreen(
+                              token: widget.token,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: Icon(Icons.view_list, color: Colors.black),
+                      label: Text(
+                        'View All Packages',
+                        style: GoogleFonts.poppins(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 32),
+              ],
+
               sectionTitle('Address'),
               if (isLoadingAddresses)
                 const Center(child: CircularProgressIndicator()),
@@ -374,9 +804,65 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 },
               ),
               const SizedBox(height: 28),
+
+              // Package Section
+              if (userPackage != null) ...[
+                Card(
+                  color: Colors.grey.shade50,
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.card_giftcard, color: Colors.black),
+                            SizedBox(width: 8),
+                            Text(
+                              'Your Current Package',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          '${userPackage!['package']['name']} - ${userPackage!['remaining_points']} points remaining',
+                          style: TextStyle(fontSize: 14, color: Colors.black),
+                        ),
+                        SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Switch(
+                              value: usePackage,
+                              onChanged: togglePackageUsage,
+                              activeColor: Colors.black,
+                            ),
+                            Text('Use Package',
+                                style: TextStyle(color: Colors.black)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+              ],
+
               sectionTitle('Services'),
               ...services.map((s) {
                 final price = double.tryParse(s['price'].toString()) ?? 0.0;
+                final isAvailableInPackage = usePackage &&
+                    availableServices
+                        .any((service) => service['id'] == s['id']);
+                final pointsRequired = usePackage && isAvailableInPackage
+                    ? PackageService.getPointsRequiredForService(
+                        availableServices, s['id'])
+                    : null;
+
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
@@ -406,13 +892,31 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold, fontSize: 16)),
                         ),
-                        Text(
-                          '${price.toStringAsFixed(2)} AED',
-                          style: const TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16),
-                        ),
+                        if (usePackage && isAvailableInPackage)
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${pointsRequired ?? 0} Points',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          )
+                        else
+                          Text(
+                            '${price.toStringAsFixed(2)} SAR',
+                            style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16),
+                          ),
                       ],
                     ),
                     subtitle: Text(s['description'] ?? '',
@@ -550,7 +1054,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Total: ${totalPrice.toStringAsFixed(2)} AED',
+                    'Total: ${totalPrice.toStringAsFixed(2)} SAR',
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.w600),
                   ),
@@ -591,6 +1095,230 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
         ),
       ),
     );
+  }
+
+  // دالة عرض نافذة شراء الباقة
+  void _showPackagePurchaseDialog(Map<String, dynamic> package) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Purchase Package',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (package['image'] != null)
+              Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    '${dotenv.env['BASE_URL'] ?? 'http://localhost:8000'}/storage/${package['image']}',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.grey.shade200,
+                        ),
+                        child: Icon(
+                          Icons.card_giftcard,
+                          size: 50,
+                          color: Colors.black,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+            Text(
+              package['name'] ?? 'Premium Package',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            if (package['description'] != null)
+              Text(
+                package['description'],
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Column(
+                  children: [
+                    Text(
+                      'Price',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    Text(
+                      '${package['price']} SAR',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  children: [
+                    Text(
+                      'Points',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    Text(
+                      '${package['points']} Points',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey.shade600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _purchasePackage(package);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
+            ),
+            child: Text(
+              'Buy Now',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // دالة شراء الباقة
+  Future<void> _purchasePackage(Map<String, dynamic> package) async {
+    try {
+      final baseUrl = dotenv.env['BASE_URL'];
+      if (baseUrl == null || baseUrl.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Configuration error: BASE_URL not found. Please check your .env file.',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // التحقق من صحة السعر
+      final price = package['price'];
+      if (price == null) {
+        throw Exception('Package price is missing');
+      }
+
+      final priceValue = double.tryParse(price.toString());
+      if (priceValue == null) {
+        throw Exception('Invalid package price: $price');
+      }
+
+      // إنشاء معرف فريد للطلب
+      final orderId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // إنشاء payment intent أولاً
+      final paymentResponse = await http.post(
+        Uri.parse('$baseUrl/api/payments/create-intent'),
+        headers: {
+          'Authorization': 'Bearer ${widget.token}',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'amount': (priceValue * 100).round(), // تحويل إلى سنتات
+          'currency': 'aed',
+          'order_id': orderId,
+          'description': 'Package: ${package['name']}',
+        }),
+      );
+
+      if (paymentResponse.statusCode != 200) {
+        throw Exception(
+            'Failed to create payment intent: ${paymentResponse.body}');
+      }
+
+      final paymentData = jsonDecode(paymentResponse.body);
+      final paymentIntentId = paymentData['client_secret'];
+
+      // الانتقال إلى شاشة الدفع
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentScreen(
+            token: widget.token,
+            amount: priceValue,
+            orderId: orderId,
+            orderData: {
+              'package_id': package['id'],
+              'payment_intent_id': paymentIntentId,
+              'is_package_purchase': true,
+              'order_id': orderId,
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error purchasing package: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error creating payment: ${e.toString()}',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget sectionTitle(String title) => Padding(

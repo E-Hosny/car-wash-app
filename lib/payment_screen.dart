@@ -76,6 +76,40 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> _processPayment() async {
+    final bool isPackagePurchase =
+        widget.orderData['is_package_purchase'] == true;
+
+    // Check if using package or purchasing package
+    if (widget.orderData['use_package'] == true || isPackagePurchase) {
+      // Skip payment for package orders or package purchases
+      setState(() {
+        _isProcessing = true;
+        _errorMessage = null;
+      });
+
+      try {
+        final orderResponse = await _createOrder();
+        if (orderResponse != null) {
+          await _showThankYouDialog();
+        } else {
+          setState(() {
+            _errorMessage = isPackagePurchase
+                ? 'Failed to purchase package'
+                : 'Failed to create order';
+            _isProcessing = false;
+          });
+        }
+      } catch (e) {
+        setState(() {
+          _errorMessage = isPackagePurchase
+              ? 'Failed to purchase package: $e'
+              : 'Failed to create order: $e';
+          _isProcessing = false;
+        });
+      }
+      return;
+    }
+
     if (_paymentIntentId == null) {
       setState(() {
         _errorMessage = 'Payment intent not created';
@@ -140,20 +174,49 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<Map<String, dynamic>?> _createOrder() async {
     try {
       final baseUrl = dotenv.env['BASE_URL']!;
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/orders'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer ${widget.token}',
-        },
-        body: jsonEncode(widget.orderData),
-      );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonDecode(response.body);
+      // التحقق من نوع الطلب
+      final bool isPackagePurchase =
+          widget.orderData['is_package_purchase'] == true;
+
+      if (isPackagePurchase) {
+        // شراء باقة
+        final response = await http.post(
+          Uri.parse(
+              '$baseUrl/api/packages/${widget.orderData['package_id']}/purchase'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ${widget.token}',
+          },
+          body: jsonEncode({
+            'payment_intent_id': widget.orderData['payment_intent_id'],
+            'paid_amount': widget.amount,
+          }),
+        );
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          return jsonDecode(response.body);
+        } else {
+          throw Exception('Failed to purchase package: ${response.body}');
+        }
       } else {
-        throw Exception('Failed to create order: ${response.body}');
+        // طلب عادي
+        final response = await http.post(
+          Uri.parse('$baseUrl/api/orders'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ${widget.token}',
+          },
+          body: jsonEncode(widget.orderData),
+        );
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          return jsonDecode(response.body);
+        } else {
+          throw Exception('Failed to create order: ${response.body}');
+        }
       }
     } catch (e) {
       throw Exception('Error creating order: $e');
@@ -181,6 +244,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> _showThankYouDialog() async {
+    final bool isPackagePurchase =
+        widget.orderData['is_package_purchase'] == true;
+
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -203,7 +269,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Your payment was successful.\nYour order is being processed.',
+                isPackagePurchase
+                    ? 'Your package was purchased successfully!\nYou can now use it for services.'
+                    : 'Your payment was successful.\nYour order is being processed.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey),
               ),
@@ -242,6 +310,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isPackageOrder = widget.orderData['use_package'] == true;
+    final bool isPackagePurchase =
+        widget.orderData['is_package_purchase'] == true;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -252,7 +324,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Payment',
+          isPackagePurchase
+              ? 'Package Purchase'
+              : (isPackageOrder ? 'Package Order' : 'Payment'),
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -316,7 +390,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Order Summary',
+                      isPackagePurchase
+                          ? 'Package Summary'
+                          : (isPackageOrder
+                              ? 'Package Order Summary'
+                              : 'Order Summary'),
                       style: GoogleFonts.poppins(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
@@ -324,10 +402,47 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       ),
                     ),
                     const SizedBox(height: 15),
-                    _buildSummaryRow('Order ID', widget.orderId),
-                    _buildSummaryRow(
-                        'Amount', '${widget.amount.toStringAsFixed(2)} AED'),
-                    _buildSummaryRow('Payment Method', 'Credit/Debit Card'),
+                    if (isPackagePurchase) ...[
+                      _buildSummaryRow('Package ID', widget.orderId),
+                      _buildSummaryRow(
+                          'Amount', '${widget.amount.toStringAsFixed(2)} AED'),
+                      _buildSummaryRow('Payment Method', 'Credit/Debit Card'),
+                    ] else ...[
+                      _buildSummaryRow('Order ID', widget.orderId),
+                      if (isPackageOrder) ...[
+                        _buildSummaryRow('Payment Method', 'Package Points'),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(15),
+                            border:
+                                Border.all(color: Colors.blue.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.card_giftcard, color: Colors.blue),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'This order will be paid using your package points',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        _buildSummaryRow('Amount',
+                            '${widget.amount.toStringAsFixed(2)} AED'),
+                        _buildSummaryRow('Payment Method', 'Credit/Debit Card'),
+                      ],
+                    ],
                     const SizedBox(height: 20),
                     Container(
                       width: double.infinity,
@@ -390,7 +505,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
               if (_errorMessage != null) const SizedBox(height: 20),
 
               // أزرار الدفع
-              if (_paymentIntentId == null)
+              if (!isPackageOrder &&
+                  !isPackagePurchase &&
+                  _paymentIntentId == null)
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
@@ -428,6 +545,64 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
+                          ),
+                  ),
+                ),
+
+              // زر تأكيد طلب الباقة أو شراء باقة
+              if (isPackageOrder || isPackagePurchase)
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isPackagePurchase ? Colors.green : Colors.blue)
+                            .withOpacity(0.2),
+                        blurRadius: 15,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _isProcessing ? null : _processPayment,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          isPackagePurchase ? Colors.green : Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: _isProcessing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                  isPackagePurchase
+                                      ? Icons.shopping_cart
+                                      : Icons.card_giftcard,
+                                  size: 20),
+                              const SizedBox(width: 10),
+                              Text(
+                                isPackagePurchase
+                                    ? 'Purchase Package'
+                                    : 'Confirm Package Order',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                   ),
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'order_request_screen.dart';
 import 'my_orders_screen.dart';
+import 'all_packages_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 
@@ -31,6 +32,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final screens = [
       OrderRequestScreen(token: widget.token),
+      AllPackagesScreen(token: widget.token),
       MyOrdersScreen(token: widget.token),
     ];
 
@@ -77,6 +79,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             icon: Icon(Icons.local_car_wash_outlined),
             activeIcon: Icon(Icons.local_car_wash),
             label: 'New Order',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.card_giftcard_outlined),
+            activeIcon: Icon(Icons.card_giftcard),
+            label: 'Packages',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.receipt_long_outlined),
