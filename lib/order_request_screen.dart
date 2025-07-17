@@ -13,6 +13,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import 'services/package_service.dart';
 import 'utils/debug_helper.dart';
+import 'widgets/package_display_card.dart';
+import 'widgets/order_summary_card.dart';
+import 'widgets/compact_package_card.dart';
+import 'widgets/enhanced_package_card.dart';
+import 'widgets/package_grid_view.dart';
+import 'widgets/optimized_package_card.dart';
 
 class OrderRequestScreen extends StatefulWidget {
   final String token;
@@ -42,6 +48,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   List<dynamic> packages = [];
   bool isLoadingPackages = true;
   final PageController _packagePageController = PageController();
+  bool showGridView = false; // Toggle between grid and carousel view
 
   bool useCurrentTime = true;
   DateTime? selectedDateTime;
@@ -496,185 +503,13 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                     itemCount: packages.length,
                     itemBuilder: (context, index) {
                       final package = packages[index];
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 8),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          color: Colors.white,
-                          border: Border.all(
-                            color: Colors.grey.shade200,
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            // Package Image
-                            Container(
-                              height: 120,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(16),
-                                ),
-                                color: Colors.grey.shade50,
-                              ),
-                              child: package['image'] != null
-                                  ? ClipRRect(
-                                      borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(16),
-                                      ),
-                                      child: Image.network(
-                                        '${dotenv.env['BASE_URL'] ?? 'http://localhost:8000'}/storage/${package['image']}',
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                          return Container(
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  const BorderRadius.vertical(
-                                                top: Radius.circular(20),
-                                              ),
-                                              color: Colors.grey.shade200,
-                                            ),
-                                            child: Icon(
-                                              Icons.card_giftcard,
-                                              size: 50,
-                                              color: Colors.blue.shade400,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    )
-                                  : Container(
-                                      decoration: BoxDecoration(
-                                        borderRadius:
-                                            const BorderRadius.vertical(
-                                          top: Radius.circular(20),
-                                        ),
-                                        color: Colors.grey.shade200,
-                                      ),
-                                      child: Icon(
-                                        Icons.card_giftcard,
-                                        size: 50,
-                                        color: Colors.blue.shade400,
-                                      ),
-                                    ),
-                            ),
-                            // Package Details
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    package['name'] ?? 'Premium Package',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  if (package['description'] != null)
-                                    Text(
-                                      package['description'],
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 14,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  const SizedBox(height: 10),
-                                  // Price and Points
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Price',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 12,
-                                              color: Colors.grey.shade600,
-                                            ),
-                                          ),
-                                          Text(
-                                            '${package['price']} SAR',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            'Points',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 12,
-                                              color: Colors.grey.shade600,
-                                            ),
-                                          ),
-                                          Text(
-                                            '${package['points']} Points',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  // Buy Button
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton(
-                                      onPressed: () {
-                                        _showPackagePurchaseDialog(package);
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.black,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 12),
-                                        elevation: 0,
-                                      ),
-                                      child: Text(
-                                        'Buy Package',
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                      return OptimizedPackageCard(
+                        package: package,
+                        userPackage: userPackage,
+                        onPurchase: () => _showPackagePurchaseDialog(package),
+                        onViewDetails: () {
+                          Navigator.pushNamed(context, '/my-package');
+                        },
                       );
                     },
                   ),
@@ -1049,45 +884,47 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 36),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Total: ${totalPrice.toStringAsFixed(2)} SAR',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w600),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 12,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                      borderRadius: BorderRadius.circular(24),
+              const SizedBox(height: 24),
+
+              // Order Summary Card
+              OrderSummaryCard(
+                totalPrice: totalPrice,
+                usePackage: usePackage,
+                selectedServicesCount: selectedServices.length,
+                remainingPoints: userPackage?['remaining_points'],
+                totalPointsUsed: _calculateTotalPointsUsed(),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Submit Button
+              Container(
+                decoration: BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
                     ),
-                    child: ElevatedButton.icon(
-                      onPressed: submitOrder,
-                      icon: const Icon(Icons.payment),
-                      label: const Text(
-                        'Proceed to Payment',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 28, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24)),
-                      ),
-                    ),
+                  ],
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: submitOrder,
+                  icon: Icon(usePackage ? Icons.card_giftcard : Icons.payment),
+                  label: Text(
+                    usePackage ? 'Use Package Points' : 'Proceed to Payment',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                ],
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: usePackage ? Colors.green : Colors.black,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24)),
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
             ],
@@ -1319,6 +1156,32 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
         ),
       );
     }
+  }
+
+  // Calculate total points used for selected services
+  int _calculateTotalPointsUsed() {
+    if (!usePackage || userPackage == null || availableServices.isEmpty)
+      return 0;
+
+    int totalPoints = 0;
+    for (var service in selectedServices) {
+      // Handle both Map and int service types
+      int serviceId;
+      if (service is Map && service.containsKey('id')) {
+        serviceId = service['id'] as int;
+      } else if (service is int) {
+        serviceId = service;
+      } else {
+        continue; // Skip invalid service
+      }
+
+      final pointsRequired = PackageService.getPointsRequiredForService(
+        availableServices,
+        serviceId,
+      );
+      totalPoints += pointsRequired;
+    }
+    return totalPoints;
   }
 
   Widget sectionTitle(String title) => Padding(

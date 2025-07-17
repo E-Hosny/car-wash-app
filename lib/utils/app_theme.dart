@@ -15,6 +15,8 @@ class AppTheme {
   static const Color errorColor = Color(0xFFE53E3E);
   static const Color successColor = Color(0xFF38A169);
   static const Color warningColor = Color(0xFFD69E2E);
+  static const Color packageColor = Color(0xFF22C55E);
+  static const Color packageLightColor = Color(0xFFDCFCE7);
 
   // Text Styles
   static TextStyle get heading1 => GoogleFonts.poppins(
