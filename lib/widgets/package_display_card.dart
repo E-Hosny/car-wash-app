@@ -135,7 +135,7 @@ class PackageDisplayCard extends StatelessWidget {
                             style: AppTheme.caption.copyWith(fontSize: 9),
                           ),
                           Text(
-                            '${package['price']} SAR',
+                            '${package['price']} AED',
                             style: AppTheme.bodyMedium.copyWith(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,

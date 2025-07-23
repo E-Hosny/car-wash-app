@@ -91,7 +91,7 @@ class PackageCard extends StatelessWidget {
                               style: AppTheme.caption,
                             ),
                             Text(
-                              '${package['price'] ?? 0} SAR',
+                              '${package['price'] ?? 0} AED',
                               style: AppTheme.bodyMedium.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -275,7 +275,7 @@ class PackagePurchaseDialog extends StatelessWidget {
                     style: AppTheme.caption,
                   ),
                   Text(
-                    '${package['price'] ?? 0} SAR',
+                    '${package['price'] ?? 0} AED',
                     style: AppTheme.bodyLarge.copyWith(
                       fontWeight: FontWeight.bold,
                     ),

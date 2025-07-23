@@ -148,7 +148,7 @@ class CompactPackageCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${package['price']} SAR',
+                            '${package['price']} AED',
                             style: GoogleFonts.poppins(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,

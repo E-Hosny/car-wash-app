@@ -160,7 +160,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                                           ],
                                         ),
                                         Text(
-                                          '${package['price']} ريال',
+                                          '${package['price']} درهم',
                                           style: const TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
@@ -394,7 +394,7 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                             ],
                           ),
                           Text(
-                            '${widget.package['price']} ريال',
+                            '${widget.package['price']} درهم',
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,

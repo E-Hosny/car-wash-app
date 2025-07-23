@@ -26,7 +26,7 @@ class AppTranslations {
       'points_required': 'نقطة مطلوبة',
       'points': 'نقاط',
       'price': 'السعر',
-      'riyal': 'ريال',
+      'riyal': 'درهم',
 
       // الخدمات
       'services': 'الخدمات',

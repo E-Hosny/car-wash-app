@@ -172,7 +172,7 @@ class PackageGridView extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${package['price']} SAR',
+                            '${package['price']} AED',
                             style: GoogleFonts.poppins(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,

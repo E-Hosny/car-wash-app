@@ -256,6 +256,35 @@ class _LoginScreenState extends State<LoginScreen> {
                         : const Text('Send Verification Code'),
                   ),
                 ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "Don't have an account?",
+                      style: TextStyle(color: Colors.black54),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => RegisterScreen(
+                              initialPhone: phoneController.text.trim(),
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Register",
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

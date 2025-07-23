@@ -203,7 +203,7 @@ class OrderSummaryCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${totalPrice.toStringAsFixed(2)} SAR',
+                      '${totalPrice.toStringAsFixed(2)} AED',
                       style: AppTheme.heading3.copyWith(
                         color: AppTheme.primaryColor,
                       ),
