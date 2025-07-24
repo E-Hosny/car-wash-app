@@ -21,6 +21,7 @@ import 'widgets/package_grid_view.dart';
 import 'widgets/optimized_package_card.dart';
 import 'main_navigation_screen.dart';
 import 'screens/my_package_screen.dart';
+import 'multi_car_order_screen.dart';
 
 class OrderRequestScreen extends StatefulWidget {
   final String token;
@@ -493,6 +494,62 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                     'assets/logo.png',
                     height: 120,
                     fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+
+              // Multi-Car Order Option
+              Container(
+                margin: const EdgeInsets.only(bottom: 24),
+                child: Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: [Colors.grey.shade800, Colors.black],
+                      ),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(16),
+                      leading: const Icon(
+                        Icons.directions_car,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                      title: Text(
+                        'Multi-Car Order',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Select multiple cars with different services for each',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                      trailing: const Icon(
+                        Icons.arrow_forward_ios,
+                        color: Colors.white,
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MultiCarOrderScreen(
+                              token: widget.token,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),

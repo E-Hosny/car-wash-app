@@ -13,6 +13,7 @@ class PaymentScreen extends StatefulWidget {
   final double amount;
   final String orderId;
   final Map<String, dynamic> orderData;
+  final bool isMultiCar;
 
   const PaymentScreen({
     super.key,
@@ -20,6 +21,7 @@ class PaymentScreen extends StatefulWidget {
     required this.amount,
     required this.orderId,
     required this.orderData,
+    this.isMultiCar = false,
   });
 
   @override
@@ -171,10 +173,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<Map<String, dynamic>?> _createOrder() async {
     try {
       final baseUrl = dotenv.env['BASE_URL']!;
+      print('=== _createOrder Debug Start ===');
+      print('BASE_URL: $baseUrl');
+      print('Order Data Type: ${widget.orderData.runtimeType}');
+      print('Order Data Keys: ${widget.orderData.keys.toList()}');
+      print('Full Order Data: ${widget.orderData}');
 
       // التحقق من نوع الطلب
       final bool isPackagePurchase =
           widget.orderData['is_package_purchase'] == true;
+      print('Is Package Purchase: $isPackagePurchase');
+      print('Is Multi Car: ${widget.isMultiCar}');
 
       if (isPackagePurchase) {
         // شراء باقة
@@ -195,12 +204,34 @@ class _PaymentScreenState extends State<PaymentScreen> {
         if (response.statusCode == 200 || response.statusCode == 201) {
           return jsonDecode(response.body);
         } else {
-          throw Exception('Failed to purchase package: ${response.body}');
+          // Try to parse error message from response
+          try {
+            final errorData = jsonDecode(response.body);
+            final errorMessage =
+                errorData['message'] ?? 'Failed to purchase package';
+            throw Exception(errorMessage);
+          } catch (parseError) {
+            throw Exception('Failed to purchase package. Please try again.');
+          }
         }
       } else {
-        // طلب عادي
+        // طلب عادي أو متعدد السيارات
+        final endpoint = widget.isMultiCar ? 'orders/multi-car' : 'orders';
+
+        // Debug logging
+        print('=== Payment Screen API Call Debug ===');
+        print('Endpoint: $baseUrl/api/$endpoint');
+        print('Is Multi Car: ${widget.isMultiCar}');
+        print('Headers: {');
+        print('  Content-Type: application/json');
+        print('  Accept: application/json');
+        print('  Authorization: Bearer ${widget.token.substring(0, 10)}...');
+        print('}');
+        print('Request Body (JSON): ${jsonEncode(widget.orderData)}');
+        print('==========================================');
+
         final response = await http.post(
-          Uri.parse('$baseUrl/api/orders'),
+          Uri.parse('$baseUrl/api/$endpoint'),
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -209,10 +240,47 @@ class _PaymentScreenState extends State<PaymentScreen> {
           body: jsonEncode(widget.orderData),
         );
 
+        print('API Response Status: ${response.statusCode}');
+        print('API Response Body: ${response.body}');
+        print('========================');
+
         if (response.statusCode == 200 || response.statusCode == 201) {
-          return jsonDecode(response.body);
+          final responseData = jsonDecode(response.body);
+          print('✅ Order created successfully!');
+          print('Response Data: ${responseData}');
+          print('Response Keys: ${responseData.keys.toList()}');
+          return responseData;
         } else {
-          throw Exception('Failed to create order: ${response.body}');
+          print('❌ Order creation failed!');
+          print('Status Code: ${response.statusCode}');
+          print('Response Headers: ${response.headers}');
+          print('Error Response Body: ${response.body}');
+          print('Error Response Length: ${response.body.length}');
+
+          // Try to parse error message from response
+          try {
+            final errorData = jsonDecode(response.body);
+            print('Parsed Error Data: $errorData');
+            print('Error Data Type: ${errorData.runtimeType}');
+            print('Error Data Keys: ${errorData.keys.toList()}');
+
+            final errorMessage =
+                errorData['message'] ?? 'Failed to create order';
+            final errors = errorData['errors'];
+
+            print('Final Error Message: $errorMessage');
+            if (errors != null) {
+              print('Validation Errors: $errors');
+            }
+
+            throw Exception(errorMessage);
+          } catch (parseError) {
+            print('❌ Failed to parse error response');
+            print('Parse Error: $parseError');
+            print('Raw Response: ${response.body}');
+            throw Exception(
+                'Failed to create order. Server response: ${response.body}');
+          }
         }
       }
     } catch (e) {
@@ -296,16 +364,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         horizontal: 32, vertical: 12),
                   ),
                   onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MainNavigationScreen(
-                          token: widget.token,
-                          initialIndex: 2, // Orders tab (index 2)
-                        ),
-                      ),
-                    );
+                    Navigator.of(context).pop(); // Close dialog
+                    Navigator.of(context)
+                        .pop(true); // Return success to previous screen
                   },
                   child: Text('View Orders',
                       style: GoogleFonts.poppins(fontSize: 16)),
@@ -495,18 +556,39 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     borderRadius: BorderRadius.circular(15),
                     border: Border.all(color: Colors.red.withOpacity(0.3)),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.error_outline, color: Colors.red),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.red,
+                      Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _errorMessage = null;
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
+                        child: Text('Try Again'),
                       ),
                     ],
                   ),

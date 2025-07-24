@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'order_request_screen.dart';
 
 class AddCarScreen extends StatefulWidget {
   final String token;
@@ -76,7 +75,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
         models = decoded is List ? decoded : [];
       });
     } else {
-      print('❌ Failed to load models: ${res.body}');
+      debugPrint('❌ Failed to load models: ${res.body}');
     }
   }
 
@@ -125,13 +124,15 @@ class _AddCarScreenState extends State<AddCarScreen> {
     );
 
     if (res.statusCode == 201) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ Car added successfully')),
       );
 
       Navigator.pop(context, true);
     } else {
-      print(res.body);
+      debugPrint(res.body);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('❌ Failed to add car')),
       );
