@@ -66,24 +66,34 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   @override
   void initState() {
     super.initState();
-    fetchServices();
-    fetchUserCars();
-    determineCurrentPosition();
-    fetchSavedAddresses();
-    checkUserPackage();
-    fetchPackages(); // إضافة جلب الباقات
+    print('🚀 OrderRequestScreen initState started');
 
-    // إضافة مستمع لتحديث مؤشرات الصفحات
-    _packagePageController.addListener(() {
-      setState(() {});
-    });
+    try {
+      fetchServices();
+      fetchUserCars();
+      determineCurrentPosition();
+      fetchSavedAddresses();
+      checkUserPackage();
+      fetchPackages(); // إضافة جلب الباقات
+
+      // إضافة مستمع لتحديث مؤشرات الصفحات
+      _packagePageController.addListener(() {
+        setState(() {});
+      });
+
+      print('✅ OrderRequestScreen initState completed successfully');
+    } catch (e) {
+      print('❌ Error in OrderRequestScreen initState: $e');
+    }
   }
 
   // إضافة دالة جلب الباقات
   Future<void> fetchPackages() async {
     try {
-      final baseUrl = dotenv.env['BASE_URL'];
-      if (baseUrl == null || baseUrl.isEmpty) {
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
+      print('🔗 Using BASE_URL: $baseUrl');
+
+      if (baseUrl.isEmpty) {
         print('Error: BASE_URL not configured');
         setState(() {
           isLoadingPackages = false;
@@ -129,8 +139,10 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
 
   Future<void> fetchServices() async {
     try {
-      final baseUrl = dotenv.env['BASE_URL'];
-      if (baseUrl == null || baseUrl.isEmpty) {
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
+      print('🔗 Using BASE_URL for services: $baseUrl');
+
+      if (baseUrl.isEmpty) {
         print('Error: BASE_URL not configured');
         return;
       }
@@ -487,13 +499,33 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 16, bottom: 16),
-                child: Center(
-                  child: Image.asset(
-                    'assets/logo.png',
-                    height: 120,
-                    fit: BoxFit.contain,
+              // Banner Section
+              Container(
+                width: double.infinity,
+                height: 200,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.only(left: 20, right: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                    ),
+                    child: Image.asset(
+                      'assets/banner.png',
+                      fit: BoxFit.contain,
+                      alignment: Alignment.center,
+                    ),
                   ),
                 ),
               ),

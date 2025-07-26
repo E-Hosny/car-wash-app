@@ -7,6 +7,7 @@ void main() async {
 
   try {
     await dotenv.load(fileName: "assets/.env");
+    print("✅ .env file loaded successfully");
   } catch (e) {
     print("Warning: Could not load .env file: $e");
     // Continue without .env file

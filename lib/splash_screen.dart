@@ -19,17 +19,35 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
-    await Future.delayed(const Duration(seconds: 2)); // Splash delay
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    if (token != null && token.isNotEmpty) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => MainNavigationScreen(token: token),
-        ),
-      );
-    } else {
+    try {
+      await Future.delayed(const Duration(seconds: 2)); // Splash delay
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      print('🔍 Checking login status...');
+      print('Token exists: ${token != null}');
+      print('Token length: ${token?.length ?? 0}');
+
+      if (token != null && token.isNotEmpty) {
+        print('✅ User is logged in, navigating to MainNavigationScreen');
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MainNavigationScreen(token: token),
+          ),
+        );
+      } else {
+        print('❌ No token found, navigating to LoginScreen');
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      }
+    } catch (e) {
+      print('❌ Error in _checkLoginStatus: $e');
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
