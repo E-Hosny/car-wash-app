@@ -282,6 +282,10 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
           totalPrice -= price;
         }
       }
+      // Ensure totalPrice doesn't go negative
+      if (totalPrice < 0) {
+        totalPrice = 0;
+      }
     });
   }
 
@@ -294,9 +298,19 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
         // Recalculate total based on selected services
         totalPrice = 0;
         for (int serviceId in selectedServices) {
-          final service = services.firstWhere((s) => s['id'] == serviceId);
-          totalPrice += service['price'];
+          try {
+            final service = services.firstWhere((s) => s['id'] == serviceId);
+            final price = double.tryParse(service['price'].toString()) ?? 0.0;
+            totalPrice += price;
+          } catch (e) {
+            print('Error calculating price for service $serviceId: $e');
+            // Continue with other services
+          }
         }
+      }
+      // Ensure totalPrice doesn't go negative
+      if (totalPrice < 0) {
+        totalPrice = 0;
       }
     });
   }
@@ -499,7 +513,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Banner Section
+              // 1. Banner Section
               Container(
                 width: double.infinity,
                 height: 200,
@@ -530,7 +544,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 ),
               ),
 
-              // Multi-Car Order Option
+              // 2. Multi-Car Order Option (Prominent)
               Container(
                 margin: const EdgeInsets.only(bottom: 24),
                 child: Card(
@@ -586,7 +600,330 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 ),
               ),
 
-              // Packages Section - Professional Package Display
+              // 3. Your Car Selection (Most Important)
+              sectionTitle('Your Car'),
+              TextButton.icon(
+                onPressed: () async {
+                  final added = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddCarScreen(token: widget.token),
+                    ),
+                  );
+                  if (added == true) fetchUserCars();
+                },
+                icon: const Icon(Icons.add_circle_outline, color: Colors.black),
+                label: const Text('Add a new car',
+                    style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 16)),
+              ),
+              ...cars.map((c) {
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: selectedCarId == c['id']
+                          ? Colors.black
+                          : Colors.grey.shade300,
+                      width: 1.2,
+                    ),
+                  ),
+                  child: RadioListTile<int>(
+                    value: c['id'],
+                    groupValue: selectedCarId,
+                    title: Text('${c['brand']['name']} ${c['model']['name']}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                            'Year: ${c['year']['year']} • Color: ${c['color']}',
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 14)),
+                        if (c['license_plate'] != null &&
+                            c['license_plate'].toString().isNotEmpty)
+                          Text('License Plate: ${c['license_plate']}',
+                              style: const TextStyle(
+                                  color: Colors.grey, fontSize: 14)),
+                      ],
+                    ),
+                    onChanged: (val) => setState(() => selectedCarId = val),
+                    activeColor: Colors.black,
+                  ),
+                );
+              }).toList(),
+              const SizedBox(height: 28),
+
+              // 4. Services Selection
+              sectionTitle('Services'),
+              ...services.map((s) {
+                final price = double.tryParse(s['price'].toString()) ?? 0.0;
+                final isAvailableInPackage = usePackage &&
+                    availableServices
+                        .any((service) => service['id'] == s['id']);
+                final pointsRequired = usePackage && isAvailableInPackage
+                    ? PackageService.getPointsRequiredForService(
+                        availableServices, s['id'])
+                    : null;
+
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: selectedServices.contains(s['id'])
+                          ? Colors.black
+                          : Colors.grey.shade300,
+                      width: 1.2,
+                    ),
+                  ),
+                  child: ListTile(
+                    leading: Checkbox(
+                      value: selectedServices.contains(s['id']),
+                      activeColor: Colors.black,
+                      onChanged: (val) =>
+                          toggleService(s['id'], price, val ?? false),
+                    ),
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(s['name'],
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16)),
+                        ),
+                        if (usePackage && isAvailableInPackage)
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${pointsRequired ?? 0} Points',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          )
+                        else
+                          Text(
+                            '${price.toStringAsFixed(2)} AED',
+                            style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16),
+                          ),
+                      ],
+                    ),
+                    subtitle: Text(s['description'] ?? '',
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 14)),
+                  ),
+                );
+              }).toList(),
+              const SizedBox(height: 28),
+
+              // 5. Address Selection
+              sectionTitle('Address'),
+              if (isLoadingAddresses)
+                const Center(child: CircularProgressIndicator()),
+              if (!isLoadingAddresses && savedAddresses.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ...savedAddresses.map((addr) => Card(
+                          color: selectedSavedAddress != null &&
+                                  selectedSavedAddress!['id'] == addr['id']
+                              ? Colors.green[50]
+                              : Colors.white,
+                          child: ListTile(
+                            title: Text(
+                                addr['label'] ?? addr['address'] ?? 'Address',
+                                style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold)),
+                            subtitle: Text(
+                                '${addr['street'] ?? ''} ${addr['building'] ?? ''} ${addr['floor'] ?? ''} ${addr['apartment'] ?? ''}\n${addr['address'] ?? ''}',
+                                style: const TextStyle(fontSize: 13)),
+                            trailing: selectedSavedAddress != null &&
+                                    selectedSavedAddress!['id'] == addr['id']
+                                ? const Icon(Icons.check_circle,
+                                    color: Colors.green)
+                                : null,
+                            onTap: () {
+                              setState(() {
+                                selectedSavedAddress = addr;
+                                selectedLocation = LatLng(
+                                  double.parse(addr['latitude'].toString()),
+                                  double.parse(addr['longitude'].toString()),
+                                );
+                                selectedAddress = addr['address'];
+                              });
+                            },
+                          ),
+                        )),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.add_location_alt),
+                label: const Text('Add New Address'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: () async {
+                  if (latitude == null || longitude == null) return;
+                  final picked = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MapPickerScreen(
+                        initialLocation:
+                            selectedLocation ?? LatLng(latitude!, longitude!),
+                      ),
+                    ),
+                  );
+                  if (picked != null &&
+                      picked is Map &&
+                      picked['latlng'] != null &&
+                      picked['address'] != null) {
+                    await addNewAddressDialog(
+                        picked['latlng'], picked['address']);
+                  }
+                },
+              ),
+              const SizedBox(height: 28),
+
+              // 6. Schedule Selection
+              sectionTitle('Schedule'),
+              SwitchListTile(
+                title: const Text('Request for now',
+                    style: TextStyle(fontSize: 16)),
+                value: useCurrentTime,
+                onChanged: (val) {
+                  setState(() {
+                    useCurrentTime = val;
+                    if (val) selectedDateTime = null;
+                  });
+                },
+              ),
+              if (!useCurrentTime)
+                Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 30)),
+                      );
+                      if (date != null) {
+                        final time = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.now(),
+                        );
+                        if (time != null) {
+                          setState(() {
+                            selectedDateTime = DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                              time.hour,
+                              time.minute,
+                            );
+                          });
+                        }
+                      }
+                    },
+                    child: Text(
+                      selectedDateTime != null
+                          ? 'Selected: ${selectedDateTime.toString()}'
+                          : 'Schedule for later',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24)),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 28),
+
+              // 7. Package Section (Current User Package)
+              if (userPackage != null) ...[
+                Card(
+                  color: Colors.grey.shade50,
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.card_giftcard, color: Colors.black),
+                            SizedBox(width: 8),
+                            Text(
+                              'Your Current Package',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          '${userPackage!['package']['name']} - ${userPackage!['remaining_points']} points remaining',
+                          style: TextStyle(fontSize: 14, color: Colors.black),
+                        ),
+                        SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Switch(
+                              value: usePackage,
+                              onChanged: togglePackageUsage,
+                              activeColor: Colors.black,
+                            ),
+                            Text('Use Package',
+                                style: TextStyle(color: Colors.black)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+              ],
+
+              // 8. Available Packages (Promotional)
               if (packages.isNotEmpty) ...[
                 sectionTitle('Available Packages'),
                 const SizedBox(height: 16),
@@ -670,324 +1007,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 const SizedBox(height: 32),
               ],
 
-              sectionTitle('Address'),
-              if (isLoadingAddresses)
-                const Center(child: CircularProgressIndicator()),
-              if (!isLoadingAddresses && savedAddresses.isNotEmpty)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ...savedAddresses.map((addr) => Card(
-                          color: selectedSavedAddress != null &&
-                                  selectedSavedAddress!['id'] == addr['id']
-                              ? Colors.green[50]
-                              : Colors.white,
-                          child: ListTile(
-                            title: Text(
-                                addr['label'] ?? addr['address'] ?? 'Address',
-                                style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold)),
-                            subtitle: Text(
-                                '${addr['street'] ?? ''} ${addr['building'] ?? ''} ${addr['floor'] ?? ''} ${addr['apartment'] ?? ''}\n${addr['address'] ?? ''}',
-                                style: const TextStyle(fontSize: 13)),
-                            trailing: selectedSavedAddress != null &&
-                                    selectedSavedAddress!['id'] == addr['id']
-                                ? const Icon(Icons.check_circle,
-                                    color: Colors.green)
-                                : null,
-                            onTap: () {
-                              setState(() {
-                                selectedSavedAddress = addr;
-                                selectedLocation = LatLng(
-                                  double.parse(addr['latitude'].toString()),
-                                  double.parse(addr['longitude'].toString()),
-                                );
-                                selectedAddress = addr['address'];
-                              });
-                            },
-                          ),
-                        )),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add_location_alt),
-                label: const Text('Add New Address'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                ),
-                onPressed: () async {
-                  if (latitude == null || longitude == null) return;
-                  final picked = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MapPickerScreen(
-                        initialLocation:
-                            selectedLocation ?? LatLng(latitude!, longitude!),
-                      ),
-                    ),
-                  );
-                  if (picked != null &&
-                      picked is Map &&
-                      picked['latlng'] != null &&
-                      picked['address'] != null) {
-                    await addNewAddressDialog(
-                        picked['latlng'], picked['address']);
-                  }
-                },
-              ),
-              const SizedBox(height: 28),
-
-              // Package Section
-              if (userPackage != null) ...[
-                Card(
-                  color: Colors.grey.shade50,
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.card_giftcard, color: Colors.black),
-                            SizedBox(width: 8),
-                            Text(
-                              'Your Current Package',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          '${userPackage!['package']['name']} - ${userPackage!['remaining_points']} points remaining',
-                          style: TextStyle(fontSize: 14, color: Colors.black),
-                        ),
-                        SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Switch(
-                              value: usePackage,
-                              onChanged: togglePackageUsage,
-                              activeColor: Colors.black,
-                            ),
-                            Text('Use Package',
-                                style: TextStyle(color: Colors.black)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16),
-              ],
-
-              sectionTitle('Services'),
-              ...services.map((s) {
-                final price = double.tryParse(s['price'].toString()) ?? 0.0;
-                final isAvailableInPackage = usePackage &&
-                    availableServices
-                        .any((service) => service['id'] == s['id']);
-                final pointsRequired = usePackage && isAvailableInPackage
-                    ? PackageService.getPointsRequiredForService(
-                        availableServices, s['id'])
-                    : null;
-
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: selectedServices.contains(s['id'])
-                          ? Colors.black
-                          : Colors.grey.shade300,
-                      width: 1.2,
-                    ),
-                  ),
-                  child: ListTile(
-                    leading: Checkbox(
-                      value: selectedServices.contains(s['id']),
-                      activeColor: Colors.black,
-                      onChanged: (val) =>
-                          toggleService(s['id'], price, val ?? false),
-                    ),
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(s['name'],
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16)),
-                        ),
-                        if (usePackage && isAvailableInPackage)
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.black,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${pointsRequired ?? 0} Points',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          )
-                        else
-                          Text(
-                            '${price.toStringAsFixed(2)} AED',
-                            style: const TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16),
-                          ),
-                      ],
-                    ),
-                    subtitle: Text(s['description'] ?? '',
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 14)),
-                  ),
-                );
-              }).toList(),
-              const SizedBox(height: 28),
-              sectionTitle('Your Car'),
-              TextButton.icon(
-                onPressed: () async {
-                  final added = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddCarScreen(token: widget.token),
-                    ),
-                  );
-                  if (added == true) fetchUserCars();
-                },
-                icon: const Icon(Icons.add_circle_outline, color: Colors.black),
-                label: const Text('Add a new car',
-                    style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 16)),
-              ),
-              ...cars.map((c) {
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: selectedCarId == c['id']
-                          ? Colors.black
-                          : Colors.grey.shade300,
-                      width: 1.2,
-                    ),
-                  ),
-                  child: RadioListTile<int>(
-                    value: c['id'],
-                    groupValue: selectedCarId,
-                    title: Text('${c['brand']['name']} ${c['model']['name']}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                            'Year: ${c['year']['year']} • Color: ${c['color']}',
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 14)),
-                        if (c['license_plate'] != null &&
-                            c['license_plate'].toString().isNotEmpty)
-                          Text('License Plate: ${c['license_plate']}',
-                              style: const TextStyle(
-                                  color: Colors.grey, fontSize: 14)),
-                      ],
-                    ),
-                    onChanged: (val) => setState(() => selectedCarId = val),
-                    activeColor: Colors.black,
-                  ),
-                );
-              }).toList(),
-              const SizedBox(height: 28),
-              sectionTitle('Schedule'),
-              SwitchListTile(
-                title: const Text('Request for now',
-                    style: TextStyle(fontSize: 16)),
-                value: useCurrentTime,
-                onChanged: (val) {
-                  setState(() {
-                    useCurrentTime = val;
-                    if (val) selectedDateTime = null;
-                  });
-                },
-              ),
-              if (!useCurrentTime)
-                Container(
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 30)),
-                      );
-                      if (date != null) {
-                        final time = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay.now(),
-                        );
-                        if (time != null) {
-                          setState(() {
-                            selectedDateTime = DateTime(
-                              date.year,
-                              date.month,
-                              date.day,
-                              time.hour,
-                              time.minute,
-                            );
-                          });
-                        }
-                      }
-                    },
-                    child: Text(
-                      selectedDateTime != null
-                          ? 'Selected: ${selectedDateTime.toString()}'
-                          : 'Schedule for later',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24)),
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 24),
-
-              // Order Summary Card
+              // 9. Order Summary Card (Final)
               OrderSummaryCard(
                 totalPrice: totalPrice,
                 usePackage: usePackage,
