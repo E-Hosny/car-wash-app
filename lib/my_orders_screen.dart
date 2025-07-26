@@ -61,8 +61,21 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     try {
       if (carData == null) return 'Car data not available';
 
-      final brandName = carData['brand']?['name'];
-      final modelName = carData['model']?['name'];
+      // Handle both old format (object with name) and new format (direct string)
+      String? brandName;
+      String? modelName;
+
+      if (carData['brand'] is Map) {
+        brandName = carData['brand']?['name'];
+      } else {
+        brandName = carData['brand']?.toString();
+      }
+
+      if (carData['model'] is Map) {
+        modelName = carData['model']?['name'];
+      } else {
+        modelName = carData['model']?.toString();
+      }
 
       if (brandName != null && modelName != null) {
         return '$brandName $modelName';
@@ -86,9 +99,16 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       if (servicesList.isEmpty) return 'No services';
 
       final serviceNames = servicesList
-          .map((s) => s != null && s['name'] != null
-              ? s['name'].toString()
-              : 'Unknown Service')
+          .map((s) {
+            // Handle both old format (object with name) and new format (direct string)
+            if (s is Map && s['name'] != null) {
+              return s['name'].toString();
+            } else if (s is String) {
+              return s;
+            } else {
+              return 'Unknown Service';
+            }
+          })
           .where((name) => name.isNotEmpty)
           .toList();
 
@@ -124,7 +144,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       final bool isMultiCar = order['is_multi_car'] ?? false;
       final car = order['car'];
       final services = order['services'] ?? [];
-      final multiCarDetails = order['multi_car_details'] ?? [];
+      final allCars = order['all_cars'] ?? [];
 
       return Container(
         margin: const EdgeInsets.only(bottom: 16),
@@ -208,7 +228,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               const SizedBox(height: 10),
 
               // السيارة/السيارات
-              if (isMultiCar && multiCarDetails.isNotEmpty) ...[
+              if (isMultiCar && allCars.isNotEmpty) ...[
                 // عرض السيارات المتعددة
                 Row(
                   children: [
@@ -216,7 +236,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                         color: Colors.black54),
                     const SizedBox(width: 8),
                     Text(
-                      'Cars: ${order['cars_count']} vehicles',
+                      'Cars: ${order['cars_count'] ?? allCars.length} vehicles',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.bold),
                     ),
@@ -225,8 +245,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 const SizedBox(height: 8),
 
                 // تفاصيل كل سيارة
-                for (int i = 0; i < multiCarDetails.length; i++) ...[
-                  _buildMultiCarDetail(multiCarDetails[i], i),
+                for (int i = 0; i < allCars.length; i++) ...[
+                  _buildMultiCarDetail(allCars[i], i),
                 ]
               ] else ...[
                 // عرض السيارة الواحدة (النظام القديم)
@@ -312,7 +332,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   Widget _buildMultiCarDetail(dynamic carDetail, int carIndex) {
     try {
-      final carData = carDetail != null ? carDetail['car'] : null;
+      final carData = carDetail; // The car data is directly in carDetail
       final carServices =
           carDetail != null ? (carDetail['services'] ?? []) : [];
 
