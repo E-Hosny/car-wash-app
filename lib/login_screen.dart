@@ -28,16 +28,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // Handle Saudi Arabia (+966) - for testing from Saudi Arabia
     if (phone.startsWith('966')) return phone;
-    if (phone.startsWith('5') && phone.length == 9) return '966$phone';
-    if (phone.startsWith('05') && phone.length == 10)
-      return '966${phone.substring(1)}';
+    if (phone.startsWith('5') && phone.length == 9) {
+      // Check if it's likely Saudi (for testing) or UAE
+      // For testing purposes, if user is from Saudi, they should enter 966XXXXXXXXX
+      // For UAE users, 5XXXXXXXX will be treated as UAE
+      return '971$phone'; // Default to UAE for 5XXXXXXXX format
+    }
+    if (phone.startsWith('05') && phone.length == 10) {
+      // For Saudi testing: 966XXXXXXXXX
+      // For UAE: 971XXXXXXXXX
+      return '971${phone.substring(1)}'; // Default to UAE
+    }
 
     // Handle UAE (+971) - default for UAE users
     if (phone.startsWith('971')) return phone;
-    if (phone.startsWith('5') && phone.length == 9)
-      return '971$phone'; // UAE mobile
-    if (phone.startsWith('05') && phone.length == 10)
-      return '971${phone.substring(1)}'; // UAE mobile with 0
     if (phone.startsWith('0') && phone.length == 9)
       return '971${phone.substring(1)}'; // UAE landline
 
@@ -59,10 +63,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // Check if it's a valid Saudi phone number (for testing)
     if (phone.startsWith('966') && phone.length == 12) return true;
-    if (phone.startsWith('5') && phone.length == 9)
-      return true; // Could be Saudi or UAE
-    if (phone.startsWith('05') && phone.length == 10)
-      return true; // Could be Saudi or UAE
 
     return false;
   }
@@ -183,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  'Enter your UAE phone number (must start with 971 or 5XXXXXXXX)',
+                  'Enter your UAE phone number (e.g., 5XXXXXXXX)',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.black54,
