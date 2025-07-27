@@ -1,5 +1,5 @@
 Write-Host "========================================" -ForegroundColor Green
-Write-Host "Building Car Wash App AAB File - Version 1.0.7+10" -ForegroundColor Green
+Write-Host "Building Car Wash App AAB File - Version 1.0.7+11" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 
 Write-Host ""
@@ -90,6 +90,7 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host "Step 4: Building AAB file" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "This step may take several minutes..." -ForegroundColor Yellow
+Write-Host "Building version 1.0.7+11..." -ForegroundColor Cyan
 Write-Host ""
 try {
     flutter build appbundle --release
@@ -106,64 +107,50 @@ try {
     Write-Host "Please check:" -ForegroundColor Yellow
     Write-Host "1. Android SDK is installed" -ForegroundColor White
     Write-Host "2. android/key.properties file exists" -ForegroundColor White
-    Write-Host "3. Keystore file exists and is valid" -ForegroundColor White
+    Write-Host "3. Signing configuration is correct" -ForegroundColor White
     Write-Host "4. Sufficient disk space available" -ForegroundColor White
     Write-Host ""
     Read-Host "Press Enter to exit"
     exit 1
 }
+
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "✅ SUCCESS: AAB file created successfully!" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "📁 File location: build\app\outputs\bundle\release\app-release.aab" -ForegroundColor Cyan
+Write-Host "📱 Version: 1.0.7+11" -ForegroundColor Cyan
+Write-Host "📊 Expected file size: 15-25 MB" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "🚀 Ready for Google Play upload!" -ForegroundColor Green
+Write-Host ""
+Write-Host "Next steps:" -ForegroundColor Yellow
+Write-Host "1. Go to https://play.google.com/console" -ForegroundColor White
+Write-Host "2. Select your app" -ForegroundColor White
+Write-Host "3. Go to Production → Create new release" -ForegroundColor White
+Write-Host "4. Upload the AAB file" -ForegroundColor White
+Write-Host "5. Add release notes" -ForegroundColor White
+Write-Host "6. Start review process" -ForegroundColor White
 Write-Host ""
 
-Write-Host "========================================" -ForegroundColor Green
-Write-Host "Build completed successfully!" -ForegroundColor Green
-Write-Host "========================================" -ForegroundColor Green
-Write-Host ""
-
-Write-Host "Checking for AAB file..." -ForegroundColor Yellow
-
-$filePath = "build/app/outputs/bundle/release/app-release.aab"
-if (Test-Path $filePath) {
-    $fileSize = (Get-Item $filePath).Length / 1MB
-    Write-Host "✅ AAB file created successfully!" -ForegroundColor Green
+# Check if AAB file exists
+Write-Host "Checking if AAB file exists..." -ForegroundColor Yellow
+$aabPath = "build\app\outputs\bundle\release\app-release.aab"
+if (Test-Path $aabPath) {
+    Write-Host "✅ AAB file found!" -ForegroundColor Green
+    $fileSize = (Get-Item $aabPath).Length
+    Write-Host "📊 File size: $fileSize bytes" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "📁 File location: $filePath" -ForegroundColor Cyan
-    Write-Host "📊 File size: $([math]::Round($fileSize, 2)) MB" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "📱 Version: 1.0.6+8" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "🎉 Ready for Google Play upload!" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Next steps:" -ForegroundColor Yellow
-    Write-Host "1. Go to https://play.google.com/console" -ForegroundColor White
-    Write-Host "2. Select your app" -ForegroundColor White
-    Write-Host "3. Go to Production → Create new release" -ForegroundColor White
-    Write-Host "4. Upload the AAB file" -ForegroundColor White
-    Write-Host "5. Add release notes" -ForegroundColor White
-    Write-Host "6. Start review process" -ForegroundColor White
-    Write-Host ""
+    Write-Host "Opening file location..." -ForegroundColor Yellow
+    Start-Process "build\app\outputs\bundle\release"
 } else {
-    Write-Host "❌ AAB file not found at: $filePath" -ForegroundColor Red
+    Write-Host "❌ ERROR: AAB file not found!" -ForegroundColor Red
+    Write-Host "Expected location: build\app\outputs\bundle\release\app-release.aab" -ForegroundColor White
     Write-Host ""
-    Write-Host "Checking build directory structure:" -ForegroundColor Yellow
-    if (Test-Path "build/app/outputs/bundle/release/") {
-        Get-ChildItem "build/app/outputs/bundle/release/" -Recurse | Format-Table Name, Length, LastWriteTime
-    } else {
-        Write-Host "Build directory not found" -ForegroundColor Red
-        Write-Host ""
-        Write-Host "Checking if build directory exists:" -ForegroundColor Yellow
-        if (Test-Path "build/") {
-            Write-Host "Build directory exists, checking contents:" -ForegroundColor White
-            Get-ChildItem "build/" -Recurse | Format-Table Name, Length, LastWriteTime
-        } else {
-            Write-Host "Build directory does not exist" -ForegroundColor Red
-        }
-    }
-    Write-Host ""
+    Write-Host "Please check the build output for errors." -ForegroundColor Yellow
 }
 
-Write-Host "========================================" -ForegroundColor Green
-Write-Host "Build process completed" -ForegroundColor Green
-Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "Press any key to continue..."
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") 
+Write-Host "✅ Build process completed!" -ForegroundColor Green
+Read-Host "Press Enter to exit" 

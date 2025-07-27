@@ -2,7 +2,8 @@
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo Building Car Wash App AAB File - Version 1.0.7+10
+echo 🚀 Building Car Wash App AAB File
+echo Version: 1.0.7+11
 echo ========================================
 
 echo.
@@ -84,6 +85,7 @@ echo ========================================
 echo Step 4: Building AAB file
 echo ========================================
 echo This step may take several minutes...
+echo Building version 1.0.7+11...
 echo.
 flutter build appbundle --release
 if %errorlevel% neq 0 (
@@ -98,70 +100,49 @@ if %errorlevel% neq 0 (
     echo Please check:
     echo 1. Android SDK is installed
     echo 2. android/key.properties file exists
-    echo 3. Keystore file exists and is valid
+    echo 3. Signing configuration is correct
     echo 4. Sufficient disk space available
     echo.
     pause
     exit /b 1
 )
-echo ✅ AAB build completed successfully
+
+echo.
+echo ========================================
+echo ✅ SUCCESS: AAB file created successfully!
+echo ========================================
+echo.
+echo 📁 File location: build\app\outputs\bundle\release\app-release.aab
+echo 📱 Version: 1.0.7+11
+echo 📊 Expected file size: 15-25 MB
+echo.
+echo 🚀 Ready for Google Play upload!
+echo.
+echo Next steps:
+echo 1. Go to https://play.google.com/console
+echo 2. Select your app
+echo 3. Go to Production → Create new release
+echo 4. Upload the AAB file
+echo 5. Add release notes
+echo 6. Start review process
 echo.
 
-echo ========================================
-echo Build completed successfully!
-echo ========================================
-echo.
-
-echo Checking for AAB file...
-
-set "AAB_PATH=build\app\outputs\bundle\release\app-release.aab"
-if exist "%AAB_PATH%" (
-    echo ✅ AAB file created successfully!
-    echo.
-    echo 📁 File location: %AAB_PATH%
-    echo.
-    
-    for %%A in ("%AAB_PATH%") do (
-        set "SIZE=%%~zA"
-        set /a "SIZE_MB=!SIZE!/1048576"
-        echo 📊 File size: !SIZE_MB! MB
+echo Checking if AAB file exists...
+if exist "build\app\outputs\bundle\release\app-release.aab" (
+    echo ✅ AAB file found!
+    for %%A in ("build\app\outputs\bundle\release\app-release.aab") do (
+        echo 📊 File size: %%~zA bytes
     )
-    
     echo.
-    echo 📱 Version: 1.0.6+8
-    echo.
-    echo 🎉 Ready for Google Play upload!
-    echo.
-    echo Next steps:
-    echo 1. Go to https://play.google.com/console
-    echo 2. Select your app
-    echo 3. Go to Production → Create new release
-    echo 4. Upload the AAB file
-    echo 5. Add release notes
-    echo 6. Start review process
-    echo.
+    echo Opening file location...
+    explorer "build\app\outputs\bundle\release"
 ) else (
-    echo ❌ AAB file not found at: %AAB_PATH%
+    echo ❌ ERROR: AAB file not found!
+    echo Expected location: build\app\outputs\bundle\release\app-release.aab
     echo.
-    echo Checking build directory structure:
-    if exist "build\app\outputs\bundle\release\" (
-        dir "build\app\outputs\bundle\release\" /s
-    ) else (
-        echo Build directory not found
-        echo.
-        echo Checking if build directory exists:
-        if exist "build\" (
-            echo Build directory exists, checking contents:
-            dir "build\" /s
-        ) else (
-            echo Build directory does not exist
-        )
-    )
-    echo.
+    echo Please check the build output for errors.
 )
 
-echo ========================================
-echo Build process completed
-echo ========================================
 echo.
+echo ✅ Build process completed!
 pause 
