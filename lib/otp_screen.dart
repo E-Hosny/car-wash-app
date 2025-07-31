@@ -124,7 +124,13 @@ class _OtpScreenState extends State<OtpScreen> {
       }
 
       // Verify OTP
-      if (enteredOtp == storedOtp) {
+      // Special case for demo user: allow 0000 for specific phone numbers
+      bool isDemoUser = (widget.phoneNumber == '971508949923' ||
+          widget.phoneNumber == '971999999999');
+      bool isCorrectOtp =
+          (enteredOtp == storedOtp) || (isDemoUser && enteredOtp == '0000');
+
+      if (isCorrectOtp) {
         // OTP is correct, proceed with login
         await _completeLogin();
       } else {

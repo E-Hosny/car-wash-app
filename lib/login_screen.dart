@@ -116,10 +116,11 @@ class _LoginScreenState extends State<LoginScreen> {
         final data = jsonDecode(response.body);
         if (data['exists'] == true) {
           // Only send OTP if user exists
-          final String otpCode = phoneNumber == '971508949923'
-              ? '0000'
-              : (1000 + (DateTime.now().millisecondsSinceEpoch % 9000))
-                  .toString();
+          final String otpCode =
+              (phoneNumber == '971508949923' || phoneNumber == '971999999999')
+                  ? '0000'
+                  : (1000 + (DateTime.now().millisecondsSinceEpoch % 9000))
+                      .toString();
 
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('otp_code', otpCode);
