@@ -73,7 +73,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   MaterialPageRoute(
                     builder: (context) => const MainNavigationScreen(
                       isGuest: true,
-                      initialIndex: 1, // Start with packages tab
+                      initialIndex: 0, // Start with services tab
                     ),
                   ),
                 );
