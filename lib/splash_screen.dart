@@ -34,25 +34,69 @@ class _SplashScreenState extends State<SplashScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => MainNavigationScreen(token: token),
+            builder: (context) =>
+                MainNavigationScreen(token: token, isGuest: false),
           ),
         );
       } else {
-        print('❌ No token found, navigating to LoginScreen');
+        print('❌ No token found, showing guest options');
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
+        _showGuestDialog();
       }
     } catch (e) {
       print('❌ Error in _checkLoginStatus: $e');
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
+      _showGuestDialog();
     }
+  }
+
+  void _showGuestDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Welcome to Car Wash App',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'You can browse our services as a guest or login to access full features including placing orders.',
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Browse as Guest'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MainNavigationScreen(
+                      isGuest: true,
+                      initialIndex: 1, // Start with packages tab
+                    ),
+                  ),
+                );
+              },
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Login'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override

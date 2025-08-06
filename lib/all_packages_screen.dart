@@ -4,11 +4,13 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'payment_screen.dart';
+import 'login_screen.dart';
 
 class AllPackagesScreen extends StatefulWidget {
-  final String token;
+  final String? token; // Made nullable for guest mode
+  final bool isGuest;
 
-  const AllPackagesScreen({super.key, required this.token});
+  const AllPackagesScreen({super.key, this.token, this.isGuest = false});
 
   @override
   State<AllPackagesScreen> createState() => _AllPackagesScreenState();
@@ -39,9 +41,13 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
         return;
       }
 
+      final headers = widget.isGuest
+          ? <String, String>{}
+          : {'Authorization': 'Bearer ${widget.token}'};
+
       final res = await http.get(
         Uri.parse('$baseUrl/api/packages'),
-        headers: {'Authorization': 'Bearer ${widget.token}'},
+        headers: headers,
       );
 
       if (res.statusCode == 200) {
@@ -66,6 +72,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
   }
 
   Future<void> fetchUserPackage() async {
+    if (widget.isGuest || widget.token == null) return; // Skip for guest users
+
     try {
       final baseUrl = dotenv.env['BASE_URL'];
       if (baseUrl == null || baseUrl.isEmpty) return;
@@ -338,7 +346,9 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                       child: ElevatedButton(
                         onPressed: isCurrentPackage
                             ? null
-                            : () => _showPurchaseDialog(package),
+                            : widget.isGuest
+                                ? () => _showLoginPrompt()
+                                : () => _showPurchaseDialog(package),
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
                               isCurrentPackage ? Colors.green : Colors.black,
@@ -562,6 +572,37 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
     );
   }
 
+  void _showLoginPrompt() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Login Required'),
+          content: const Text(
+              'You need to login to purchase packages. Would you like to login now?'),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Login'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _purchasePackage(Map<String, dynamic> package) async {
     try {
       final baseUrl = dotenv.env['BASE_URL'];
@@ -620,7 +661,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
         context,
         MaterialPageRoute(
           builder: (context) => PaymentScreen(
-            token: widget.token,
+            token: widget.token!,
             amount: priceValue,
             orderId: orderId,
             orderData: {
