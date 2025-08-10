@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'otp_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_screen.dart';
+import 'main_navigation_screen.dart'; // Added import for MainNavigationScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -115,6 +116,13 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['exists'] == true) {
+          // Special case: bypass OTP for 971000000000
+          if (phoneNumber == '971000000000') {
+            // Direct login without OTP for this specific number
+            await _directLogin(phoneNumber);
+            return;
+          }
+
           // Only send OTP if user exists
           final String otpCode =
               (phoneNumber == '971508949923' || phoneNumber == '971999999999')
@@ -151,6 +159,57 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         setState(() {
           generalError = 'Connection error. Please try again.';
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        generalError = 'Connection error. Please try again.';
+        isLoading = false;
+      });
+    }
+  }
+
+  // New method for direct login without OTP
+  Future<void> _directLogin(String phoneNumber) async {
+    try {
+      final baseUrl = dotenv.env['BASE_URL']!;
+      final url = Uri.parse('$baseUrl/api/login-with-otp');
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'phone': phoneNumber,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final token = data['token'];
+
+        // Save token for persistent login
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', token);
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Login successful')),
+        );
+
+        // Navigate directly to main screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MainNavigationScreen(token: token),
+          ),
+        );
+      } else {
+        setState(() {
+          generalError = 'Login failed. Please try again.';
           isLoading = false;
         });
       }
