@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'order_request_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   final String token;
@@ -14,6 +15,7 @@ class MyOrdersScreen extends StatefulWidget {
 
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
   List orders = [];
+  bool isLoading = true; // Add loading state
 
   @override
   void initState() {
@@ -22,6 +24,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   Future<void> fetchOrders() async {
+    setState(() {
+      isLoading = true; // Start loading
+    });
+
     try {
       final baseUrl = dotenv.env['BASE_URL']!;
       final res = await http.get(
@@ -37,21 +43,25 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         if (ordersData != null && ordersData is List) {
           setState(() {
             orders = ordersData;
+            isLoading = false; // Stop loading
           });
         } else {
           setState(() {
             orders = [];
+            isLoading = false; // Stop loading
           });
         }
       } else {
         setState(() {
           orders = [];
+          isLoading = false; // Stop loading
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           orders = [];
+          isLoading = false; // Stop loading
         });
       }
     }
@@ -388,31 +398,108 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             colors: [Colors.white, Color(0xFFF5F5F7)],
           ),
         ),
-        child: orders.isEmpty
+        child: isLoading
             ? const Center(child: CircularProgressIndicator())
-            : Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16, bottom: 16),
-                    child: Center(
-                      child: Image.asset(
-                        'assets/logo.png',
-                        height: 120,
-                        fit: BoxFit.contain,
+            : orders.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.shopping_cart_outlined,
+                          size: 80,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'No Orders Yet',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'You haven\'t placed any orders yet.\nStart by creating your first order!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey.shade500,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    OrderRequestScreen(token: widget.token),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(25),
+                              border: Border.all(
+                                color: Colors.blue.shade200,
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.add_shopping_cart,
+                                  size: 20,
+                                  color: Colors.blue.shade600,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Create New Order',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16, bottom: 16),
+                        child: Center(
+                          child: Image.asset(
+                            'assets/logo.png',
+                            height: 120,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                       ),
-                    ),
+                      // Orders List
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: orders.length,
+                          itemBuilder: (context, index) =>
+                              _buildOrderCard(orders[index], index),
+                        ),
+                      ),
+                    ],
                   ),
-                  // Orders List
-                  Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: orders.length,
-                      itemBuilder: (context, index) =>
-                          _buildOrderCard(orders[index], index),
-                    ),
-                  ),
-                ],
-              ),
       ),
     );
   }
