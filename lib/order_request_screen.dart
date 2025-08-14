@@ -22,6 +22,7 @@ import 'widgets/optimized_package_card.dart';
 import 'main_navigation_screen.dart';
 import 'screens/my_package_screen.dart';
 import 'multi_car_order_screen.dart';
+import 'services/config_service.dart';
 
 class OrderRequestScreen extends StatefulWidget {
   final String token;
@@ -62,6 +63,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   List<Map<String, dynamic>> savedAddresses = [];
   Map<String, dynamic>? selectedSavedAddress;
   bool isLoadingAddresses = false;
+  bool packagesEnabled = true;
 
   @override
   void initState() {
@@ -73,8 +75,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       fetchUserCars();
       determineCurrentPosition();
       fetchSavedAddresses();
-      checkUserPackage();
-      fetchPackages(); // إضافة جلب الباقات
+      _loadConfigAndPackages();
 
       // إضافة مستمع لتحديث مؤشرات الصفحات
       _packagePageController.addListener(() {
@@ -84,6 +85,20 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       print('✅ OrderRequestScreen initState completed successfully');
     } catch (e) {
       print('❌ Error in OrderRequestScreen initState: $e');
+    }
+  }
+
+  Future<void> _loadConfigAndPackages() async {
+    packagesEnabled = await ConfigService.fetchPackagesEnabled();
+    if (!mounted) return;
+    setState(() {});
+    if (packagesEnabled) {
+      checkUserPackage();
+      fetchPackages();
+    } else {
+      setState(() {
+        isLoadingPackages = false;
+      });
     }
   }
 
@@ -877,7 +892,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
               const SizedBox(height: 28),
 
               // 7. Package Section (Current User Package)
-              if (userPackage != null) ...[
+              if (packagesEnabled && userPackage != null) ...[
                 Card(
                   color: Colors.grey.shade50,
                   child: Padding(
@@ -924,7 +939,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
               ],
 
               // 8. Available Packages (Promotional)
-              if (packages.isNotEmpty) ...[
+              if (packagesEnabled && packages.isNotEmpty) ...[
                 sectionTitle('Available Packages'),
                 const SizedBox(height: 16),
                 Container(

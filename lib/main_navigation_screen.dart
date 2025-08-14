@@ -5,6 +5,7 @@ import 'all_packages_screen.dart';
 import 'guest_services_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
+import 'services/config_service.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final String? token; // Made nullable to support guest mode
@@ -24,11 +25,26 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   late int currentIndex;
+  bool packagesEnabled = true;
+  bool loadingConfig = true;
 
   @override
   void initState() {
     super.initState();
     currentIndex = widget.initialIndex;
+    _loadConfig();
+  }
+
+  Future<void> _loadConfig() async {
+    final enabled = await ConfigService.fetchPackagesEnabled();
+    if (!mounted) return;
+    setState(() {
+      packagesEnabled = enabled;
+      loadingConfig = false;
+      if (!packagesEnabled && currentIndex == 1) {
+        currentIndex = 0;
+      }
+    });
   }
 
   void _showLoginPrompt() {
@@ -64,18 +80,128 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (loadingConfig) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final screens = widget.isGuest
-        ? [
-            // Guest can browse services
-            const GuestServicesScreen(),
-            AllPackagesScreen(token: widget.token, isGuest: true),
-            const _LoginPromptScreen(), // Show login prompt for orders
-          ]
-        : [
-            OrderRequestScreen(token: widget.token!),
-            AllPackagesScreen(token: widget.token, isGuest: false),
-            MyOrdersScreen(token: widget.token!),
-          ];
+        ? (packagesEnabled
+            ? [
+                const GuestServicesScreen(),
+                AllPackagesScreen(token: widget.token, isGuest: true),
+                const _LoginPromptScreen(),
+              ]
+            : [
+                const GuestServicesScreen(),
+                const _LoginPromptScreen(),
+              ])
+        : (packagesEnabled
+            ? [
+                OrderRequestScreen(token: widget.token!),
+                AllPackagesScreen(token: widget.token, isGuest: false),
+                MyOrdersScreen(token: widget.token!),
+              ]
+            : [
+                OrderRequestScreen(token: widget.token!),
+                MyOrdersScreen(token: widget.token!),
+              ]);
+
+    final items = widget.isGuest
+        ? (packagesEnabled
+            ? [
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    Icons.design_services_outlined,
+                  ),
+                  activeIcon: Icon(
+                    Icons.design_services,
+                  ),
+                  label: 'Services',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.card_giftcard_outlined),
+                  activeIcon: Icon(Icons.card_giftcard),
+                  label: 'Packages',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    Icons.receipt_long_outlined,
+                    color: Colors.grey[400],
+                  ),
+                  activeIcon: Icon(
+                    Icons.receipt_long,
+                    color: Colors.grey[400],
+                  ),
+                  label: 'Orders',
+                ),
+              ]
+            : [
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    Icons.design_services_outlined,
+                  ),
+                  activeIcon: Icon(
+                    Icons.design_services,
+                  ),
+                  label: 'Services',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    Icons.receipt_long_outlined,
+                    color: Colors.grey[400],
+                  ),
+                  activeIcon: Icon(
+                    Icons.receipt_long,
+                    color: Colors.grey[400],
+                  ),
+                  label: 'Orders',
+                ),
+              ])
+        : (packagesEnabled
+            ? [
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    Icons.local_car_wash_outlined,
+                  ),
+                  activeIcon: Icon(
+                    Icons.local_car_wash,
+                  ),
+                  label: 'New Order',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.card_giftcard_outlined),
+                  activeIcon: Icon(Icons.card_giftcard),
+                  label: 'Packages',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.receipt_long_outlined),
+                  activeIcon: Icon(Icons.receipt_long),
+                  label: 'Orders',
+                ),
+              ]
+            : [
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    Icons.local_car_wash_outlined,
+                  ),
+                  activeIcon: Icon(
+                    Icons.local_car_wash,
+                  ),
+                  label: 'New Order',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.receipt_long_outlined),
+                  activeIcon: Icon(Icons.receipt_long),
+                  label: 'Orders',
+                ),
+              ]);
+
+    // Ensure currentIndex is within range
+    if (currentIndex >= screens.length) {
+      currentIndex = 0;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -126,8 +252,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         backgroundColor: Colors.white,
         currentIndex: currentIndex,
         onTap: (index) {
-          if (widget.isGuest && index == 2) {
-            // Show login prompt for Orders tab in guest mode
+          if (widget.isGuest && !packagesEnabled && index == 1) {
+            _showLoginPrompt();
+            return;
+          }
+          if (widget.isGuest && packagesEnabled && index == 2) {
             _showLoginPrompt();
             return;
           }
@@ -140,37 +269,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
         type: BottomNavigationBarType.fixed,
         elevation: 10,
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(
-              widget.isGuest
-                  ? Icons.design_services_outlined
-                  : Icons.local_car_wash_outlined,
-            ),
-            activeIcon: Icon(
-              widget.isGuest ? Icons.design_services : Icons.local_car_wash,
-            ),
-            label: widget.isGuest ? 'Services' : 'New Order',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.card_giftcard_outlined),
-            activeIcon: Icon(Icons.card_giftcard),
-            label: 'Packages',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              widget.isGuest
-                  ? Icons.receipt_long_outlined
-                  : Icons.receipt_long_outlined,
-              color: widget.isGuest ? Colors.grey[400] : null,
-            ),
-            activeIcon: Icon(
-              Icons.receipt_long,
-              color: widget.isGuest ? Colors.grey[400] : null,
-            ),
-            label: 'Orders',
-          ),
-        ],
+        items: items,
       ),
     );
   }
