@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'order_request_screen.dart';
+import 'main_navigation_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   final String token;
@@ -432,11 +433,13 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                         const SizedBox(height: 30),
                         GestureDetector(
                           onTap: () {
-                            Navigator.push(
+                            Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    OrderRequestScreen(token: widget.token),
+                                builder: (context) => MainNavigationScreen(
+                                  token: widget.token,
+                                  initialIndex: 0, // New Order tab
+                                ),
                               ),
                             );
                           },
