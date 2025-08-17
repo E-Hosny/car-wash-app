@@ -45,5 +45,27 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- Location Permissions for iOS -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs access to location to show your current location on the map and help you select addresses for car wash services.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs access to location to show your current location on the map and help you select addresses for car wash services.</string>
+	
+	<!-- Google Maps API Key -->
+	<key>io.flutter.embedded_views_preview</key>
+	<true/>
+	
+	<!-- Additional Location Permissions -->
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app needs access to location to show your current location on the map and help you select addresses for car wash services.</string>
+	
+	<!-- Camera Permission for Maps -->
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access for map features.</string>
+	
+	<!-- Microphone Permission for Maps -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs microphone access for map features.</string>
 </dict>
 </plist>

@@ -23,27 +23,62 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   void initState() {
     super.initState();
     _selectedLocation = widget.initialLocation;
+    // Automatically go to current location when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _goToCurrentLocation();
+    });
   }
 
   Future<void> _goToCurrentLocation() async {
     setState(() => _loading = true);
     try {
-      LocationPermission permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied ||
+      // Check if location permission is granted
+      LocationPermission permission = await Geolocator.checkPermission();
+      
+      if (permission == LocationPermission.denied) {
+        // Request permission if not granted
+        permission = await Geolocator.requestPermission();
+      }
+      
+      if (permission == LocationPermission.denied || 
           permission == LocationPermission.deniedForever) {
         setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location permission denied. Please enable location access in settings.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
         return;
       }
+      
+      // Get current position
       Position pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
+      
+      if (!mounted) return;
+      
+      // Update map and location
       _mapController?.animateCamera(
           CameraUpdate.newLatLng(LatLng(pos.latitude, pos.longitude)));
       setState(() {
         _selectedLocation = LatLng(pos.latitude, pos.longitude);
         _loading = false;
       });
+      
+      print('✅ Moved to current location: ${pos.latitude}, ${pos.longitude}');
+      
     } catch (e) {
       setState(() => _loading = false);
+      print('❌ Error getting current location: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error getting current location: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
   }
 
@@ -72,7 +107,16 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               target: _selectedLocation!,
               zoom: 16,
             ),
-            onMapCreated: (controller) => _mapController = controller,
+            onMapCreated: (controller) {
+              _mapController = controller;
+              // If we have a current location, move to it
+              if (_selectedLocation != null && 
+                  _selectedLocation != widget.initialLocation) {
+                controller.animateCamera(
+                  CameraUpdate.newLatLng(_selectedLocation!),
+                );
+              }
+            },
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: true,

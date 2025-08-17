@@ -112,15 +112,42 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
   }
 
   Future<void> determineCurrentPosition() async {
-    await Permission.location.request();
-    Position pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
+    try {
+      // Request location permission
+      var permission = await Permission.location.request();
+      
+      if (permission.isGranted) {
+        // Try to get current position
+        Position pos = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high);
+        if (!mounted) return;
+        setState(() {
+          latitude = pos.latitude;
+          longitude = pos.longitude;
+          selectedLocation = LatLng(latitude!, longitude!);
+        });
+        debugPrint('✅ Current position obtained: $latitude, $longitude');
+      } else {
+        // If permission denied, use default location (Dubai)
+        debugPrint('⚠️ Location permission denied, using default location');
+        _setDefaultLocation();
+      }
+    } catch (e) {
+      debugPrint('❌ Error getting current position: $e');
+      // Use default location on error
+      _setDefaultLocation();
+    }
+  }
+
+  void _setDefaultLocation() {
     if (!mounted) return;
     setState(() {
-      latitude = pos.latitude;
-      longitude = pos.longitude;
+      // Default location: Dubai, UAE
+      latitude = 25.2048;
+      longitude = 55.2708;
       selectedLocation = LatLng(latitude!, longitude!);
     });
+    debugPrint('📍 Using default location: Dubai, UAE ($latitude, $longitude)');
   }
 
   Future<void> fetchServices() async {
@@ -1053,21 +1080,44 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
           onPressed: () async {
-            if (latitude == null || longitude == null) return;
-            final picked = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MapPickerScreen(
-                  initialLocation:
-                      selectedLocation ?? LatLng(latitude!, longitude!),
+            try {
+              if (latitude == null || longitude == null) {
+                // If no location available, show error and try to get default location
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('No location available. Please wait or check location permissions.'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                // Try to get default location
+                _setDefaultLocation();
+                return;
+              }
+              
+              debugPrint('🗺️ Opening map picker with location: $latitude, $longitude');
+              final picked = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MapPickerScreen(
+                    initialLocation:
+                        selectedLocation ?? LatLng(latitude!, longitude!),
+                  ),
                 ),
-              ),
-            );
-            if (picked != null &&
-                picked is Map &&
-                picked['latlng'] != null &&
-                picked['address'] != null) {
-              await addNewAddressDialog(picked['latlng'], picked['address']);
+              );
+              if (picked != null &&
+                  picked is Map &&
+                  picked['latlng'] != null &&
+                  picked['address'] != null) {
+                await addNewAddressDialog(picked['latlng'], picked['address']);
+              }
+            } catch (e) {
+              debugPrint('❌ Error opening map picker: $e');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error opening map: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
             }
           },
         ),
