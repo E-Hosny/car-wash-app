@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'order_request_screen.dart';
+import 'home_screen.dart';
 import 'my_orders_screen.dart';
 import 'all_packages_screen.dart';
 import 'guest_services_screen.dart';
@@ -99,12 +99,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ])
         : (packagesEnabled
             ? [
-                OrderRequestScreen(token: widget.token!),
+                HomeScreen(token: widget.token!),
                 AllPackagesScreen(token: widget.token, isGuest: false),
                 MyOrdersScreen(token: widget.token!),
               ]
             : [
-                OrderRequestScreen(token: widget.token!),
+                HomeScreen(token: widget.token!),
                 MyOrdersScreen(token: widget.token!),
               ]);
 
@@ -163,12 +163,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             ? [
                 BottomNavigationBarItem(
                   icon: Icon(
-                    Icons.local_car_wash_outlined,
+                    Icons.home_outlined,
                   ),
                   activeIcon: Icon(
-                    Icons.local_car_wash,
+                    Icons.home,
                   ),
-                  label: 'New Order',
+                  label: 'Home',
                 ),
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.card_giftcard_outlined),
@@ -184,12 +184,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             : [
                 BottomNavigationBarItem(
                   icon: Icon(
-                    Icons.local_car_wash_outlined,
+                    Icons.home_outlined,
                   ),
                   activeIcon: Icon(
-                    Icons.local_car_wash,
+                    Icons.home,
                   ),
-                  label: 'New Order',
+                  label: 'Home',
                 ),
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.receipt_long_outlined),
