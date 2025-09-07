@@ -91,9 +91,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final bool isPackagePurchase =
         widget.orderData['is_package_purchase'] == true;
 
-    // Check if using package (not purchasing package)
+    // Check if using package (not purchasing package) - no payment needed
     if (widget.orderData['use_package'] == true) {
-      // Skip payment for package orders only
       setState(() {
         _isProcessing = true;
         _errorMessage = null;
@@ -118,7 +117,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       return;
     }
 
-    // For package purchases, we need to process actual payment
+    // For payment orders, process payment FIRST
     if (_paymentIntentId == null) {
       setState(() {
         _errorMessage = 'Payment intent not created';
@@ -132,20 +131,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     });
 
     try {
-      // إنشاء Order أولاً
-      final orderResponse = await _createOrder();
-
-      if (orderResponse == null) {
-        setState(() {
-          _errorMessage = isPackagePurchase
-              ? 'Failed to create package purchase'
-              : 'Failed to create order';
-          _isProcessing = false;
-        });
-        return;
-      }
-
-      // معالجة الدفع الفعلي
+      // معالجة الدفع أولاً
       await Stripe.instance.confirmPayment(
         paymentIntentClientSecret: _paymentIntentId!,
         data: PaymentMethodParams.card(
@@ -153,7 +139,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
 
-      // تم الدفع بنجاح
+      // تم الدفع بنجاح - الآن ننشئ الطلب
+      final orderResponse = await _createOrder();
+
+      if (orderResponse == null) {
+        setState(() {
+          _errorMessage = isPackagePurchase
+              ? 'Payment successful but failed to create package purchase'
+              : 'Payment successful but failed to create order';
+          _isProcessing = false;
+        });
+        return;
+      }
+
       // تحديث حالة الطلب إلى مدفوع (فقط للطلبات العادية)
       if (!isPackagePurchase && orderResponse['id'] != null) {
         await _updateOrderPaymentStatus(orderResponse['id']);
@@ -162,9 +160,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
       await _showThankYouDialog();
     } catch (e) {
       setState(() {
-        _errorMessage = isPackagePurchase
-            ? 'Package purchase failed: $e'
-            : 'Payment failed: $e';
+        // تحديد نوع الخطأ بناءً على المرحلة
+        if (e.toString().contains('Payment successful but failed to create')) {
+          _errorMessage = e.toString();
+        } else {
+          _errorMessage = isPackagePurchase
+              ? 'Package purchase payment failed: $e'
+              : 'Payment failed: $e';
+        }
         _isProcessing = false;
       });
     }
@@ -365,8 +368,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ),
                   onPressed: () {
                     Navigator.of(context).pop(); // Close dialog
-                    Navigator.of(context)
-                        .pop(true); // Return success to previous screen
+                    // Navigate to orders tab directly
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (context) => MainNavigationScreen(
+                          token: widget.token,
+                          initialIndex: 2, // Orders tab
+                        ),
+                      ),
+                      (route) => false, // Remove all previous routes
+                    );
                   },
                   child: Text('View Orders',
                       style: GoogleFonts.poppins(fontSize: 16)),
@@ -385,43 +396,75 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final bool isPackagePurchase =
         widget.orderData['is_package_purchase'] == true;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (!didPop) {
+          // Handle the back button press manually
+          Navigator.of(context).pop(false);
+        }
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          isPackagePurchase
-              ? 'Package Purchase'
-              : (isPackageOrder ? 'Package Order' : 'Payment'),
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+            onPressed: () =>
+                Navigator.pop(context, false), // Return false on back press
           ),
-        ),
-        centerTitle: true,
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.white, Color(0xFFF5F5F7)],
+          title: Text(
+            isPackagePurchase
+                ? 'Package Purchase'
+                : (isPackageOrder ? 'Package Order' : 'Payment'),
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
           ),
+          centerTitle: true,
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // شعار التطبيق
-              Center(
-                child: Container(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.white, Color(0xFFF5F5F7)],
+            ),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // شعار التطبيق
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Image.asset(
+                      'assets/logo.png',
+                      height: 80,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 30),
+
+                // تفاصيل الطلب
+                Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -434,381 +477,384 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       ),
                     ],
                   ),
-                  child: Image.asset(
-                    'assets/logo.png',
-                    height: 80,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // تفاصيل الطلب
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isPackagePurchase
-                          ? 'Package Summary'
-                          : (isPackageOrder
-                              ? 'Package Order Summary'
-                              : 'Order Summary'),
-                      style: GoogleFonts.poppins(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    if (isPackagePurchase) ...[
-                      _buildSummaryRow('Package ID', widget.orderId),
-                      _buildSummaryRow(
-                          'Amount', '${widget.amount.toStringAsFixed(2)} AED'),
-                      _buildSummaryRow('Payment Method', 'Credit/Debit Card'),
-                    ] else ...[
-                      _buildSummaryRow('Order ID', widget.orderId),
-                      if (isPackageOrder) ...[
-                        _buildSummaryRow('Payment Method', 'Package Points'),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(15),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(15),
-                            border:
-                                Border.all(color: Colors.blue.withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.card_giftcard, color: Colors.blue),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'This order will be paid using your package points',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    color: Colors.blue,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isPackagePurchase
+                            ? 'Package Summary'
+                            : (isPackageOrder
+                                ? 'Package Order Summary'
+                                : 'Order Summary'),
+                        style: GoogleFonts.poppins(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
                         ),
-                      ] else ...[
+                      ),
+                      const SizedBox(height: 15),
+                      if (isPackagePurchase) ...[
+                        _buildSummaryRow('Package ID', widget.orderId),
                         _buildSummaryRow('Amount',
                             '${widget.amount.toStringAsFixed(2)} AED'),
                         _buildSummaryRow('Payment Method', 'Credit/Debit Card'),
-                      ],
-                    ],
-                    const SizedBox(height: 20),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(15),
-                        border:
-                            Border.all(color: Colors.green.withOpacity(0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.security, color: Colors.green),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Secure payment powered by Stripe',
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: Colors.green,
-                                fontWeight: FontWeight.w500,
-                              ),
+                      ] else ...[
+                        _buildSummaryRow('Order ID', widget.orderId),
+                        if (isPackageOrder) ...[
+                          _buildSummaryRow('Payment Method', 'Package Points'),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(
+                                  color: Colors.blue.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.card_giftcard, color: Colors.blue),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'This order will be paid using your package points',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: Colors.blue,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
+                        ] else ...[
+                          _buildSummaryRow('Amount',
+                              '${widget.amount.toStringAsFixed(2)} AED'),
+                          _buildSummaryRow(
+                              'Payment Method', 'Credit/Debit Card'),
                         ],
+                      ],
+                      const SizedBox(height: 20),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(15),
+                          border:
+                              Border.all(color: Colors.green.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.security, color: Colors.green),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Secure payment powered by Stripe',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 30),
+                const SizedBox(height: 30),
 
-              // رسالة الخطأ
-              if (_errorMessage != null)
+                // رسالة الخطأ
+                if (_errorMessage != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(context, false);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.grey,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: Text('Cancel'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _errorMessage = null;
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: Text('Try Again'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                if (_errorMessage != null) const SizedBox(height: 20),
+
+                // أزرار الدفع
+                if (!isPackageOrder &&
+                    !isPackagePurchase &&
+                    _paymentIntentId == null)
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _createPaymentIntent,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : Text(
+                              'Initialize Payment',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
+
+                // زر تأكيد طلب الباقة (لا يحتاج دفع)
+                if (isPackageOrder)
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.2),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: ElevatedButton(
+                      onPressed: _isProcessing ? null : _processPayment,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                      ),
+                      child: _isProcessing
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.card_giftcard, size: 20),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Confirm Package Order',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+
+                // حقل إدخال بيانات البطاقة وزر الدفع لشراء الباقات
+                if (_paymentIntentId != null &&
+                    (isPackagePurchase ||
+                        (!isPackageOrder && !isPackagePurchase))) ...[
+                  const SizedBox(height: 20),
+                  // حقل إدخال بيانات البطاقة
+                  CardField(
+                    onCardChanged: (card) {
+                      setState(() {
+                        _card = card;
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: 'Card Details',
+                    ),
+                    style: GoogleFonts.poppins(fontSize: 16),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              (isPackagePurchase ? Colors.green : Colors.black)
+                                  .withOpacity(0.2),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: ElevatedButton(
+                      onPressed: (_isProcessing || !(_card?.complete ?? false))
+                          ? null
+                          : _processPayment,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            isPackagePurchase ? Colors.green : Colors.black,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                      ),
+                      child: _isProcessing
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                    isPackagePurchase
+                                        ? Icons.shopping_cart
+                                        : Icons.payment,
+                                    size: 20),
+                                const SizedBox(width: 10),
+                                Text(
+                                  isPackagePurchase
+                                      ? 'Purchase Package - ${widget.amount.toStringAsFixed(2)} AED'
+                                      : 'Pay ${widget.amount.toStringAsFixed(2)} AED',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 30),
+
+                // معلومات إضافية
                 Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(15),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.blue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.error_outline, color: Colors.red),
+                          Icon(Icons.info_outline,
+                              color: Colors.blue, size: 20),
                           const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _errorMessage!,
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: Colors.red,
-                              ),
+                          Text(
+                            'Payment Information',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 10),
-                      ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _errorMessage = null;
-                          });
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                      Text(
+                        '• Your payment is secured by Stripe\n• No card details are stored on our servers\n• You will receive a confirmation email\n• Payment is processed in real-time',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          height: 1.5,
                         ),
-                        child: Text('Try Again'),
                       ),
                     ],
-                  ),
-                ),
-
-              if (_errorMessage != null) const SizedBox(height: 20),
-
-              // أزرار الدفع
-              if (!isPackageOrder &&
-                  !isPackagePurchase &&
-                  _paymentIntentId == null)
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _createPaymentIntent,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : Text(
-                            'Initialize Payment',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ),
-
-              // زر تأكيد طلب الباقة (لا يحتاج دفع)
-              if (isPackageOrder)
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.2),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: _isProcessing ? null : _processPayment,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
-                    child: _isProcessing
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.card_giftcard, size: 20),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Confirm Package Order',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-
-              // حقل إدخال بيانات البطاقة وزر الدفع لشراء الباقات
-              if (_paymentIntentId != null &&
-                  (isPackagePurchase ||
-                      (!isPackageOrder && !isPackagePurchase))) ...[
-                const SizedBox(height: 20),
-                // حقل إدخال بيانات البطاقة
-                CardField(
-                  onCardChanged: (card) {
-                    setState(() {
-                      _card = card;
-                    });
-                  },
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Card Details',
-                  ),
-                  style: GoogleFonts.poppins(fontSize: 16),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: (isPackagePurchase ? Colors.green : Colors.black)
-                            .withOpacity(0.2),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: (_isProcessing || !(_card?.complete ?? false))
-                        ? null
-                        : _processPayment,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isPackagePurchase ? Colors.green : Colors.black,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
-                    child: _isProcessing
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                  isPackagePurchase
-                                      ? Icons.shopping_cart
-                                      : Icons.payment,
-                                  size: 20),
-                              const SizedBox(width: 10),
-                              Text(
-                                isPackagePurchase
-                                    ? 'Purchase Package - ${widget.amount.toStringAsFixed(2)} AED'
-                                    : 'Pay ${widget.amount.toStringAsFixed(2)} AED',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
                   ),
                 ),
               ],
-
-              const SizedBox(height: 30),
-
-              // معلومات إضافية
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Payment Information',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      '• Your payment is secured by Stripe\n• No card details are stored on our servers\n• You will receive a confirmation email\n• Payment is processed in real-time',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

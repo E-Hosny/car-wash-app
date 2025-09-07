@@ -115,7 +115,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
     try {
       // Request location permission
       var permission = await Permission.location.request();
-      
+
       if (permission.isGranted) {
         // Try to get current position
         Position pos = await Geolocator.getCurrentPosition(
@@ -793,8 +793,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
         debugPrint('Payment failed or was cancelled');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Payment was not completed. Please try again.'),
-            backgroundColor: Colors.orange,
+            content: Text('Order was not created due to payment failure'),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -1085,7 +1085,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                 // If no location available, show error and try to get default location
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('No location available. Please wait or check location permissions.'),
+                    content: Text(
+                        'No location available. Please wait or check location permissions.'),
                     backgroundColor: Colors.orange,
                   ),
                 );
@@ -1093,8 +1094,9 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                 _setDefaultLocation();
                 return;
               }
-              
-              debugPrint('🗺️ Opening map picker with location: $latitude, $longitude');
+
+              debugPrint(
+                  '🗺️ Opening map picker with location: $latitude, $longitude');
               final picked = await Navigator.push(
                 context,
                 MaterialPageRoute(

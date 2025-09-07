@@ -144,7 +144,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     try {
       // Request location permission
       var permission = await Permission.location.request();
-      
+
       if (permission.isGranted) {
         // Try to get current position
         Position pos = await Geolocator.getCurrentPosition(
@@ -402,9 +402,20 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
           orderData: orderData,
         ),
       ),
-    ).then((_) {
-      // After payment screen is closed, navigate to orders
-      _navigateToOrders();
+    ).then((result) {
+      // Check if payment was successful
+      if (result == true) {
+        // Navigate to orders screen only on successful payment
+        _navigateToOrders();
+      } else {
+        // Payment failed or was cancelled - show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Order was not created due to payment failure'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     });
   }
 
@@ -714,66 +725,152 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                     ? PackageService.getPointsRequiredForService(
                         availableServices, s['id'])
                     : null;
+                final isSelected = selectedServices.contains(s['id']);
 
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: selectedServices.contains(s['id'])
-                          ? Colors.black
-                          : Colors.grey.shade300,
-                      width: 1.2,
-                    ),
-                  ),
-                  child: ListTile(
-                    leading: Checkbox(
-                      value: selectedServices.contains(s['id']),
-                      activeColor: Colors.black,
-                      onChanged: (val) =>
-                          toggleService(s['id'], price, val ?? false),
-                    ),
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(s['name'],
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16)),
+                return GestureDetector(
+                  onTap: () => toggleService(s['id'], price, !isSelected),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.black.withOpacity(0.05)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected ? Colors.black : Colors.grey.shade300,
+                        width: isSelected ? 2.0 : 1.0,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isSelected
+                              ? Colors.black.withOpacity(0.1)
+                              : Colors.grey.withOpacity(0.05),
+                          blurRadius: isSelected ? 8 : 4,
+                          offset: Offset(0, isSelected ? 4 : 2),
                         ),
-                        if (usePackage && isAvailableInPackage)
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.black,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${pointsRequired ?? 0} Points',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          )
-                        else
-                          Text(
-                            '${price.toStringAsFixed(2)} AED',
-                            style: const TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16),
-                          ),
                       ],
                     ),
-                    subtitle: Text(s['description'] ?? '',
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 14)),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          // Custom checkbox
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.black
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: isSelected
+                                    ? Colors.black
+                                    : Colors.grey.shade400,
+                                width: 2,
+                              ),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: isSelected
+                                ? const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 16,
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 16),
+
+                          // Service content
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Service name and price/points
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        s['name'],
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                          color: isSelected
+                                              ? Colors.black
+                                              : Colors.grey.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    // Price or points badge
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            usePackage && isAvailableInPackage
+                                                ? Colors.black
+                                                : Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: usePackage &&
+                                                isAvailableInPackage
+                                            ? null
+                                            : Border.all(
+                                                color: Colors.grey.shade300),
+                                      ),
+                                      child: Text(
+                                        usePackage && isAvailableInPackage
+                                            ? '${pointsRequired ?? 0} Points'
+                                            : '${price.toStringAsFixed(0)} AED',
+                                        style: GoogleFonts.poppins(
+                                          color:
+                                              usePackage && isAvailableInPackage
+                                                  ? Colors.white
+                                                  : Colors.black,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                // Service description
+                                if (s['description'] != null &&
+                                    s['description'].toString().isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    s['description'],
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 14,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+
+                          // Selection indicator
+                          if (isSelected) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              width: 4,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
                 );
               }).toList(),
@@ -835,7 +932,8 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                       // If no location available, show error and try to get default location
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('No location available. Please wait or check location permissions.'),
+                          content: Text(
+                              'No location available. Please wait or check location permissions.'),
                           backgroundColor: Colors.orange,
                         ),
                       );
@@ -843,8 +941,9 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                       _setDefaultLocation();
                       return;
                     }
-                    
-                    print('🗺️ Opening map picker with location: $latitude, $longitude');
+
+                    print(
+                        '🗺️ Opening map picker with location: $latitude, $longitude');
                     final picked = await Navigator.push(
                       context,
                       MaterialPageRoute(
