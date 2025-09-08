@@ -40,7 +40,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Car Wash Service',
+                      'Luxuria Car Wash',
                       style: GoogleFonts.poppins(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
