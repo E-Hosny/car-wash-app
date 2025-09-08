@@ -7,7 +7,7 @@
 
     <!-- مفتاح API للخرائط -->
     <application
-        android:label="car_wash_app"
+        android:label="Luxuria Car Wash"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/NormalTheme">
