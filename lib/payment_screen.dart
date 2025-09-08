@@ -4,8 +4,10 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/stripe_service.dart';
 import 'main_navigation_screen.dart';
+import 'my_orders_screen.dart';
 import 'screens/package_success_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -368,12 +370,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ),
                   onPressed: () {
                     Navigator.of(context).pop(); // Close dialog
-                    // Navigate to orders tab directly
+
+                    // Navigate to main screen with orders tab selected
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(
                         builder: (context) => MainNavigationScreen(
                           token: widget.token,
-                          initialIndex: 2, // Orders tab
+                          initialIndex: 1, // Start with orders tab
+                          forceOrdersTab: true, // Force stay on orders tab
                         ),
                       ),
                       (route) => false, // Remove all previous routes

@@ -11,12 +11,14 @@ class MainNavigationScreen extends StatefulWidget {
   final String? token; // Made nullable to support guest mode
   final int initialIndex;
   final bool isGuest;
+  final bool forceOrdersTab; // New parameter to force orders tab
 
   const MainNavigationScreen({
     super.key,
     this.token,
     this.initialIndex = 0,
     this.isGuest = false,
+    this.forceOrdersTab = false,
   });
 
   @override
@@ -41,8 +43,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     setState(() {
       packagesEnabled = enabled;
       loadingConfig = false;
-      if (!packagesEnabled && currentIndex == 1) {
-        currentIndex = 0;
+
+      // If forceOrdersTab is true, ensure we stay on orders tab
+      if (widget.forceOrdersTab) {
+        currentIndex = packagesEnabled ? 2 : 1; // Orders tab index
+      } else {
+        // Original logic for normal navigation
+        if (!packagesEnabled && currentIndex == 1) {
+          currentIndex = 0;
+        }
       }
     });
   }
@@ -252,6 +261,26 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         backgroundColor: Colors.white,
         currentIndex: currentIndex,
         onTap: (index) {
+          // If forceOrdersTab is true, only allow going to Home (index 0)
+          if (widget.forceOrdersTab && index != 0) {
+            return;
+          }
+
+          // If we're going to Home from forceOrdersTab, create new navigation
+          if (widget.forceOrdersTab && index == 0) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => MainNavigationScreen(
+                  token: widget.token,
+                  initialIndex: 0,
+                  isGuest: widget.isGuest,
+                  forceOrdersTab: false, // Reset forceOrdersTab
+                ),
+              ),
+            );
+            return;
+          }
+
           if (widget.isGuest && !packagesEnabled && index == 1) {
             _showLoginPrompt();
             return;

@@ -22,6 +22,16 @@ class _AddCarScreenState extends State<AddCarScreen> {
   String? selectedColor;
   final TextEditingController licensePlateController = TextEditingController();
 
+  // Custom input controllers
+  final TextEditingController customBrandController = TextEditingController();
+  final TextEditingController customModelController = TextEditingController();
+  final TextEditingController customYearController = TextEditingController();
+
+  // Flags to track if user selected "Other"
+  bool isCustomBrand = false;
+  bool isCustomModel = false;
+  bool isCustomYear = false;
+
   // Common car colors list
   final List<Map<String, dynamic>> carColors = [
     {'name': 'Black', 'code': '#000000'},
@@ -94,6 +104,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
   }
 
   Future<void> addCar() async {
+    // Validation
     if (selectedColor == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -104,7 +115,97 @@ class _AddCarScreenState extends State<AddCarScreen> {
       return;
     }
 
+    if (!isCustomBrand && selectedBrandId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a brand'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (isCustomBrand && customBrandController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a custom brand name'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!isCustomModel && selectedModelId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a model'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (isCustomModel && customModelController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a custom model name'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!isCustomYear && selectedYearId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a year'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (isCustomYear && customYearController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a custom year'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final baseUrl = dotenv.env['BASE_URL']!;
+
+    // Prepare request body
+    Map<String, dynamic> requestBody = {
+      'color': selectedColor,
+      'license_plate': licensePlateController.text.isEmpty
+          ? null
+          : licensePlateController.text,
+    };
+
+    // Add brand data
+    if (isCustomBrand) {
+      requestBody['custom_brand'] = customBrandController.text.trim();
+    } else {
+      requestBody['brand_id'] = selectedBrandId;
+    }
+
+    // Add model data
+    if (isCustomModel) {
+      requestBody['custom_model'] = customModelController.text.trim();
+    } else {
+      requestBody['model_id'] = selectedModelId;
+    }
+
+    // Add year data
+    if (isCustomYear) {
+      requestBody['custom_year'] = customYearController.text.trim();
+    } else {
+      requestBody['car_year_id'] = selectedYearId;
+    }
+
     final res = await http.post(
       Uri.parse('$baseUrl/api/cars'),
       headers: {
@@ -112,15 +213,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
         'Accept': 'application/json',
         'Authorization': 'Bearer ${widget.token}',
       },
-      body: jsonEncode({
-        'brand_id': selectedBrandId,
-        'model_id': selectedModelId,
-        'car_year_id': selectedYearId,
-        'color': selectedColor,
-        'license_plate': licensePlateController.text.isEmpty
-            ? null
-            : licensePlateController.text,
-      }),
+      body: jsonEncode(requestBody),
     );
 
     if (res.statusCode == 201) {
@@ -131,10 +224,29 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
       Navigator.pop(context, true);
     } else {
-      debugPrint(res.body);
+      debugPrint('❌ Failed to add car: ${res.statusCode}');
+      debugPrint('Response body: ${res.body}');
+
       if (!mounted) return;
+
+      String errorMessage = '❌ Failed to add car';
+
+      // Try to parse error message from response
+      try {
+        final errorResponse = jsonDecode(res.body);
+        if (errorResponse['message'] != null) {
+          errorMessage = '❌ ${errorResponse['message']}';
+        }
+      } catch (e) {
+        debugPrint('Could not parse error response: $e');
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Failed to add car')),
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
       );
     }
   }
@@ -142,6 +254,10 @@ class _AddCarScreenState extends State<AddCarScreen> {
   @override
   void dispose() {
     licensePlateController.dispose();
+    colorController.dispose();
+    customBrandController.dispose();
+    customModelController.dispose();
+    customYearController.dispose();
     super.dispose();
   }
 
@@ -177,34 +293,16 @@ class _AddCarScreenState extends State<AddCarScreen> {
                   ),
                 ),
               ),
-              buildDropdown(
-                hint: 'Select Brand',
-                value: selectedBrandId,
-                items: brands,
-                onChanged: (val) {
-                  setState(() {
-                    selectedBrandId = val;
-                    selectedModelId = null;
-                    models = [];
-                  });
-                  if (val != null) fetchModels(val);
-                },
-              ),
-              const SizedBox(height: 12),
-              buildDropdown(
-                hint: 'Select Model',
-                value: selectedModelId,
-                items: models,
-                onChanged: (val) => setState(() => selectedModelId = val),
-              ),
-              const SizedBox(height: 12),
-              buildDropdown(
-                hint: 'Select Year',
-                value: selectedYearId,
-                items: years,
-                labelKey: 'year',
-                onChanged: (val) => setState(() => selectedYearId = val),
-              ),
+              // Brand Selection
+              _buildBrandSection(),
+              const SizedBox(height: 16),
+
+              // Model Selection
+              _buildModelSection(),
+              const SizedBox(height: 16),
+
+              // Year Selection
+              _buildYearSection(),
               const SizedBox(height: 20),
               const Text(
                 'License Plate (Optional)',
@@ -346,31 +444,302 @@ class _AddCarScreenState extends State<AddCarScreen> {
     );
   }
 
-  Widget buildDropdown({
-    required String hint,
-    required int? value,
-    required List items,
-    required void Function(int?) onChanged,
-    String labelKey = 'name',
-  }) {
-    return DropdownButtonFormField<int>(
-      value: value,
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: Colors.grey[100],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+  Widget _buildBrandSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Select Brand',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-      ),
-      hint: Text(hint),
-      items: items.map<DropdownMenuItem<int>>((item) {
-        return DropdownMenuItem<int>(
-          value: item['id'],
-          child: Text(item[labelKey].toString()),
-        );
-      }).toList(),
-      onChanged: onChanged,
+        const SizedBox(height: 8),
+        if (!isCustomBrand)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButtonFormField<int>(
+              value: selectedBrandId,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              hint: const Text('Select Brand'),
+              items: [
+                ...brands.map<DropdownMenuItem<int>>((item) {
+                  return DropdownMenuItem<int>(
+                    value: item['id'],
+                    child: Text(item['name'].toString()),
+                  );
+                }),
+                const DropdownMenuItem<int>(
+                  value: -1,
+                  child: Row(
+                    children: [
+                      Icon(Icons.add_circle_outline,
+                          size: 20, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text('Other (Enter Custom)',
+                          style: TextStyle(color: Colors.blue)),
+                    ],
+                  ),
+                ),
+              ],
+              onChanged: (val) {
+                setState(() {
+                  if (val == -1) {
+                    isCustomBrand = true;
+                    selectedBrandId = null;
+                    // When brand is custom, model should also be custom
+                    isCustomModel = true;
+                    selectedModelId = null;
+                    models = [];
+                  } else {
+                    selectedBrandId = val;
+                    isCustomBrand = false;
+                    selectedModelId = null;
+                    models = [];
+                    isCustomModel = false;
+                  }
+                });
+                if (val != null && val != -1) fetchModels(val);
+              },
+            ),
+          )
+        else
+          Column(
+            children: [
+              TextFormField(
+                controller: customBrandController,
+                decoration: InputDecoration(
+                  hintText: 'Enter brand name (e.g., Tesla, BYD)',
+                  filled: true,
+                  fillColor: Colors.blue.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.blue.shade300),
+                  ),
+                  prefixIcon:
+                      Icon(Icons.directions_car, color: Colors.blue.shade600),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        isCustomBrand = false;
+                        isCustomModel = false;
+                        customBrandController.clear();
+                        customModelController.clear();
+                      });
+                    },
+                    icon: const Icon(Icons.arrow_back, size: 16),
+                    label: const Text('Back to list'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildModelSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Select Model',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        if (isCustomBrand || isCustomModel)
+          // Show custom input if brand is custom OR user chose custom model
+          Column(
+            children: [
+              TextFormField(
+                controller: customModelController,
+                decoration: InputDecoration(
+                  hintText: 'Enter model name (e.g., Model S, Corolla)',
+                  filled: true,
+                  fillColor: Colors.blue.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.blue.shade300),
+                  ),
+                  prefixIcon:
+                      Icon(Icons.car_rental, color: Colors.blue.shade600),
+                ),
+              ),
+              if (!isCustomBrand) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          isCustomModel = false;
+                          customModelController.clear();
+                        });
+                      },
+                      icon: const Icon(Icons.arrow_back, size: 16),
+                      label: const Text('Back to list'),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButtonFormField<int>(
+              value: selectedModelId,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              hint: const Text('Select Model'),
+              items: [
+                ...models.map<DropdownMenuItem<int>>((item) {
+                  return DropdownMenuItem<int>(
+                    value: item['id'],
+                    child: Text(item['name'].toString()),
+                  );
+                }),
+                const DropdownMenuItem<int>(
+                  value: -1,
+                  child: Row(
+                    children: [
+                      Icon(Icons.add_circle_outline,
+                          size: 20, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text('Other (Enter Custom)',
+                          style: TextStyle(color: Colors.blue)),
+                    ],
+                  ),
+                ),
+              ],
+              onChanged: (val) {
+                setState(() {
+                  if (val == -1) {
+                    isCustomModel = true;
+                    selectedModelId = null;
+                  } else {
+                    selectedModelId = val;
+                    isCustomModel = false;
+                  }
+                });
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildYearSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Select Year',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        if (!isCustomYear)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButtonFormField<int>(
+              value: selectedYearId,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              hint: const Text('Select Year'),
+              items: [
+                ...years.map<DropdownMenuItem<int>>((item) {
+                  return DropdownMenuItem<int>(
+                    value: item['id'],
+                    child: Text(item['year'].toString()),
+                  );
+                }),
+                const DropdownMenuItem<int>(
+                  value: -1,
+                  child: Row(
+                    children: [
+                      Icon(Icons.add_circle_outline,
+                          size: 20, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text('Other (Enter Custom)',
+                          style: TextStyle(color: Colors.blue)),
+                    ],
+                  ),
+                ),
+              ],
+              onChanged: (val) {
+                setState(() {
+                  if (val == -1) {
+                    isCustomYear = true;
+                    selectedYearId = null;
+                  } else {
+                    selectedYearId = val;
+                    isCustomYear = false;
+                  }
+                });
+              },
+            ),
+          )
+        else
+          Column(
+            children: [
+              TextFormField(
+                controller: customYearController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'Enter year (e.g., 2024)',
+                  filled: true,
+                  fillColor: Colors.blue.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.blue.shade300),
+                  ),
+                  prefixIcon:
+                      Icon(Icons.calendar_today, color: Colors.blue.shade600),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        isCustomYear = false;
+                        customYearController.clear();
+                      });
+                    },
+                    icon: const Icon(Icons.arrow_back, size: 16),
+                    label: const Text('Back to list'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+      ],
     );
   }
 }
