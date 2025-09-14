@@ -50,6 +50,9 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
   bool isLoadingAddresses = false;
   bool packagesEnabled = true;
 
+  // Track if user has explicitly selected an address
+  bool hasSelectedAddress = false;
+
   bool isLoading = true;
   String? errorMessage;
 
@@ -117,9 +120,18 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
             double.parse(recentAddress['longitude'].toString()),
           );
           selectedAddress = recentAddress['address'];
+          hasSelectedAddress = true; // User has a saved address
         });
         print(
             '📍 Auto-selected most recent address: ${recentAddress['label']} - ${recentAddress['address']}');
+      } else {
+        // No saved addresses, reset selection
+        setState(() {
+          hasSelectedAddress = false;
+          selectedSavedAddress = null;
+          selectedAddress = null;
+        });
+        print('📍 No saved addresses found');
       }
     } catch (e) {
       print('❌ Error in auto-selecting recent data: $e');
@@ -358,11 +370,10 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
   Future<void> _submitOrder() async {
     if (selectedCarId == null ||
         selectedServices.isEmpty ||
-        selectedLocation == null) {
+        !hasSelectedAddress) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Please select at least one service, car, and location'),
+          content: Text('Please select at least one service, car, and address'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -1168,34 +1179,41 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
         ),
         if (selectedSavedAddress == null) ...[
           Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.location_off,
-                    size: 48,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No address selected',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[600],
+            child: InkWell(
+              onTap: () {
+                _showAddressSelectionDialog();
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.location_off,
+                      size: 48,
+                      color: Colors.grey[400],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Select or add an address to continue',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: Colors.grey[500],
+                    const SizedBox(height: 12),
+                    Text(
+                      'No address selected',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[600],
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap here to select or add an address',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.blue[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1204,6 +1222,9 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
           Card(
             color: Colors.green[50],
             child: ListTile(
+              onTap: () {
+                _showAddressSelectionDialog();
+              },
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -1229,7 +1250,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                 '${selectedSavedAddress!['street'] ?? ''} ${selectedSavedAddress!['building'] ?? ''} ${selectedSavedAddress!['floor'] ?? ''} ${selectedSavedAddress!['apartment'] ?? ''}\n${selectedSavedAddress!['address'] ?? ''}',
                 style: const TextStyle(fontSize: 13),
               ),
-              trailing: const Icon(Icons.check_circle, color: Colors.green),
+              trailing: const Icon(Icons.edit, color: Colors.green),
             ),
           ),
         ],
@@ -1272,6 +1293,8 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                             double.parse(addr['longitude'].toString()),
                           );
                           selectedAddress = addr['address'];
+                          hasSelectedAddress =
+                              true; // User explicitly selected an address
                         });
                         Navigator.pop(context);
                       },
@@ -1477,7 +1500,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
       child: ElevatedButton.icon(
         onPressed: (selectedCarId != null &&
                 selectedServices.isNotEmpty &&
-                selectedLocation != null &&
+                hasSelectedAddress &&
                 !isSubmittingOrder)
             ? _submitOrder
             : null,
