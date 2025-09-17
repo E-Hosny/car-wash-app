@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Slots Management - Admin Panel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .time-slot-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .time-slot-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .time-slot-card.active {
+            background-color: #d4edda;
+            border-color: #28a745;
+        }
+        .time-slot-card.disabled {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+        }
+        .time-slot-card.booked {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .date-picker {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 bg-dark text-white p-3">
+                <h4><i class="fas fa-cogs"></i> Admin Panel</h4>
+                <hr>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="#"><i class="fas fa-dashboard"></i> Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white active" href="#"><i class="fas fa-clock"></i> Time Slots</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="#"><i class="fas fa-list"></i> Orders</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="#"><i class="fas fa-users"></i> Users</a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-10 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="fas fa-clock"></i> Time Slots Management</h2>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-success" onclick="enableAllSlots()">
+                            <i class="fas fa-check-circle"></i> Enable All
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="disableAllSlots()">
+                            <i class="fas fa-times-circle"></i> Disable All
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Date Picker -->
+                <div class="card date-picker mb-4">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> Select Date</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <input type="date" id="datePicker" class="form-control" onchange="loadTimeSlots()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="row mb-4" id="statsContainer">
+                    <!-- Stats will be loaded here -->
+                </div>
+
+                <!-- Time Slots Grid -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-list"></i> Time Slots</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="timeSlotsContainer">
+                            <!-- Time slots will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading time slots...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentDate = new Date().toISOString().split('T')[0];
+        let timeSlots = [];
+        let authToken = '';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('datePicker').value = currentDate;
+            loadTimeSlots();
+        });
+
+        // Load time slots for selected date
+        async function loadTimeSlots() {
+            const date = document.getElementById('datePicker').value;
+            if (!date) return;
+
+            showLoading();
+            
+            try {
+                const response = await fetch(`/api/admin/time-slots?date=${date}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load time slots');
+                }
+
+                const data = await response.json();
+                timeSlots = data.data.time_slots;
+                
+                displayStats(data.data.stats);
+                displayTimeSlots();
+                
+            } catch (error) {
+                console.error('Error loading time slots:', error);
+                alert('Error loading time slots: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Display statistics
+        function displayStats(stats) {
+            const statsContainer = document.getElementById('statsContainer');
+            statsContainer.innerHTML = `
+                <div class="col-md-2">
+                    <div class="card stats-card">
+                        <div class="card-body text-center">
+                            <h3>${stats.total}</h3>
+                            <p class="mb-0">Total Slots</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h3>${stats.active}</h3>
+                            <p class="mb-0">Active</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body text-center">
+                            <h3>${stats.disabled}</h3>
+                            <p class="mb-0">Disabled</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body text-center">
+                            <h3>${stats.booked}</h3>
+                            <p class="mb-0">Booked</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h3>${stats.available}</h3>
+                            <p class="mb-0">Available</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Display time slots
+        function displayTimeSlots() {
+            const container = document.getElementById('timeSlotsContainer');
+            container.innerHTML = '';
+
+            timeSlots.forEach(slot => {
+                const card = document.createElement('div');
+                card.className = 'col-md-3 mb-3';
+                
+                let statusClass = 'active';
+                let statusIcon = 'fas fa-check-circle';
+                let statusText = 'Available';
+                
+                if (!slot.is_active) {
+                    statusClass = 'disabled';
+                    statusIcon = 'fas fa-times-circle';
+                    statusText = 'Disabled';
+                } else if (slot.is_booked) {
+                    statusClass = 'booked';
+                    statusIcon = 'fas fa-lock';
+                    statusText = 'Booked';
+                }
+
+                card.innerHTML = `
+                    <div class="card time-slot-card ${statusClass}" onclick="toggleSlot(${slot.hour})">
+                        <div class="card-body text-center">
+                            <i class="${statusIcon} fa-2x mb-2"></i>
+                            <h5>${slot.label}</h5>
+                            <p class="mb-0">${statusText}</p>
+                            <small class="text-muted">Hour: ${slot.hour}</small>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        // Toggle slot status
+        async function toggleSlot(hour) {
+            const slot = timeSlots.find(s => s.hour === hour);
+            if (!slot) return;
+
+            // Don't allow toggling booked slots
+            if (slot.is_booked) {
+                alert('Cannot modify booked time slots');
+                return;
+            }
+
+            const newStatus = !slot.is_active;
+            
+            try {
+                const response = await fetch('/api/admin/time-slots/toggle', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        date: document.getElementById('datePicker').value,
+                        hour: hour,
+                        is_active: newStatus
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to toggle time slot');
+                }
+
+                // Update local data
+                slot.is_active = newStatus;
+                displayTimeSlots();
+                loadTimeSlots(); // Refresh stats
+                
+            } catch (error) {
+                console.error('Error toggling slot:', error);
+                alert('Error toggling slot: ' + error.message);
+            }
+        }
+
+        // Enable all slots
+        async function enableAllSlots() {
+            if (!confirm('Are you sure you want to enable all time slots?')) return;
+
+            showLoading();
+            
+            try {
+                const promises = timeSlots
+                    .filter(slot => !slot.is_active && !slot.is_booked)
+                    .map(slot => 
+                        fetch('/api/admin/time-slots/toggle', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${authToken}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                date: document.getElementById('datePicker').value,
+                                hour: slot.hour,
+                                is_active: true
+                            })
+                        })
+                    );
+
+                await Promise.all(promises);
+                loadTimeSlots();
+                
+            } catch (error) {
+                console.error('Error enabling slots:', error);
+                alert('Error enabling slots: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Disable all slots
+        async function disableAllSlots() {
+            if (!confirm('Are you sure you want to disable all time slots?')) return;
+
+            showLoading();
+            
+            try {
+                const promises = timeSlots
+                    .filter(slot => slot.is_active && !slot.is_booked)
+                    .map(slot => 
+                        fetch('/api/admin/time-slots/toggle', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${authToken}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                date: document.getElementById('datePicker').value,
+                                hour: slot.hour,
+                                is_active: false
+                            })
+                        })
+                    );
+
+                await Promise.all(promises);
+                loadTimeSlots();
+                
+            } catch (error) {
+                console.error('Error disabling slots:', error);
+                alert('Error disabling slots: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Show loading modal
+        function showLoading() {
+            const modal = new bootstrap.Modal(document.getElementById('loadingModal'));
+            modal.show();
+        }
+
+        // Hide loading modal
+        function hideLoading() {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+            if (modal) modal.hide();
+        }
+    </script>
+</body>
+</html>
