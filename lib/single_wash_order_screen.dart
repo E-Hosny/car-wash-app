@@ -2322,9 +2322,13 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                                     final isBooked = slot['isBooked'] as bool;
                                     final isUnavailable =
                                         slot['isUnavailable'] as bool;
+                                    final isPastHour =
+                                        slot['isPastHour'] as bool;
 
                                     return GestureDetector(
-                                      onTap: (isBooked || isUnavailable)
+                                      onTap: (isBooked ||
+                                              isUnavailable ||
+                                              isPastHour)
                                           ? null
                                           : () => _showTimeSlotConfirmation(
                                               slot, setDialogState),
@@ -2337,9 +2341,12 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                                               ? Colors.red.shade50
                                               : isUnavailable
                                                   ? Colors.orange.shade50
-                                                  : (isSelected
-                                                      ? Colors.green.shade600
-                                                      : Colors.white),
+                                                  : isPastHour
+                                                      ? Colors.grey.shade100
+                                                      : (isSelected
+                                                          ? Colors
+                                                              .green.shade600
+                                                          : Colors.white),
                                           borderRadius:
                                               BorderRadius.circular(12),
                                           border: Border.all(
@@ -2347,9 +2354,13 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                                                 ? Colors.red.shade300
                                                 : isUnavailable
                                                     ? Colors.orange.shade300
-                                                    : (isSelected
-                                                        ? Colors.green.shade600
-                                                        : Colors.grey.shade300),
+                                                    : isPastHour
+                                                        ? Colors.grey.shade400
+                                                        : (isSelected
+                                                            ? Colors
+                                                                .green.shade600
+                                                            : Colors
+                                                                .grey.shade300),
                                             width: isSelected ? 2 : 1,
                                           ),
                                           boxShadow: isSelected
@@ -2385,10 +2396,15 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                                                         : isUnavailable
                                                             ? Colors
                                                                 .orange.shade600
-                                                            : (isSelected
-                                                                ? Colors.white
-                                                                : Colors.grey
-                                                                    .shade800),
+                                                            : isPastHour
+                                                                ? Colors.grey
+                                                                    .shade500
+                                                                : (isSelected
+                                                                    ? Colors
+                                                                        .white
+                                                                    : Colors
+                                                                        .grey
+                                                                        .shade800),
                                                     fontWeight: FontWeight.w600,
                                                     fontSize: 12,
                                                   ),
@@ -2399,16 +2415,20 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                                                 ),
                                               ),
                                               if (isBooked ||
-                                                  isUnavailable) ...[
+                                                  isUnavailable ||
+                                                  isPastHour) ...[
                                                 const SizedBox(height: 2),
                                                 Flexible(
                                                   child: Text(
-                                                    'OFF',
+                                                    isPastHour ? 'Past' : 'OFF',
                                                     style: GoogleFonts.poppins(
                                                       color: isBooked
                                                           ? Colors.red.shade600
-                                                          : Colors
-                                                              .orange.shade600,
+                                                          : isUnavailable
+                                                              ? Colors.orange
+                                                                  .shade600
+                                                              : Colors.grey
+                                                                  .shade500,
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       fontSize: 9,
@@ -2509,6 +2529,11 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
   // Helper function to generate time slots
   List<Map<String, dynamic>> _generateTimeSlots() {
     List<Map<String, dynamic>> timeSlots = [];
+    final now = DateTime.now();
+    final selectedDateOnly =
+        DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    final todayOnly = DateTime(now.year, now.month, now.day);
+    final isToday = selectedDateOnly.isAtSameMomentAs(todayOnly);
 
     for (int hour = 10; hour <= 23; hour++) {
       String period = hour < 12 ? 'AM' : 'PM';
@@ -2517,6 +2542,13 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
 
       bool isBooked = bookedHours.contains(hour);
       bool isUnavailable = unavailableHours.contains(hour);
+
+      // Check if this hour is in the past (only for today)
+      bool isPastHour = false;
+      if (isToday) {
+        final slotDateTime = DateTime(now.year, now.month, now.day, hour, 0);
+        isPastHour = slotDateTime.isBefore(now);
+      }
 
       timeSlots.add({
         'hour': hour,
@@ -2527,6 +2559,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
             hour: hour, minute: 0, second: 0, millisecond: 0),
         'isBooked': isBooked,
         'isUnavailable': isUnavailable,
+        'isPastHour': isPastHour,
       });
     }
 
