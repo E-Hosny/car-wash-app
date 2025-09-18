@@ -446,9 +446,6 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
       return;
     }
 
-    // Show confirmation dialog before proceeding
-    final shouldProceed = await _showOrderConfirmationDialog();
-    if (!shouldProceed) return;
 
     setState(() {
       isSubmittingOrder = true;
