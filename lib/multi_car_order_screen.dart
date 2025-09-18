@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -11,6 +12,7 @@ import 'payment_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/package_service.dart';
 import 'main_navigation_screen.dart';
+import 'add_car_screen.dart';
 
 class MultiCarOrderScreen extends StatefulWidget {
   final String token;
@@ -70,10 +72,41 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
         checkUserPackage(),
       ]);
 
+      // Auto-select most recent address
+      await _autoSelectRecentAddress();
+
       // Validate existing selected cars after data is loaded
       _validateSelectedCars();
     } catch (e) {
       debugPrint('Error initializing data: $e');
+    }
+  }
+
+  Future<void> _autoSelectRecentAddress() async {
+    try {
+      // Auto-select the most recently used address (last in the list)
+      if (savedAddresses.isNotEmpty) {
+        final recentAddress = savedAddresses.last;
+        setState(() {
+          selectedSavedAddress = recentAddress;
+          selectedLocation = LatLng(
+            double.parse(recentAddress['latitude'].toString()),
+            double.parse(recentAddress['longitude'].toString()),
+          );
+          selectedAddress = recentAddress['address'];
+        });
+        debugPrint(
+            '📍 Auto-selected most recent address: ${recentAddress['label']} - ${recentAddress['address']}');
+      } else {
+        // No saved addresses, reset selection
+        setState(() {
+          selectedSavedAddress = null;
+          selectedAddress = null;
+        });
+        debugPrint('📍 No saved addresses found');
+      }
+    } catch (e) {
+      debugPrint('❌ Error in auto-selecting recent address: $e');
     }
   }
 
@@ -455,6 +488,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
             services: services,
             usePackage: usePackage,
             availableServices: availableServices,
+            token: widget.token,
+            onCarsUpdated: () => fetchUserCars(),
             onCarAdded: (carData) {
               debugPrint('Car added successfully: $carData');
               debugPrint('Points in carData: ${carData['points_used']}');
@@ -523,6 +558,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
         services: services,
         usePackage: usePackage,
         availableServices: availableServices,
+        token: widget.token,
+        onCarsUpdated: () => fetchUserCars(),
         initialCarData: selectedCars[index],
         onCarAdded: (carData) {
           setState(() {
@@ -1002,6 +1039,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                         setState(() => isSaving = false);
                         if (res.statusCode == 201) {
                           await fetchSavedAddresses();
+                          // Auto-select the newly added address
+                          await _autoSelectRecentAddress();
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -1060,40 +1099,45 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
             colors: [Colors.white, Color(0xFFF5F5F7)],
           ),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Address Section
-              _buildAddressSection(),
-              const SizedBox(height: 28),
+        child: Column(
+          children: [
+            // Main content with bottom padding for fixed button
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                    20, 20, 20, 100), // Extra bottom padding for fixed button
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Address Section
+                    _buildAddressSection(),
+                    const SizedBox(height: 28),
 
-              // Package Section
-              if (userPackage != null) ...[
-                _buildPackageSection(),
-                const SizedBox(height: 28),
-              ],
+                    // Package Section
+                    if (userPackage != null) ...[
+                      _buildPackageSection(),
+                      const SizedBox(height: 28),
+                    ],
 
-              // Cars Section
-              _buildCarsSection(),
-              const SizedBox(height: 28),
+                    // Cars Section
+                    _buildCarsSection(),
+                    const SizedBox(height: 28),
 
-              // Schedule Section
-              _buildScheduleSection(),
-              const SizedBox(height: 28),
+                    // Schedule Section
+                    _buildScheduleSection(),
+                    const SizedBox(height: 28),
 
-              // Order Summary
-              _buildOrderSummary(),
-              const SizedBox(height: 24),
+                    // Order Summary
+                    _buildOrderSummary(),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
 
-              // Submit Button
-              _buildSubmitButton(),
-              const SizedBox(height: 16),
-
-              const SizedBox(height: 24),
-            ],
-          ),
+            // Fixed Payment Button at bottom
+            _buildFixedPaymentButton(),
+          ],
         ),
       ),
     );
@@ -2349,34 +2393,151 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
     );
   }
 
-  Widget _buildSubmitButton() {
+  Widget _buildFixedPaymentButton() {
+    final bool isReadyToProceed = selectedCars.isNotEmpty &&
+        selectedDateTime != null &&
+        selectedLocation != null &&
+        selectedSavedAddress != null;
+
     return Container(
-      width: double.infinity,
       decoration: BoxDecoration(
+        color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+            spreadRadius: 0,
           ),
         ],
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: ElevatedButton.icon(
-        onPressed: (selectedCars.isNotEmpty && selectedDateTime != null)
-            ? submitMultiCarOrder
-            : null,
-        icon: Icon(usePackage ? Icons.card_giftcard : Icons.payment),
-        label: Text(
-          usePackage ? 'Use Package Points' : 'Proceed to Payment',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        border: Border(
+          top: BorderSide(
+            color: Colors.grey.shade200,
+            width: 1,
+          ),
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          child: Row(
+            children: [
+              // Price Display
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Total Amount',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          usePackage
+                              ? 'FREE'
+                              : 'AED ${totalPrice.toStringAsFixed(2)}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: usePackage
+                                ? Colors.green.shade700
+                                : Colors.black,
+                          ),
+                        ),
+                        if (usePackage) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Package',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 16),
+
+              // Payment Button
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: isReadyToProceed
+                      ? [
+                          BoxShadow(
+                            color: (usePackage ? Colors.green : Colors.black)
+                                .withOpacity(0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                            spreadRadius: 0,
+                          ),
+                        ]
+                      : [],
+                ),
+                child: ElevatedButton(
+                  onPressed: isReadyToProceed
+                      ? () {
+                          // Add haptic feedback
+                          HapticFeedback.mediumImpact();
+                          submitMultiCarOrder();
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isReadyToProceed
+                        ? (usePackage ? Colors.green.shade600 : Colors.black)
+                        : Colors.grey.shade300,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                    minimumSize: const Size(140, 56),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        usePackage ? Icons.card_giftcard : Icons.payment,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        usePackage ? 'Use Package' : 'Pay Now',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2400,6 +2561,8 @@ class CarSelectionDialog extends StatefulWidget {
   final List<dynamic> availableServices;
   final Function(Map<String, dynamic>) onCarAdded;
   final Map<String, dynamic>? initialCarData;
+  final String token;
+  final VoidCallback? onCarsUpdated;
 
   const CarSelectionDialog({
     super.key,
@@ -2408,7 +2571,9 @@ class CarSelectionDialog extends StatefulWidget {
     required this.usePackage,
     required this.availableServices,
     required this.onCarAdded,
+    required this.token,
     this.initialCarData,
+    this.onCarsUpdated,
   });
 
   @override
@@ -2544,6 +2709,45 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                                     setState(() => selectedCarId = val),
                                 activeColor: Colors.black,
                               )),
+                      const Divider(),
+                      ListTile(
+                        leading: const Icon(Icons.add_circle_outline,
+                            color: Colors.blue),
+                        title: Text(
+                          'Add New Car',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        subtitle: const Text(
+                            'Create a new car to add to your collection'),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          final added = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  AddCarScreen(token: widget.token),
+                            ),
+                          );
+                          if (added == true) {
+                            // Refresh cars list
+                            widget.onCarsUpdated?.call();
+                            // Show success message - check if widget is still mounted
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      '✅ Car added successfully! Please select it from the list.'),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
                       const SizedBox(height: 20),
                       Text(
                         'Select Services:',
