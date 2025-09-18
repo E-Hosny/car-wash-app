@@ -38,12 +38,19 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
   bool isLoadingServices = true;
   bool isLoadingCars = true;
 
-  bool useCurrentTime = true;
   DateTime? selectedDateTime;
+  DateTime selectedDate =
+      DateTime.now(); // التاريخ المختار (اليوم، الغد، بعد الغد)
 
   List<Map<String, dynamic>> savedAddresses = [];
   Map<String, dynamic>? selectedSavedAddress;
   bool isLoadingAddresses = false;
+
+  // Booked time slots
+  List<int> bookedHours = [];
+  List<int> unavailableHours = [];
+  bool isLoadingTimeSlots = false;
+  bool isChangingDate = false; // Flag to prevent multiple date changes
 
   @override
   void initState() {
@@ -59,6 +66,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
         fetchServices(),
         determineCurrentPosition(),
         fetchSavedAddresses(),
+        _fetchBookedTimeSlots(),
         checkUserPackage(),
       ]);
 
@@ -255,6 +263,63 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
     } catch (e) {
       debugPrint('Error fetching saved addresses: $e');
       setState(() => isLoadingAddresses = false);
+    }
+  }
+
+  Future<void> _fetchBookedTimeSlots([DateTime? date]) async {
+    setState(() => isLoadingTimeSlots = true);
+    try {
+      final baseUrl = dotenv.env['BASE_URL'];
+      if (baseUrl == null || baseUrl.isEmpty) {
+        debugPrint('Error: BASE_URL not configured');
+        setState(() => isLoadingTimeSlots = false);
+        return;
+      }
+
+      final targetDate = date ?? selectedDate;
+      final dateString =
+          targetDate.toIso8601String().split('T')[0]; // YYYY-MM-DD format
+
+      debugPrint('🔍 Fetching booked time slots for date: $dateString');
+
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/orders/booked-time-slots?date=$dateString'),
+        headers: {
+          'Authorization': 'Bearer ${widget.token}',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      debugPrint('📡 Response status: ${res.statusCode}');
+      debugPrint('📡 Response body: ${res.body}');
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        debugPrint('📊 Parsed data: $data');
+
+        setState(() {
+          bookedHours = List<int>.from(data['booked_hours'] ?? []);
+          unavailableHours = List<int>.from(data['unavailable_hours'] ?? []);
+          isLoadingTimeSlots = false;
+        });
+        debugPrint('📅 Booked hours loaded: $bookedHours');
+        debugPrint('🚫 Unavailable hours loaded: $unavailableHours');
+      } else {
+        debugPrint('❌ Failed to fetch booked time slots: ${res.statusCode}');
+        debugPrint('❌ Response body: ${res.body}');
+        setState(() {
+          bookedHours = []; // Reset to empty if API fails
+          unavailableHours = []; // Reset to empty if API fails
+          isLoadingTimeSlots = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error fetching booked time slots: $e');
+      setState(() {
+        bookedHours = []; // Reset to empty on error
+        unavailableHours = []; // Reset to empty on error
+        isLoadingTimeSlots = false;
+      });
     }
   }
 
@@ -531,10 +596,13 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
   }
 
   Future<void> submitMultiCarOrder() async {
-    if (selectedCars.isEmpty || selectedLocation == null) {
+    if (selectedCars.isEmpty ||
+        selectedLocation == null ||
+        selectedDateTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select location and add at least one car'),
+          content: Text(
+              'Please select location, add at least one car, and select a time slot'),
           backgroundColor: Colors.black,
         ),
       );
@@ -682,7 +750,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
     // Detailed validation of order data before sending
     debugPrint('=== Pre-submission Data Validation ===');
     debugPrint('usePackage: $usePackage');
-    debugPrint('useCurrentTime: $useCurrentTime');
+    debugPrint('selectedDateTime: $selectedDateTime');
     debugPrint('selectedLocation: $selectedLocation');
     debugPrint('selectedAddress: $selectedAddress');
     debugPrint('selectedSavedAddress: $selectedSavedAddress');
@@ -719,6 +787,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
         'Selected location: ${selectedLocation!.latitude}, ${selectedLocation!.longitude}');
     debugPrint('Selected address: $selectedAddress');
     debugPrint('Selected saved address: $selectedSavedAddress');
+    debugPrint('Selected date time: $selectedDateTime');
     if (selectedSavedAddress != null) {
       debugPrint('Address details:');
       debugPrint('  Street: ${selectedSavedAddress!['street']}');
@@ -735,8 +804,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
       'building': selectedSavedAddress?['building'],
       'floor': selectedSavedAddress?['floor'],
       'apartment': selectedSavedAddress?['apartment'],
-      'scheduled_at':
-          useCurrentTime ? null : selectedDateTime?.toIso8601String(),
+      'scheduled_at': selectedDateTime?.toIso8601String(),
       'use_package': usePackage,
       'cars': selectedCars
           .map((car) => {
@@ -1345,58 +1413,862 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('Schedule'),
-        SwitchListTile(
-          title: const Text('Request Now', style: TextStyle(fontSize: 16)),
-          value: useCurrentTime,
-          onChanged: (val) {
-            setState(() {
-              useCurrentTime = val;
-              if (val) selectedDateTime = null;
-            });
-          },
-        ),
-        if (!useCurrentTime)
-          ElevatedButton(
-            onPressed: () async {
-              final date = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now(),
-                firstDate: DateTime.now(),
-                lastDate: DateTime.now().add(const Duration(days: 30)),
-              );
-              if (date != null) {
-                final time = await showTimePicker(
-                  context: context,
-                  initialTime: TimeOfDay.now(),
-                );
-                if (time != null) {
-                  setState(() {
-                    selectedDateTime = DateTime(
-                      date.year,
-                      date.month,
-                      date.day,
-                      time.hour,
-                      time.minute,
-                    );
-                  });
-                }
-              }
-            },
-            child: Text(
+        Container(
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: ElevatedButton.icon(
+            onPressed: _showTimeSlotDialog,
+            icon: Icon(
+                selectedDateTime != null ? Icons.access_time : Icons.schedule),
+            label: Text(
               selectedDateTime != null
-                  ? 'Selected: ${selectedDateTime.toString()}'
-                  : 'Schedule for Later',
+                  ? 'Selected: ${_formatSelectedTime(selectedDateTime!)}'
+                  : 'Select Time Slot',
               style: const TextStyle(fontSize: 16),
             ),
             style: ElevatedButton.styleFrom(
               foregroundColor: Colors.white,
-              backgroundColor: Colors.black,
+              backgroundColor:
+                  selectedDateTime != null ? Colors.green : Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24)),
+                borderRadius: BorderRadius.circular(24),
+              ),
             ),
           ),
+        ),
       ],
     );
+  }
+
+  void _showTimeSlotDialog() async {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.shade200,
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade600),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Loading Available Times...',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue.shade800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Refresh booked time slots before showing dialog
+    debugPrint('🔄 Refreshing booked time slots before showing dialog');
+    await _fetchBookedTimeSlots();
+
+    // Close loading dialog
+    if (mounted) {
+      Navigator.pop(context);
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.92,
+            height: MediaQuery.of(context).size.height * 0.82,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              color: Colors.white,
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.schedule,
+                        color: Colors.black,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Select Date & Time',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: Icon(Icons.close,
+                            color: Colors.grey.shade600, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Content
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                    child: Column(
+                      children: [
+                        // Date Selection
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.blue.shade100),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.calendar_today,
+                                      color: Colors.blue.shade700, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Select Date',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildDateOption('Today',
+                                        DateTime.now(), setDialogState),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildDateOption(
+                                        'Tomorrow',
+                                        DateTime.now()
+                                            .add(const Duration(days: 1)),
+                                        setDialogState),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildDateOption(
+                                        'Day After',
+                                        DateTime.now()
+                                            .add(const Duration(days: 2)),
+                                        setDialogState),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Time Slots
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.access_time,
+                                      color: Colors.green.shade700, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Select Time',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                      color: Colors.green.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Expanded(
+                                child: GridView.builder(
+                                  padding: EdgeInsets.zero,
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    childAspectRatio: 2.8,
+                                    crossAxisSpacing: 8,
+                                    mainAxisSpacing: 8,
+                                  ),
+                                  itemCount: _generateTimeSlots().length,
+                                  itemBuilder: (context, index) {
+                                    final slot = _generateTimeSlots()[index];
+                                    final isSelected = selectedDateTime !=
+                                            null &&
+                                        selectedDateTime!.hour ==
+                                            slot['hour'] &&
+                                        _isSameDate(
+                                            selectedDateTime!, selectedDate);
+                                    final isBooked = slot['isBooked'] as bool;
+                                    final isUnavailable =
+                                        slot['isUnavailable'] as bool;
+
+                                    return GestureDetector(
+                                      onTap: (isBooked || isUnavailable)
+                                          ? null
+                                          : () => _showTimeSlotConfirmation(
+                                              slot, setDialogState),
+                                      child: AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 300),
+                                        curve: Curves.easeInOut,
+                                        decoration: BoxDecoration(
+                                          color: isBooked
+                                              ? Colors.red.shade50
+                                              : isUnavailable
+                                                  ? Colors.orange.shade50
+                                                  : (isSelected
+                                                      ? Colors.green.shade600
+                                                      : Colors.white),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: isBooked
+                                                ? Colors.red.shade300
+                                                : isUnavailable
+                                                    ? Colors.orange.shade300
+                                                    : (isSelected
+                                                        ? Colors.green.shade600
+                                                        : Colors.grey.shade300),
+                                            width: isSelected ? 2 : 1,
+                                          ),
+                                          boxShadow: isSelected
+                                              ? [
+                                                  BoxShadow(
+                                                    color:
+                                                        Colors.green.shade200,
+                                                    blurRadius: 12,
+                                                    offset: const Offset(0, 6),
+                                                    spreadRadius: 2,
+                                                  ),
+                                                ]
+                                              : [
+                                                  BoxShadow(
+                                                    color: Colors.grey.shade100,
+                                                    blurRadius: 4,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                        ),
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  slot['label'],
+                                                  style: GoogleFonts.poppins(
+                                                    color: isBooked
+                                                        ? Colors.red.shade600
+                                                        : isUnavailable
+                                                            ? Colors
+                                                                .orange.shade600
+                                                            : (isSelected
+                                                                ? Colors.white
+                                                                : Colors.grey
+                                                                    .shade800),
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 12,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              if (isBooked ||
+                                                  isUnavailable) ...[
+                                                const SizedBox(height: 2),
+                                                Flexible(
+                                                  child: Text(
+                                                    'OFF',
+                                                    style: GoogleFonts.poppins(
+                                                      color: isBooked
+                                                          ? Colors.red.shade600
+                                                          : Colors
+                                                              .orange.shade600,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 9,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Footer Actions
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: selectedDateTime != null
+                              ? () {
+                                  setState(() {
+                                    selectedDate = selectedDateTime!;
+                                  });
+                                  Navigator.pop(context);
+                                }
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: selectedDateTime != null
+                                ? Colors.green.shade600
+                                : Colors.grey.shade300,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: selectedDateTime != null ? 4 : 0,
+                          ),
+                          child: Text(
+                            'Confirm',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Helper function to generate time slots
+  List<Map<String, dynamic>> _generateTimeSlots() {
+    List<Map<String, dynamic>> timeSlots = [];
+
+    for (int hour = 10; hour <= 23; hour++) {
+      String period = hour < 12 ? 'AM' : 'PM';
+      int displayHour = hour > 12 ? hour - 12 : hour;
+      if (hour == 12) displayHour = 12;
+
+      bool isBooked = bookedHours.contains(hour);
+      bool isUnavailable = unavailableHours.contains(hour);
+
+      timeSlots.add({
+        'hour': hour,
+        'displayHour': displayHour,
+        'period': period,
+        'label': '${displayHour}:00 ${period}',
+        'datetime': selectedDate.copyWith(
+            hour: hour, minute: 0, second: 0, millisecond: 0),
+        'isBooked': isBooked,
+        'isUnavailable': isUnavailable,
+      });
+    }
+
+    return timeSlots;
+  }
+
+  // Helper function to check if two dates are the same day
+  bool _isSameDate(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+        date1.month == date2.month &&
+        date1.day == date2.day;
+  }
+
+  // Show time slot confirmation dialog
+  void _showTimeSlotConfirmation(
+      Map<String, dynamic> slot, StateSetter setDialogState) {
+    final timeLabel = slot['label'] as String;
+    final dateLabel = _getDateLabel(selectedDate);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.green.shade50,
+                Colors.green.shade100,
+              ],
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade600,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.shade200,
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.access_time,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Title
+              Text(
+                'Confirm Time Slot',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade800,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Message
+              Text(
+                'Are you sure you want to select this time slot?',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: Colors.grey.shade700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+
+              // Time details
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.calendar_today,
+                            color: Colors.green.shade600, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          dateLabel,
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.access_time,
+                            color: Colors.green.shade600, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          timeLabel,
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        _confirmTimeSlotSelection(slot, setDialogState);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade600,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 4,
+                      ),
+                      child: Text(
+                        'Confirm',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Confirm time slot selection with animation
+  void _confirmTimeSlotSelection(
+      Map<String, dynamic> slot, StateSetter setDialogState) {
+    setDialogState(() {
+      selectedDateTime = slot['datetime'];
+    });
+
+    // Show success animation
+    _showSuccessAnimation(slot['label'] as String);
+  }
+
+  // Show success animation
+  void _showSuccessAnimation(String timeLabel) {
+    // Show success overlay
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.green.shade200,
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Success icon with animation
+              TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 600),
+                tween: Tween(begin: 0.0, end: 1.0),
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade600,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+
+              Text(
+                'Time Slot Selected!',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade800,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              Text(
+                timeLabel,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Auto close after 1.5 seconds
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    });
+  }
+
+  // Get formatted date label
+  String _getDateLabel(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+    final dayAfter = today.add(const Duration(days: 2));
+
+    final targetDate = DateTime(date.year, date.month, date.day);
+
+    if (targetDate == today) {
+      return 'Today - ${date.day}/${date.month}';
+    } else if (targetDate == tomorrow) {
+      return 'Tomorrow - ${date.day}/${date.month}';
+    } else if (targetDate == dayAfter) {
+      return 'Day After - ${date.day}/${date.month}';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
+  // Helper function to build date option button
+  Widget _buildDateOption(
+      String label, DateTime date, StateSetter setDialogState) {
+    final isSelected = _isSameDate(selectedDate, date);
+    final isToday = _isSameDate(date, DateTime.now());
+    final isTomorrow =
+        _isSameDate(date, DateTime.now().add(const Duration(days: 1)));
+
+    String displayLabel = label;
+    if (isToday)
+      displayLabel = 'Today';
+    else if (isTomorrow)
+      displayLabel = 'Tomorrow';
+    else
+      displayLabel = 'Day After';
+
+    return GestureDetector(
+      onTap: () async {
+        // Prevent multiple taps on the same date or during loading
+        if (_isSameDate(selectedDate, date) || isChangingDate) return;
+
+        setDialogState(() {
+          isChangingDate = true;
+          selectedDate = date;
+          selectedDateTime = null; // Reset time selection when date changes
+        });
+
+        // Fetch time slots for the new date
+        await _fetchBookedTimeSlots(date);
+
+        setDialogState(() {
+          isChangingDate = false;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.shade600 : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? Colors.blue.shade600 : Colors.blue.shade200,
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.blue.shade200,
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.grey.shade200,
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Column(
+          children: [
+            Text(
+              displayLabel,
+              style: GoogleFonts.poppins(
+                color: isSelected ? Colors.white : Colors.blue.shade700,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${date.day}/${date.month}',
+              style: GoogleFonts.poppins(
+                color: isSelected ? Colors.white : Colors.blue.shade600,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatSelectedTime(DateTime dateTime) {
+    String period = dateTime.hour < 12 ? 'AM' : 'PM';
+    int displayHour = dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
+    if (dateTime.hour == 12) displayHour = 12;
+
+    String dateLabel = '';
+    if (_isSameDate(dateTime, DateTime.now())) {
+      dateLabel = 'Today';
+    } else if (_isSameDate(
+        dateTime, DateTime.now().add(const Duration(days: 1)))) {
+      dateLabel = 'Tomorrow';
+    } else if (_isSameDate(
+        dateTime, DateTime.now().add(const Duration(days: 2)))) {
+      dateLabel = 'Day After';
+    } else {
+      dateLabel = '${dateTime.day}/${dateTime.month}';
+    }
+
+    return '$dateLabel - ${displayHour}:00 $period';
   }
 
   Widget _buildOrderSummary() {
@@ -1491,7 +2363,9 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
         borderRadius: BorderRadius.circular(24),
       ),
       child: ElevatedButton.icon(
-        onPressed: selectedCars.isNotEmpty ? submitMultiCarOrder : null,
+        onPressed: (selectedCars.isNotEmpty && selectedDateTime != null)
+            ? submitMultiCarOrder
+            : null,
         icon: Icon(usePackage ? Icons.card_giftcard : Icons.payment),
         label: Text(
           usePackage ? 'Use Package Points' : 'Proceed to Payment',
