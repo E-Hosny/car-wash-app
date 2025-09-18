@@ -446,7 +446,6 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
       return;
     }
 
-
     setState(() {
       isSubmittingOrder = true;
     });
@@ -1305,51 +1304,57 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
             colors: [Colors.white, Color(0xFFF5F5F7)],
           ),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          physics:
-              isMapInteracting ? const NeverScrollableScrollPhysics() : null,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Services Selection (First)
-              _buildServicesSection(),
-              const SizedBox(height: 28),
+        child: Column(
+          children: [
+            // Main content with bottom padding for fixed button
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                    20, 20, 20, 100), // Extra bottom padding for fixed button
+                physics: isMapInteracting
+                    ? const NeverScrollableScrollPhysics()
+                    : null,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Services Selection (First)
+                    _buildServicesSection(),
+                    const SizedBox(height: 28),
 
-              // Auto-selected Car Section (Second)
-              _buildSelectedCarSection(),
-              const SizedBox(height: 28),
+                    // Auto-selected Car Section (Second)
+                    _buildSelectedCarSection(),
+                    const SizedBox(height: 28),
 
-              // Auto-selected Address Section (Third)
-              _buildSelectedAddressSection(),
-              const SizedBox(height: 28),
+                    // Auto-selected Address Section (Third)
+                    _buildSelectedAddressSection(),
+                    const SizedBox(height: 28),
 
-              // Schedule Section
-              _buildScheduleSection(),
-              const SizedBox(height: 28),
+                    // Schedule Section
+                    _buildScheduleSection(),
+                    const SizedBox(height: 28),
 
-              // Package Section (if available)
-              if (packagesEnabled && userPackage != null) ...[
-                _buildPackageSection(),
-                const SizedBox(height: 28),
-              ],
+                    // Package Section (if available)
+                    if (packagesEnabled && userPackage != null) ...[
+                      _buildPackageSection(),
+                      const SizedBox(height: 28),
+                    ],
 
-              // Order Summary
-              OrderSummaryCard(
-                totalPrice: totalPrice,
-                usePackage: usePackage,
-                selectedServicesCount: selectedServices.length,
-                remainingPoints: userPackage?['remaining_points'],
-                totalPointsUsed: _calculateTotalPointsUsed(),
+                    // Order Summary
+                    OrderSummaryCard(
+                      totalPrice: totalPrice,
+                      usePackage: usePackage,
+                      selectedServicesCount: selectedServices.length,
+                      remainingPoints: userPackage?['remaining_points'],
+                      totalPointsUsed: _calculateTotalPointsUsed(),
+                    ),
+                  ],
+                ),
               ),
+            ),
 
-              const SizedBox(height: 24),
-
-              // Submit Button
-              _buildSubmitButton(),
-              const SizedBox(height: 24),
-            ],
-          ),
+            // Fixed Payment Button at bottom
+            _buildFixedPaymentButton(),
+          ],
         ),
       ),
     );
@@ -2977,52 +2982,173 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
     );
   }
 
-  Widget _buildSubmitButton() {
+  Widget _buildFixedPaymentButton() {
+    final bool isReadyToProceed = selectedCarId != null &&
+        selectedServices.isNotEmpty &&
+        hasSelectedAddress &&
+        selectedDateTime != null &&
+        !isSubmittingOrder;
+
     return Container(
       decoration: BoxDecoration(
+        color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+            spreadRadius: 0,
           ),
         ],
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: ElevatedButton.icon(
-        onPressed: (selectedCarId != null &&
-                selectedServices.isNotEmpty &&
-                hasSelectedAddress &&
-                selectedDateTime != null &&
-                !isSubmittingOrder)
-            ? () {
-                // Add haptic feedback
-                HapticFeedback.mediumImpact();
-                _submitOrder();
-              }
-            : null,
-        icon: isSubmittingOrder
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Icon(usePackage ? Icons.card_giftcard : Icons.payment),
-        label: Text(
-          isSubmittingOrder
-              ? 'Processing...'
-              : (usePackage ? 'Use Package Points' : 'Proceed to Payment'),
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        border: Border(
+          top: BorderSide(
+            color: Colors.grey.shade200,
+            width: 1,
+          ),
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: usePackage ? Colors.green : Colors.black,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          child: Row(
+            children: [
+              // Price Display
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Total Amount',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          'AED ${totalPrice.toStringAsFixed(2)}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: usePackage
+                                ? Colors.green.shade700
+                                : Colors.black,
+                          ),
+                        ),
+                        if (usePackage) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Package',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 16),
+
+              // Payment Button
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: isReadyToProceed
+                      ? [
+                          BoxShadow(
+                            color: (usePackage ? Colors.green : Colors.black)
+                                .withOpacity(0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                            spreadRadius: 0,
+                          ),
+                        ]
+                      : [],
+                ),
+                child: ElevatedButton(
+                  onPressed: isReadyToProceed
+                      ? () {
+                          // Add haptic feedback
+                          HapticFeedback.mediumImpact();
+                          _submitOrder();
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isReadyToProceed
+                        ? (usePackage ? Colors.green.shade600 : Colors.black)
+                        : Colors.grey.shade300,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                    minimumSize: const Size(140, 56),
+                  ),
+                  child: isSubmittingOrder
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Processing...',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              usePackage ? Icons.card_giftcard : Icons.payment,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              usePackage ? 'Use Package' : 'Pay Now',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
