@@ -1451,6 +1451,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
         builder: (context) => MainNavigationScreen(
           token: widget.token,
           initialIndex: 2, // Orders tab
+          showPaymentSuccess: false, // Don't show success message
         ),
       ),
     );

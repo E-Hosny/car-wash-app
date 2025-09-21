@@ -12,6 +12,7 @@ class MainNavigationScreen extends StatefulWidget {
   final int initialIndex;
   final bool isGuest;
   final bool forceOrdersTab; // New parameter to force orders tab
+  final bool showPaymentSuccess; // New parameter to show payment success message
 
   const MainNavigationScreen({
     super.key,
@@ -19,6 +20,7 @@ class MainNavigationScreen extends StatefulWidget {
     this.initialIndex = 0,
     this.isGuest = false,
     this.forceOrdersTab = false,
+    this.showPaymentSuccess = false,
   });
 
   @override
@@ -34,12 +36,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void initState() {
     super.initState();
     currentIndex = widget.initialIndex;
+    // Clear any existing snackbars when entering main navigation
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+      }
+    });
     _loadConfig();
   }
 
   Future<void> _loadConfig() async {
     final enabled = await ConfigService.fetchPackagesEnabled();
     if (!mounted) return;
+    
     setState(() {
       packagesEnabled = enabled;
       loadingConfig = false;
@@ -48,9 +57,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       if (widget.forceOrdersTab) {
         currentIndex = packagesEnabled ? 2 : 1; // Orders tab index
       } else {
-        // Original logic for normal navigation
-        if (!packagesEnabled && currentIndex == 1) {
-          currentIndex = 0;
+        // Adjust currentIndex based on packages availability
+        if (!packagesEnabled) {
+          // If packages are disabled, adjust index for orders tab
+          if (currentIndex == 2) {
+            currentIndex = 1; // Orders tab when packages disabled
+          } else if (currentIndex == 1) {
+            currentIndex = 0; // Home tab
+          }
         }
       }
     });
@@ -110,11 +124,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             ? [
                 HomeScreen(token: widget.token!),
                 AllPackagesScreen(token: widget.token, isGuest: false),
-                MyOrdersScreen(token: widget.token!),
+                MyOrdersScreen(token: widget.token!, showSuccessMessage: widget.showPaymentSuccess),
               ]
             : [
                 HomeScreen(token: widget.token!),
-                MyOrdersScreen(token: widget.token!),
+                MyOrdersScreen(token: widget.token!, showSuccessMessage: widget.showPaymentSuccess),
               ]);
 
     final items = widget.isGuest
@@ -261,26 +275,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         backgroundColor: Colors.white,
         currentIndex: currentIndex,
         onTap: (index) {
-          // If forceOrdersTab is true, only allow going to Home (index 0)
-          if (widget.forceOrdersTab && index != 0) {
-            return;
-          }
-
-          // If we're going to Home from forceOrdersTab, create new navigation
-          if (widget.forceOrdersTab && index == 0) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => MainNavigationScreen(
-                  token: widget.token,
-                  initialIndex: 0,
-                  isGuest: widget.isGuest,
-                  forceOrdersTab: false, // Reset forceOrdersTab
-                ),
-              ),
-            );
-            return;
-          }
-
+          // Allow normal navigation - remove forceOrdersTab restrictions
           if (widget.isGuest && !packagesEnabled && index == 1) {
             _showLoginPrompt();
             return;

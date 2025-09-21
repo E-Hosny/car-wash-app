@@ -4,10 +4,8 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'services/stripe_service.dart';
 import 'main_navigation_screen.dart';
-import 'my_orders_screen.dart';
 import 'screens/package_success_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -90,6 +88,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> _processPayment() async {
+    // Prevent multiple simultaneous calls
+    if (_isProcessing) {
+      print('Payment already in progress, ignoring duplicate call');
+      return;
+    }
+
     final bool isPackagePurchase =
         widget.orderData['is_package_purchase'] == true;
 
@@ -103,6 +107,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
       try {
         final orderResponse = await _createOrder();
         if (orderResponse != null) {
+          // إعادة تعيين حالة المعالجة قبل عرض الحوار
+          setState(() {
+            _isProcessing = false;
+          });
           await _showThankYouDialog();
         } else {
           setState(() {
@@ -133,6 +141,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
     });
 
     try {
+      print('Starting payment confirmation...');
+      
       // معالجة الدفع أولاً
       await Stripe.instance.confirmPayment(
         paymentIntentClientSecret: _paymentIntentId!,
@@ -141,35 +151,77 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
 
+      print('Payment confirmed successfully');
+      
+      // إذا وصلنا هنا، فهذا يعني أن الدفع نجح
+      await _processSuccessfulPayment();
+      
+    } catch (e) {
+      print('Payment error: $e');
+      
+      // فحص ما إذا كان الخطأ يشير إلى نجاح الدفع
+      String errorString = e.toString().toLowerCase();
+      
+      if (errorString.contains('succeeded') || 
+          errorString.contains('processing') ||
+          errorString.contains('requires_capture') ||
+          errorString.contains('payment_intent') && errorString.contains('succeeded')) {
+        print('Payment succeeded despite error message');
+        await _processSuccessfulPayment();
+        return;
+      }
+      
+      // إذا كان خطأ حقيقي في الدفع
+      setState(() {
+        _errorMessage = isPackagePurchase
+            ? 'Package purchase payment failed. Please try again.'
+            : 'Payment failed. Please try again.';
+        _isProcessing = false;
+      });
+    }
+  }
+
+  Future<void> _processSuccessfulPayment() async {
+    final bool isPackagePurchase = widget.orderData['is_package_purchase'] == true;
+    
+    try {
+      print('Processing successful payment...');
+      
       // تم الدفع بنجاح - الآن ننشئ الطلب
       final orderResponse = await _createOrder();
 
       if (orderResponse == null) {
+        print('Failed to create order despite successful payment');
         setState(() {
           _errorMessage = isPackagePurchase
-              ? 'Payment successful but failed to create package purchase'
-              : 'Payment successful but failed to create order';
+              ? 'Payment was successful! However, there was an issue creating your package purchase. Please contact support with your payment details.'
+              : 'Payment was successful! However, there was an issue creating your order. Please contact support with your payment details.';
           _isProcessing = false;
         });
         return;
       }
 
+      print('Order created successfully: ${orderResponse['id']}');
+
       // تحديث حالة الطلب إلى مدفوع (فقط للطلبات العادية)
       if (!isPackagePurchase && orderResponse['id'] != null) {
         await _updateOrderPaymentStatus(orderResponse['id']);
+        print('Payment status updated for order: ${orderResponse['id']}');
       }
 
+      // إعادة تعيين حالة المعالجة قبل عرض الحوار
+      setState(() {
+        _isProcessing = false;
+      });
+
+      print('Showing thank you dialog');
       await _showThankYouDialog();
     } catch (e) {
+      print('Error in _processSuccessfulPayment: $e');
       setState(() {
-        // تحديد نوع الخطأ بناءً على المرحلة
-        if (e.toString().contains('Payment successful but failed to create')) {
-          _errorMessage = e.toString();
-        } else {
-          _errorMessage = isPackagePurchase
-              ? 'Package purchase payment failed: $e'
-              : 'Payment failed: $e';
-        }
+        _errorMessage = isPackagePurchase
+            ? 'Payment was successful! However, there was an issue creating your package purchase. Please contact support with your payment details.'
+            : 'Payment was successful! However, there was an issue creating your order. Please contact support with your payment details.';
         _isProcessing = false;
       });
     }
@@ -204,6 +256,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
             'payment_intent_id': widget.orderData['payment_intent_id'],
             'paid_amount': widget.amount,
           }),
+        ).timeout(
+          const Duration(seconds: 30), // Add timeout
+          onTimeout: () {
+            throw Exception('Request timeout. Please check your internet connection and try again.');
+          },
         );
 
         if (response.statusCode == 200 || response.statusCode == 201) {
@@ -243,6 +300,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
             'Authorization': 'Bearer ${widget.token}',
           },
           body: jsonEncode(widget.orderData),
+        ).timeout(
+          const Duration(seconds: 30), // Add timeout
+          onTimeout: () {
+            throw Exception('Request timeout. Please check your internet connection and try again.');
+          },
         );
 
         print('API Response Status: ${response.statusCode}');
@@ -307,6 +369,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
           'payment_status': 'paid',
           'payment_intent_id': _paymentIntentId,
         }),
+      ).timeout(
+        const Duration(seconds: 15), // Shorter timeout for status update
+        onTimeout: () {
+          throw Exception('Payment status update timeout');
+        },
       );
     } catch (e) {
       print('Error updating payment status: $e');
@@ -328,6 +395,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
         ),
       );
+      return; // Package purchase successful
     } else {
       // للطلبات العادية، اعرض الحوار العادي
       await showDialog(
@@ -369,15 +437,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         horizontal: 32, vertical: 12),
                   ),
                   onPressed: () {
-                    Navigator.of(context).pop(); // Close dialog
-
-                    // Navigate to main screen with orders tab selected
+                    // Navigate directly without closing dialog first
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(
                         builder: (context) => MainNavigationScreen(
                           token: widget.token,
-                          initialIndex: 1, // Start with orders tab
-                          forceOrdersTab: true, // Force stay on orders tab
+                          initialIndex: 2, // Orders tab (0: Home, 1: Packages, 2: Orders)
+                          forceOrdersTab: false, // Don't force - allow normal navigation
+                          showPaymentSuccess: false, // Don't show success message - already shown in dialog
                         ),
                       ),
                       (route) => false, // Remove all previous routes
@@ -391,6 +458,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
         ),
       );
+      // Regular order successful - dialog handles navigation
     }
   }
 

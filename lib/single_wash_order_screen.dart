@@ -487,11 +487,9 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
       if (result == true) {
         // Show success animation before navigating
         await _showOrderSuccessAnimation();
-        // Reload page data after successful order
-        await _reloadPageData();
-        // Navigate to orders screen
+        // Navigate to orders screen directly - no need to reload data
         _navigateToOrders();
-      } else {
+      } else if (result == false) {
         // Payment failed or was cancelled - show error message
         _showErrorDialog(
           'Payment Failed',
@@ -499,6 +497,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
           Icons.payment,
         );
       }
+      // If result is null, user just pressed back button - no action needed
     } catch (e) {
       print('Error submitting order: $e');
       _showErrorDialog(
@@ -522,6 +521,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
         builder: (context) => MainNavigationScreen(
           token: widget.token,
           initialIndex: 2, // Orders tab
+          showPaymentSuccess: false, // Don't show success message
         ),
       ),
     );
@@ -815,7 +815,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
     // Play haptic feedback
     HapticFeedback.heavyImpact();
 
-    return showDialog(
+    showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => Dialog(
@@ -896,6 +896,12 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
         ),
       ),
     );
+
+    // Auto close after 2 seconds
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   // Reload page data after any confirmation

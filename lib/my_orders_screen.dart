@@ -6,8 +6,13 @@ import 'main_navigation_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   final String token;
+  final bool showSuccessMessage;
 
-  const MyOrdersScreen({super.key, required this.token});
+  const MyOrdersScreen({
+    super.key, 
+    required this.token,
+    this.showSuccessMessage = false,
+  });
 
   @override
   State<MyOrdersScreen> createState() => _MyOrdersScreenState();
@@ -20,6 +25,34 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   @override
   void initState() {
     super.initState();
+    // Clear any existing snackbars when entering orders screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        
+        // Show success message only if explicitly requested
+        if (widget.showSuccessMessage) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text('Payment successful! Your order is being processed.'),
+                    ],
+                  ),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          });
+        }
+      }
+    });
     fetchOrders();
   }
 
@@ -33,6 +66,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       final res = await http.get(
         Uri.parse('$baseUrl/api/orders/my'),
         headers: {'Authorization': 'Bearer ${widget.token}'},
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Connection timeout');
+        },
       );
 
       if (!mounted) return;
@@ -52,12 +90,16 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           });
         }
       } else {
+        // Handle non-200 status codes silently - don't show error messages
+        print('Orders fetch returned status: ${res.statusCode}');
         setState(() {
           orders = [];
           isLoading = false; // Stop loading
         });
       }
     } catch (e) {
+      // Handle errors silently - don't show error messages to user
+      print('Error fetching orders: $e');
       if (mounted) {
         setState(() {
           orders = [];

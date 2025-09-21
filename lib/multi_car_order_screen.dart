@@ -938,6 +938,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
         builder: (context) => MainNavigationScreen(
           token: widget.token,
           initialIndex: 2,
+          showPaymentSuccess: false, // Don't show success message
         ),
       ),
     );
