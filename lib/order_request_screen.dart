@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'add_car_screen.dart';
-import 'map_picker_screen.dart';
+import 'map_picker_with_search_screen.dart';
 import 'payment_screen.dart';
 import 'all_packages_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -947,7 +947,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                     final picked = await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => MapPickerScreen(
+                        builder: (context) => MapPickerWithSearchScreen(
                           initialLocation:
                               selectedLocation ?? LatLng(latitude!, longitude!),
                         ),
