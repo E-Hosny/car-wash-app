@@ -808,19 +808,29 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        // الوصف التفصيلي الكامل
+                                        // الاسم الرئيسي
                                         Text(
-                                          prediction['description'] ?? '',
+                                          prediction['main_text'] ?? '',
                                           style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w500,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
                                             color: Colors.black87,
-                                            height: 1.3,
                                           ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
                                         ),
                                         SizedBox(height: 6),
+                                        // التفاصيل الثانوية
+                                        if (prediction['secondary_text'] !=
+                                                null &&
+                                            prediction['secondary_text']
+                                                .isNotEmpty)
+                                          Text(
+                                            prediction['secondary_text'],
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        SizedBox(height: 4),
                                         // نوع المكان
                                         if (prediction['place_type'] != null)
                                           Container(
