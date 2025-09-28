@@ -1633,28 +1633,27 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                 ],
                               ),
                               const SizedBox(height: 16),
-                              Row(
+                              Column(
                                 children: [
-                                  Expanded(
-                                    child: _buildDateOption('Today',
-                                        DateTime.now(), setDialogState),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _buildDateOption(
-                                        'Tomorrow',
-                                        DateTime.now()
-                                            .add(const Duration(days: 1)),
-                                        setDialogState),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _buildDateOption(
-                                        'Day After',
-                                        DateTime.now()
-                                            .add(const Duration(days: 2)),
-                                        setDialogState),
-                                  ),
+                                  _buildModernDateOption(
+                                      'Today',
+                                      DateTime.now(),
+                                      setDialogState,
+                                      Icons.today),
+                                  const SizedBox(height: 6),
+                                  _buildModernDateOption(
+                                      'Tomorrow',
+                                      DateTime.now()
+                                          .add(const Duration(days: 1)),
+                                      setDialogState,
+                                      Icons.event_available),
+                                  const SizedBox(height: 6),
+                                  _buildModernDateOption(
+                                      'Day After',
+                                      DateTime.now()
+                                          .add(const Duration(days: 2)),
+                                      setDialogState,
+                                      Icons.date_range),
                                 ],
                               ),
                             ],
@@ -2289,6 +2288,134 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
               ),
               textAlign: TextAlign.center,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernDateOption(
+      String label, DateTime date, StateSetter setDialogState, IconData icon) {
+    final isSelected = _isSameDate(selectedDate, date);
+    final isToday = _isSameDate(date, DateTime.now());
+    final isTomorrow =
+        _isSameDate(date, DateTime.now().add(const Duration(days: 1)));
+
+    String displayLabel = label;
+    Color cardColor;
+    Color textColor;
+    Color iconColor;
+
+    if (isSelected) {
+      cardColor = Colors.blue.shade600;
+      textColor = Colors.white;
+      iconColor = Colors.white;
+    } else if (isToday) {
+      cardColor = Colors.green.shade50;
+      textColor = Colors.green.shade700;
+      iconColor = Colors.green.shade600;
+    } else if (isTomorrow) {
+      cardColor = Colors.orange.shade50;
+      textColor = Colors.orange.shade700;
+      iconColor = Colors.orange.shade600;
+    } else {
+      cardColor = Colors.purple.shade50;
+      textColor = Colors.purple.shade700;
+      iconColor = Colors.purple.shade600;
+    }
+
+    return GestureDetector(
+      onTap: () async {
+        if (_isSameDate(selectedDate, date) || isChangingDate) return;
+
+        setDialogState(() {
+          isChangingDate = true;
+          selectedDate = date;
+          selectedDateTime = null;
+        });
+
+        await _fetchBookedTimeSlots(date);
+
+        setDialogState(() {
+          isChangingDate = false;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? Colors.blue.shade600 : Colors.grey.shade200,
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? Colors.blue.shade200.withOpacity(0.5)
+                  : Colors.grey.shade200,
+              blurRadius: isSelected ? 12 : 6,
+              offset: const Offset(0, 4),
+              spreadRadius: isSelected ? 2 : 0,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withOpacity(0.2)
+                    : iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: 16,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayLabel,
+                    style: GoogleFonts.poppins(
+                      color: textColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    '${date.day}/${date.month}',
+                    style: GoogleFonts.poppins(
+                      color: textColor.withOpacity(0.8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Icon(
+                  Icons.check,
+                  color: Colors.white,
+                  size: 14,
+                ),
+              ),
           ],
         ),
       ),
