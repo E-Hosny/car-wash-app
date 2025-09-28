@@ -26,6 +26,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
   List<Map<String, dynamic>> _searchResults = [];
   bool _isSearching = false;
   Timer? _debounce;
+  bool _isSelectingPlace = false; // متغير لمنع البحث عند اختيار مكان
 
   @override
   void initState() {
@@ -45,9 +46,12 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
   }
 
   void _onSearchChanged() {
+    // منع البحث إذا كان المستخدم يختار مكاناً
+    if (_isSelectingPlace) return;
+
     if (_debounce?.isActive ?? false) _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 600), () {
-      if (_searchController.text.length > 2) {
+      if (_searchController.text.length > 0) {
         _searchPlaces(_searchController.text);
       } else {
         setState(() {
@@ -68,10 +72,182 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
     }
   }
 
+  // دالة لفلترة النتائج العامة (مثل الدول والمناطق الواسعة)
+  bool _shouldFilterResult(String mainText, String secondaryText) {
+    // فلترة النتائج التي تكون فقط أسماء دول أو مناطق واسعة
+    List<String> countryOnlyTerms = [
+      'united arab emirates',
+      'الإمارات العربية المتحدة',
+      'saudi arabia',
+      'المملكة العربية السعودية',
+      'kuwait',
+      'الكويت',
+      'qatar',
+      'قطر',
+      'bahrain',
+      'البحرين',
+      'oman',
+      'عمان',
+    ];
+
+    // إذا كان النص الرئيسي فقط هو اسم الدولة، فلتره
+    String mainTextLower = mainText.toLowerCase().trim();
+    for (String term in countryOnlyTerms) {
+      if (mainTextLower == term.toLowerCase()) {
+        return true; // فلترة هذا النتيجة
+      }
+    }
+
+    // فلترة النتائج التي تحتوي على كلمات عامة جداً في النص الرئيسي فقط
+    if (mainTextLower.contains('country') ||
+        mainTextLower.contains('state') ||
+        mainTextLower.contains('nation') ||
+        mainTextLower.contains('emirate') ||
+        mainTextLower.contains('kingdom') ||
+        mainTextLower.contains('دولة') ||
+        mainTextLower.contains('بلاد') ||
+        mainTextLower.contains('إمارة') ||
+        mainTextLower.contains('مملكة')) {
+      return true;
+    }
+
+    return false; // لا نفلتر هذه النتيجة
+  }
+
+  // دالة لإرجاع اقتراحات افتراضية عندما لا توجد نتائج
+  List<Map<String, dynamic>> _getDefaultSuggestions(String query) {
+    List<Map<String, dynamic>> suggestions = [];
+
+    // تحديد اللغة المكتشفة
+    String detectedLanguage = _detectLanguage(query);
+
+    // اقتراحات عامة بناءً على النص المكتوب
+    String lowerQuery = query.toLowerCase();
+
+    // اقتراحات للمطاعم
+    if (lowerQuery.contains('rest') ||
+        lowerQuery.contains('food') ||
+        lowerQuery.contains('eat')) {
+      suggestions.addAll([
+        {
+          'description': 'Restaurant - Dubai - United Arab Emirates',
+          'place_id': 'default_restaurant_1',
+          'main_text': 'Restaurant',
+          'secondary_text': 'Dubai - United Arab Emirates',
+          'place_type': detectedLanguage == 'en' ? 'Restaurant' : 'مطعم',
+          'place_icon': Icons.restaurant,
+          'place_color': Colors.orange,
+          'types': ['restaurant'],
+        },
+        {
+          'description': 'Food Court - Dubai Mall - United Arab Emirates',
+          'place_id': 'default_restaurant_2',
+          'main_text': 'Food Court',
+          'secondary_text': 'Dubai Mall - United Arab Emirates',
+          'place_type': detectedLanguage == 'en' ? 'Restaurant' : 'مطعم',
+          'place_icon': Icons.restaurant,
+          'place_color': Colors.orange,
+          'types': ['restaurant'],
+        },
+      ]);
+    }
+
+    // اقتراحات للمستشفيات
+    if (lowerQuery.contains('hospital') ||
+        lowerQuery.contains('medical') ||
+        lowerQuery.contains('doctor')) {
+      suggestions.addAll([
+        {
+          'description': 'Hospital - Dubai - United Arab Emirates',
+          'place_id': 'default_hospital_1',
+          'main_text': 'Hospital',
+          'secondary_text': 'Dubai - United Arab Emirates',
+          'place_type': detectedLanguage == 'en' ? 'Hospital' : 'مستشفى',
+          'place_icon': Icons.local_hospital,
+          'place_color': Colors.red,
+          'types': ['hospital'],
+        },
+        {
+          'description': 'Medical Center - Abu Dhabi - United Arab Emirates',
+          'place_id': 'default_hospital_2',
+          'main_text': 'Medical Center',
+          'secondary_text': 'Abu Dhabi - United Arab Emirates',
+          'place_type': detectedLanguage == 'en' ? 'Hospital' : 'مستشفى',
+          'place_icon': Icons.local_hospital,
+          'place_color': Colors.red,
+          'types': ['hospital'],
+        },
+      ]);
+    }
+
+    // اقتراحات عامة
+    suggestions.addAll([
+      {
+        'description': 'Dubai Mall - Dubai - United Arab Emirates',
+        'place_id': 'default_mall_1',
+        'main_text': 'Dubai Mall',
+        'secondary_text': 'Dubai - United Arab Emirates',
+        'place_type': detectedLanguage == 'en' ? 'Business' : 'مكان تجاري',
+        'place_icon': Icons.store,
+        'place_color': Colors.blue,
+        'types': ['shopping_mall'],
+      },
+      {
+        'description': 'Burj Khalifa - Dubai - United Arab Emirates',
+        'place_id': 'default_landmark_1',
+        'main_text': 'Burj Khalifa',
+        'secondary_text': 'Dubai - United Arab Emirates',
+        'place_type': detectedLanguage == 'en' ? 'Landmark' : 'معلم',
+        'place_icon': Icons.location_on,
+        'place_color': Colors.purple,
+        'types': ['landmark'],
+      },
+      {
+        'description':
+            'Dubai International Airport - Dubai - United Arab Emirates',
+        'place_id': 'default_airport_1',
+        'main_text': 'Dubai International Airport',
+        'secondary_text': 'Dubai - United Arab Emirates',
+        'place_type': detectedLanguage == 'en' ? 'Airport' : 'مطار',
+        'place_icon': Icons.flight,
+        'place_color': Colors.deepPurple,
+        'types': ['airport'],
+      },
+      {
+        'description': 'Sheikh Zayed Road - Dubai - United Arab Emirates',
+        'place_id': 'default_street_1',
+        'main_text': 'Sheikh Zayed Road',
+        'secondary_text': 'Dubai - United Arab Emirates',
+        'place_type': detectedLanguage == 'en' ? 'Street' : 'شارع',
+        'place_icon': Icons.route,
+        'place_color': Colors.brown,
+        'types': ['route'],
+      },
+      {
+        'description': 'Marina Walk - Dubai - United Arab Emirates',
+        'place_id': 'default_area_1',
+        'main_text': 'Marina Walk',
+        'secondary_text': 'Dubai - United Arab Emirates',
+        'place_type': detectedLanguage == 'en' ? 'Area' : 'منطقة',
+        'place_icon': Icons.location_city,
+        'place_color': Colors.teal,
+        'types': ['locality'],
+      },
+    ]);
+
+    // إرجاع أول 10 اقتراحات افتراضية
+    return suggestions.take(10).toList();
+  }
+
   // دالة لتحديد نوع المكان وإرجاع الأيقونة المناسبة
-  Map<String, dynamic> _getPlaceTypeInfo(List<dynamic>? types) {
+  Map<String, dynamic> _getPlaceTypeInfo(List<dynamic>? types,
+      {String language = 'ar'}) {
     if (types == null || types.isEmpty) {
-      return {'icon': Icons.location_on, 'type': 'موقع', 'color': Colors.grey};
+      return {
+        'icon': Icons.location_on,
+        'type': language == 'en' ? 'Location' : 'موقع',
+        'color': Colors.grey
+      };
     }
 
     for (String type in types) {
@@ -79,60 +255,69 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
         case 'shopping_mall':
         case 'store':
         case 'establishment':
+        case 'point_of_interest':
           return {
             'icon': Icons.store,
-            'type': 'مكان تجاري',
+            'type': language == 'en' ? 'Business' : 'مكان تجاري',
             'color': Colors.blue
           };
         case 'restaurant':
         case 'food':
           return {
             'icon': Icons.restaurant,
-            'type': 'مطعم',
+            'type': language == 'en' ? 'Restaurant' : 'مطعم',
             'color': Colors.orange
           };
         case 'hospital':
         case 'health':
           return {
             'icon': Icons.local_hospital,
-            'type': 'مستشفى',
+            'type': language == 'en' ? 'Hospital' : 'مستشفى',
             'color': Colors.red
           };
         case 'school':
         case 'university':
           return {
             'icon': Icons.school,
-            'type': 'مدرسة/جامعة',
+            'type': language == 'en' ? 'School/University' : 'مدرسة/جامعة',
             'color': Colors.purple
           };
         case 'airport':
-          return {'icon': Icons.flight, 'type': 'مطار', 'color': Colors.indigo};
+          return {
+            'icon': Icons.flight,
+            'type': language == 'en' ? 'Airport' : 'مطار',
+            'color': Colors.indigo
+          };
         case 'bank':
           return {
             'icon': Icons.account_balance,
-            'type': 'بنك',
+            'type': language == 'en' ? 'Bank' : 'بنك',
             'color': Colors.green
           };
         case 'gas_station':
           return {
             'icon': Icons.local_gas_station,
-            'type': 'محطة وقود',
+            'type': language == 'en' ? 'Gas Station' : 'محطة وقود',
             'color': Colors.amber
           };
         case 'route':
         case 'street_address':
-          return {'icon': Icons.route, 'type': 'شارع', 'color': Colors.brown};
+          return {
+            'icon': Icons.route,
+            'type': language == 'en' ? 'Street' : 'شارع',
+            'color': Colors.brown
+          };
         case 'locality':
         case 'sublocality':
           return {
             'icon': Icons.location_city,
-            'type': 'منطقة',
+            'type': language == 'en' ? 'Area' : 'منطقة',
             'color': Colors.teal
           };
         case 'park':
           return {
             'icon': Icons.park,
-            'type': 'حديقة',
+            'type': language == 'en' ? 'Park' : 'حديقة',
             'color': Colors.lightGreen
           };
         case 'mosque':
@@ -140,18 +325,54 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
         case 'place_of_worship':
           return {
             'icon': Icons.place,
-            'type': 'مكان عبادة',
+            'type': language == 'en' ? 'Place of Worship' : 'مكان عبادة',
             'color': Colors.deepPurple
+          };
+        case 'neighborhood':
+        case 'political':
+          return {
+            'icon': Icons.location_city,
+            'type': language == 'en' ? 'Neighborhood' : 'حي',
+            'color': Colors.teal
+          };
+        case 'natural_feature':
+          return {
+            'icon': Icons.landscape,
+            'type': language == 'en' ? 'Natural Feature' : 'معلم طبيعي',
+            'color': Colors.green
+          };
+        case 'landmark':
+          return {
+            'icon': Icons.location_on,
+            'type': language == 'en' ? 'Landmark' : 'معلم',
+            'color': Colors.purple
+          };
+        case 'transit_station':
+        case 'subway_station':
+          return {
+            'icon': Icons.train,
+            'type': language == 'en' ? 'Transit Station' : 'محطة مواصلات',
+            'color': Colors.blue
+          };
+        case 'taxi_stand':
+          return {
+            'icon': Icons.local_taxi,
+            'type': language == 'en' ? 'Taxi Stand' : 'موقف تاكسي',
+            'color': Colors.yellow
           };
         default:
           return {
             'icon': Icons.location_on,
-            'type': 'موقع',
+            'type': language == 'en' ? 'Location' : 'موقع',
             'color': Colors.grey
           };
       }
     }
-    return {'icon': Icons.location_on, 'type': 'موقع', 'color': Colors.grey};
+    return {
+      'icon': Icons.location_on,
+      'type': language == 'en' ? 'Location' : 'موقع',
+      'color': Colors.grey
+    };
   }
 
   Future<void> _goToCurrentLocation() async {
@@ -221,40 +442,63 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
       final detectedLanguage = _detectLanguage(query);
       print('🔍 Detected language: $detectedLanguage for query: $query');
 
-      // استخدام Geocoding API مع اللغة المحددة تلقائياً
+      // استخدام Places Autocomplete API للحصول على اقتراحات مفصلة مثل Google Maps
       final encodedQuery = Uri.encodeComponent(query.trim());
       final url =
-          'https://maps.googleapis.com/maps/api/geocode/json?address=$encodedQuery&key=$apiKey&region=ae&language=$detectedLanguage&components=country:ae|country:sa|country:kw|country:qa|country:bh|country:om';
+          'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$encodedQuery&key=$apiKey&language=$detectedLanguage&components=country:ae&types=establishment|geocode&sessiontoken=session_${DateTime.now().millisecondsSinceEpoch}&radius=50000&strictbounds=false&origin=25.2048,55.2708&location=25.2048,55.2708&region=ae&offset=0';
 
+      print('🔗 API URL: $url');
       final response = await http.get(Uri.parse(url));
       final data = json.decode(response.body);
 
-      if (data['status'] == 'OK' && data['results'] != null) {
+      print('📡 API Response: ${response.statusCode}');
+      print('📊 API Data: $data');
+      print('📊 API Predictions Count: ${data['predictions']?.length ?? 0}');
+
+      if (data['status'] == 'OK' && data['predictions'] != null) {
         List<Map<String, dynamic>> results = [];
-        for (var result in data['results']) {
-          // استخراج تفاصيل أكثر من العنوان
-          String fullAddress = result['formatted_address'];
-          List<String> addressParts = fullAddress.split(',');
+        for (var prediction in data['predictions']) {
+          // استخراج التفاصيل من الاقتراح
+          String description = prediction['description'];
+          String placeId = prediction['place_id'];
 
-          // تحديد الاسم الرئيسي والتفاصيل الثانوية
-          String mainText =
-              addressParts.isNotEmpty ? addressParts[0].trim() : fullAddress;
-          String secondaryText = addressParts.length > 1
-              ? addressParts.skip(1).join(', ').trim()
-              : '';
+          // استخراج النص الرئيسي والثانوي من structured_formatting
+          String mainText = '';
+          String secondaryText = '';
 
-          // تحديد نوع المكان
-          var placeTypeInfo = _getPlaceTypeInfo(result['types']);
+          if (prediction['structured_formatting'] != null) {
+            mainText = prediction['structured_formatting']['main_text'] ?? '';
+            secondaryText =
+                prediction['structured_formatting']['secondary_text'] ?? '';
+          } else {
+            // إذا لم يكن هناك structured_formatting، نقسم العنوان
+            List<String> addressParts = description.split(',');
+            mainText =
+                addressParts.isNotEmpty ? addressParts[0].trim() : description;
+            secondaryText = addressParts.length > 1
+                ? addressParts.skip(1).join(', ').trim()
+                : '';
+          }
+
+          // فلترة النتائج العامة (مثل الدول والمناطق الواسعة)
+          // تعليق مؤقت للفلترة لاختبار النتائج
+          // if (_shouldFilterResult(mainText, secondaryText)) {
+          //   continue;
+          // }
+
+          // تحديد نوع المكان من types مع اللغة المكتشفة
+          var placeTypeInfo = _getPlaceTypeInfo(prediction['types'],
+              language: detectedLanguage);
 
           results.add({
-            'description': fullAddress,
-            'place_id': result['place_id'],
+            'description': description,
+            'place_id': placeId,
             'main_text': mainText,
             'secondary_text': secondaryText,
             'place_type': placeTypeInfo['type'],
             'place_icon': placeTypeInfo['icon'],
             'place_color': placeTypeInfo['color'],
-            'types': result['types'],
+            'types': prediction['types'],
             'structured_formatting': {
               'main_text': mainText,
               'secondary_text': secondaryText,
@@ -266,15 +510,22 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
           _searchResults = results;
           _isSearching = false;
         });
-        print('✅ Enhanced Geocoding API: Found ${results.length} results');
+        print(
+            '✅ Places Autocomplete API: Found ${results.length} filtered results out of ${data['predictions']?.length ?? 0} original predictions');
       } else {
+        // إذا لم توجد نتائج، اعرض اقتراحات افتراضية
+        List<Map<String, dynamic>> defaultResults =
+            _getDefaultSuggestions(query);
+
         setState(() {
-          _searchResults = [];
+          _searchResults = defaultResults;
           _isSearching = false;
         });
-        print('Geocoding API error: ${data['status']}');
 
-        // عرض رسالة خطأ للمستخدم
+        print(
+            'Places Autocomplete API: ${data['status']} - Showing ${defaultResults.length} default suggestions');
+
+        // عرض رسالة خطأ للمستخدم فقط للأخطاء الحقيقية
         if (data['status'] == 'REQUEST_DENIED') {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -282,15 +533,6 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                   'Google Places API is not enabled. Please enable it in Google Cloud Console'),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 5),
-            ),
-          );
-        } else if (data['status'] == 'ZERO_RESULTS') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'No results found. Try searching with different keywords'),
-              backgroundColor: Colors.blue,
-              duration: Duration(seconds: 3),
             ),
           );
         }
@@ -312,6 +554,9 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
 
   Future<void> _onPlaceSelected(Map<String, dynamic> prediction) async {
     try {
+      // تعيين متغير منع البحث
+      _isSelectingPlace = true;
+
       final apiKey = "AIzaSyCwdrmyLmP3mam7P4bH-1QVHAKdikHxDDQ";
 
       final placeId = prediction['place_id'];
@@ -339,7 +584,13 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
 
         _mapController?.animateCamera(CameraUpdate.newLatLng(LatLng(lat, lng)));
 
+        // تحديث النص بدون إطلاق البحث
         _searchController.text = result['formatted_address'];
+
+        // إعادة تعيين متغير منع البحث بعد تأخير قصير
+        Future.delayed(Duration(milliseconds: 100), () {
+          _isSelectingPlace = false;
+        });
       } else {
         print('Error getting place details: ${data['status']}');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -348,6 +599,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
             backgroundColor: Colors.red,
           ),
         );
+        _isSelectingPlace = false;
       }
     } catch (e) {
       print('Error getting place details: $e');
@@ -357,6 +609,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
           backgroundColor: Colors.red,
         ),
       );
+      _isSelectingPlace = false;
     }
   }
 
@@ -472,7 +725,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                     ),
                     onChanged: (value) {
                       String cleanedValue = value.trim();
-                      if (cleanedValue.length > 2) {
+                      if (cleanedValue.length > 0) {
                         _searchPlaces(cleanedValue);
                       } else {
                         setState(() {
@@ -487,6 +740,10 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                 if (_searchResults.isNotEmpty)
                   Container(
                     margin: EdgeInsets.only(top: 8),
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height *
+                          0.6, // حد أقصى 60% من ارتفاع الشاشة لعرض المزيد من النتائج
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -498,103 +755,118 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                         ),
                       ],
                     ),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      physics: NeverScrollableScrollPhysics(),
-                      itemCount: _searchResults.length,
-                      itemBuilder: (context, index) {
-                        final prediction = _searchResults[index];
-                        return InkWell(
-                          onTap: () => _onPlaceSelected(prediction),
-                          child: Container(
-                            padding: EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              border: index < _searchResults.length - 1
-                                  ? Border(
-                                      bottom:
-                                          BorderSide(color: Colors.grey[200]!),
-                                    )
-                                  : null,
-                            ),
-                            child: Row(
-                              children: [
-                                // أيقونة نوع المكان
-                                Container(
-                                  padding: EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: prediction['place_color']
-                                        .withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: (ScrollNotification scrollInfo) {
+                        // إخفاء لوحة المفاتيح عند بدء السحب
+                        if (scrollInfo is ScrollStartNotification) {
+                          FocusScope.of(context).unfocus();
+                        }
+                        return false;
+                      },
+                      child: ListView.builder(
+                        shrinkWrap: false, // عدم تقليص الحجم لعرض جميع النتائج
+                        physics:
+                            AlwaysScrollableScrollPhysics(), // تفعيل السحب دائماً
+                        itemCount: _searchResults.length,
+                        itemBuilder: (context, index) {
+                          final prediction = _searchResults[index];
+                          return InkWell(
+                            onTap: () {
+                              // إخفاء لوحة المفاتيح عند اختيار اقتراح
+                              FocusScope.of(context).unfocus();
+                              _onPlaceSelected(prediction);
+                            },
+                            child: Container(
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: index < _searchResults.length - 1
+                                    ? Border(
+                                        bottom: BorderSide(
+                                            color: Colors.grey[200]!),
+                                      )
+                                    : null,
+                              ),
+                              child: Row(
+                                children: [
+                                  // أيقونة نوع المكان
+                                  Container(
+                                    padding: EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: prediction['place_color']
+                                          .withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      prediction['place_icon'],
+                                      color: prediction['place_color'],
+                                      size: 20,
+                                    ),
                                   ),
-                                  child: Icon(
-                                    prediction['place_icon'],
-                                    color: prediction['place_color'],
-                                    size: 20,
-                                  ),
-                                ),
-                                SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // الاسم الرئيسي
-                                      Text(
-                                        prediction['main_text'] ?? '',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      SizedBox(height: 4),
-                                      // نوع المكان
-                                      if (prediction['place_type'] != null)
-                                        Container(
-                                          padding: EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: prediction['place_color']
-                                                .withOpacity(0.1),
-                                            borderRadius:
-                                                BorderRadius.circular(4),
+                                  SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // الاسم الرئيسي
+                                        Text(
+                                          prediction['main_text'] ?? '',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black87,
                                           ),
-                                          child: Text(
-                                            prediction['place_type'],
+                                        ),
+                                        SizedBox(height: 6),
+                                        // التفاصيل الثانوية
+                                        if (prediction['secondary_text'] !=
+                                                null &&
+                                            prediction['secondary_text']
+                                                .isNotEmpty)
+                                          Text(
+                                            prediction['secondary_text'],
                                             style: TextStyle(
-                                              fontSize: 12,
-                                              color: prediction['place_color'],
-                                              fontWeight: FontWeight.w500,
+                                              fontSize: 13,
+                                              color: Colors.grey[600],
                                             ),
                                           ),
-                                        ),
-                                      SizedBox(height: 4),
-                                      // التفاصيل الثانوية
-                                      if (prediction['secondary_text'] !=
-                                              null &&
-                                          prediction['secondary_text']
-                                              .isNotEmpty)
-                                        Text(
-                                          prediction['secondary_text'],
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey[600],
+                                        SizedBox(height: 4),
+                                        // نوع المكان
+                                        if (prediction['place_type'] != null)
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: prediction['place_color']
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              prediction['place_type'],
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color:
+                                                    prediction['place_color'],
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                // سهم التنقل
-                                Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: Colors.grey[400],
-                                  size: 16,
-                                ),
-                              ],
+                                  // سهم التنقل
+                                  Icon(
+                                    Icons.arrow_forward_ios,
+                                    color: Colors.grey[400],
+                                    size: 16,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
               ],
