@@ -1831,53 +1831,30 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeInOut,
-              margin: const EdgeInsets.symmetric(vertical: 8),
+              margin: const EdgeInsets.symmetric(vertical: 6),
               decoration: BoxDecoration(
-                color:
-                    isSelected ? Colors.black.withOpacity(0.05) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                color: isSelected ? Colors.blue.shade50 : Colors.white,
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: isSelected ? Colors.black : Colors.grey.shade300,
+                  color:
+                      isSelected ? Colors.blue.shade300 : Colors.grey.shade200,
                   width: isSelected ? 2.0 : 1.0,
                 ),
                 boxShadow: [
                   BoxShadow(
                     color: isSelected
-                        ? Colors.black.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.05),
-                    blurRadius: isSelected ? 8 : 4,
-                    offset: Offset(0, isSelected ? 4 : 2),
+                        ? Colors.blue.shade100
+                        : Colors.grey.shade100,
+                    blurRadius: isSelected ? 12 : 6,
+                    offset: const Offset(0, 4),
+                    spreadRadius: isSelected ? 2 : 0,
                   ),
                 ],
               ),
               child: Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    // Custom checkbox
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: isSelected ? Colors.black : Colors.transparent,
-                        border: Border.all(
-                          color:
-                              isSelected ? Colors.black : Colors.grey.shade400,
-                          width: 2,
-                        ),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: isSelected
-                          ? const Icon(
-                              Icons.check,
-                              color: Colors.white,
-                              size: 16,
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 16),
-
                     // Service content
                     Expanded(
                       child: Column(
@@ -1891,10 +1868,10 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                                 child: Text(
                                   s['name'],
                                   style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                     fontSize: 16,
                                     color: isSelected
-                                        ? Colors.black
+                                        ? Colors.blue.shade800
                                         : Colors.grey.shade800,
                                   ),
                                 ),
@@ -1903,15 +1880,16 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                               // Price or points badge
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
+                                    horizontal: 16, vertical: 8),
                                 decoration: BoxDecoration(
                                   color: usePackage && isAvailableInPackage
-                                      ? Colors.black
-                                      : Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(20),
+                                      ? Colors.blue.shade600
+                                      : Colors.green.shade100,
+                                  borderRadius: BorderRadius.circular(25),
                                   border: usePackage && isAvailableInPackage
                                       ? null
-                                      : Border.all(color: Colors.grey.shade300),
+                                      : Border.all(
+                                          color: Colors.green.shade300),
                                 ),
                                 child: Text(
                                   usePackage && isAvailableInPackage
@@ -1920,9 +1898,9 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                                   style: GoogleFonts.poppins(
                                     color: usePackage && isAvailableInPackage
                                         ? Colors.white
-                                        : Colors.black,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
+                                        : Colors.green.shade700,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),
@@ -1938,7 +1916,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                               style: GoogleFonts.poppins(
                                 color: Colors.grey.shade600,
                                 fontSize: 14,
-                                height: 1.3,
+                                height: 1.4,
                               ),
                             ),
                           ],
@@ -1948,13 +1926,17 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
 
                     // Selection indicator
                     if (isSelected) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       Container(
-                        width: 4,
-                        height: 40,
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(2),
+                          color: Colors.blue.shade600,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
                     ],
