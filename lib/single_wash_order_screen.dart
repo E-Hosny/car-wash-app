@@ -1044,118 +1044,349 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
     await showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+        builder: (context, setState) => Dialog(
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Add Address Details',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          elevation: 20,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white,
+                  Colors.grey.shade50,
+                ],
+              ),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                // Header with icon
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade600,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.location_on,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Add Address Details',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Colors.blue.shade800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Complete your address information',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Form fields
+                _buildModernTextField(
                   controller: labelController,
-                  decoration: const InputDecoration(
-                      labelText: 'Label (e.g. Home, Work)'),
+                  label: 'Label',
+                  hint: 'e.g. Home, Work',
+                  icon: Icons.label,
+                  isRequired: true,
                 ),
-                TextField(
+                const SizedBox(height: 16),
+                _buildModernTextField(
                   controller: streetController,
-                  decoration: const InputDecoration(labelText: 'Street'),
+                  label: 'Street',
+                  hint: 'Enter street name',
+                  icon: Icons.route,
                 ),
-                TextField(
+                const SizedBox(height: 16),
+                _buildModernTextField(
                   controller: buildingController,
-                  decoration: const InputDecoration(labelText: 'Building'),
+                  label: 'Building',
+                  hint: 'Enter building name/number',
+                  icon: Icons.business,
                 ),
-                TextField(
-                  controller: floorController,
-                  decoration: const InputDecoration(labelText: 'Floor'),
-                ),
-                TextField(
-                  controller: apartmentController,
-                  decoration: const InputDecoration(labelText: 'Apartment'),
-                ),
-                TextField(
+                const SizedBox(height: 16),
+                _buildModernTextField(
                   controller: notesController,
-                  decoration: const InputDecoration(labelText: 'Notes'),
+                  label: 'Notes',
+                  hint: 'Additional instructions (optional)',
+                  icon: Icons.note,
+                  maxLines: 2,
                 ),
-                const SizedBox(height: 12),
-                Text('Location: $address',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 20),
+
+                // Location display
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.place,
+                        color: Colors.green.shade600,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          address,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                setState(() => isSaving = true);
+                                try {
+                                  final baseUrl = dotenv.env['BASE_URL'];
+                                  if (baseUrl == null || baseUrl.isEmpty) {
+                                    setState(() => isSaving = false);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Configuration error: BASE_URL not found'),
+                                          backgroundColor: Colors.red),
+                                    );
+                                    return;
+                                  }
+
+                                  final res = await http.post(
+                                    Uri.parse('$baseUrl/api/addresses'),
+                                    headers: {
+                                      'Authorization': 'Bearer ${widget.token}',
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: jsonEncode({
+                                      'label': labelController.text,
+                                      'street': streetController.text,
+                                      'building': buildingController.text,
+                                      'floor': floorController.text,
+                                      'apartment': apartmentController.text,
+                                      'notes': notesController.text,
+                                      'address': address,
+                                      'latitude': latlng.latitude,
+                                      'longitude': latlng.longitude,
+                                    }),
+                                  );
+                                  setState(() => isSaving = false);
+                                  if (res.statusCode == 201) {
+                                    await _fetchSavedAddresses();
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text('Address saved!'),
+                                          backgroundColor: Colors.green),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content:
+                                              Text('Failed to save address'),
+                                          backgroundColor: Colors.red),
+                                    );
+                                  }
+                                } catch (e) {
+                                  setState(() => isSaving = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Error saving address: ${e.toString()}'),
+                                        backgroundColor: Colors.red),
+                                  );
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade600,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : Text(
+                                'Save Address',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: isSaving
-                  ? null
-                  : () async {
-                      setState(() => isSaving = true);
-                      try {
-                        final baseUrl = dotenv.env['BASE_URL'];
-                        if (baseUrl == null || baseUrl.isEmpty) {
-                          setState(() => isSaving = false);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    'Configuration error: BASE_URL not found'),
-                                backgroundColor: Colors.red),
-                          );
-                          return;
-                        }
+        ),
+      ),
+    );
+  }
 
-                        final res = await http.post(
-                          Uri.parse('$baseUrl/api/addresses'),
-                          headers: {
-                            'Authorization': 'Bearer ${widget.token}',
-                            'Content-Type': 'application/json',
-                          },
-                          body: jsonEncode({
-                            'label': labelController.text,
-                            'street': streetController.text,
-                            'building': buildingController.text,
-                            'floor': floorController.text,
-                            'apartment': apartmentController.text,
-                            'notes': notesController.text,
-                            'address': address,
-                            'latitude': latlng.latitude,
-                            'longitude': latlng.longitude,
-                          }),
-                        );
-                        setState(() => isSaving = false);
-                        if (res.statusCode == 201) {
-                          await _fetchSavedAddresses();
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Address saved!'),
-                                backgroundColor: Colors.green),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Failed to save address'),
-                                backgroundColor: Colors.red),
-                          );
-                        }
-                      } catch (e) {
-                        setState(() => isSaving = false);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content:
-                                  Text('Error saving address: ${e.toString()}'),
-                              backgroundColor: Colors.red),
-                        );
-                      }
-                    },
-              child: isSaving
-                  ? const CircularProgressIndicator()
-                  : const Text('Save'),
+  Widget _buildModernTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    bool isRequired = false,
+    int maxLines = 1,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          label: isRequired
+              ? RichText(
+                  text: TextSpan(
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    children: [
+                      TextSpan(text: label),
+                      const TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ],
+                  ),
+                )
+              : Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+          hintText: hint,
+          prefixIcon: Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
             ),
-          ],
+            child: Icon(
+              icon,
+              color: Colors.blue.shade600,
+              size: 20,
+            ),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.blue.shade600, width: 2),
+          ),
+          labelStyle: isRequired
+              ? GoogleFonts.poppins(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                )
+              : GoogleFonts.poppins(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+          hintStyle: GoogleFonts.poppins(
+            color: Colors.grey.shade400,
+          ),
         ),
       ),
     );
@@ -1843,111 +2074,307 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
   void _showAddressSelectionDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Select Address',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        elevation: 20,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white,
+                Colors.grey.shade50,
+              ],
+            ),
+          ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: ListView.builder(
-                  itemCount: savedAddresses.length,
-                  itemBuilder: (context, index) {
-                    final addr = savedAddresses[index];
-                    return ListTile(
-                      title:
-                          Text(addr['label'] ?? addr['address'] ?? 'Address'),
-                      subtitle: Text(
-                        '${addr['street'] ?? ''} ${addr['building'] ?? ''}\n${addr['address'] ?? ''}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+              // Header with icon
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade600,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      onTap: () {
-                        setState(() {
-                          selectedSavedAddress = addr;
-                          selectedLocation = LatLng(
-                            double.parse(addr['latitude'].toString()),
-                            double.parse(addr['longitude'].toString()),
-                          );
-                          selectedAddress = addr['address'];
-                          hasSelectedAddress =
-                              true; // User explicitly selected an address
-                        });
-                        Navigator.pop(context);
-                      },
-                      trailing: selectedSavedAddress != null &&
-                              selectedSavedAddress!['id'] == addr['id']
-                          ? const Icon(Icons.check_circle, color: Colors.green)
-                          : null,
-                    );
-                  },
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Select Address',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.blue.shade800,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Choose from your saved addresses',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.add_location_alt),
-                title: const Text('Add New Address'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  try {
-                    if (latitude == null || longitude == null) {
-                      // If no location available, show error and try to get default location
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'No location available. Please wait or check location permissions.'),
-                          backgroundColor: Colors.orange,
+              const SizedBox(height: 24),
+
+              // Address list
+              Container(
+                constraints: const BoxConstraints(maxHeight: 300),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: savedAddresses.isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.location_off,
+                              size: 48,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No saved addresses',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Add your first address to get started',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: savedAddresses.length,
+                        itemBuilder: (context, index) {
+                          final addr = savedAddresses[index];
+                          final isSelected = selectedSavedAddress != null &&
+                              selectedSavedAddress!['id'] == addr['id'];
+
+                          return Container(
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.blue.shade50
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected
+                                    ? Colors.blue.shade200
+                                    : Colors.grey.shade200,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              leading: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? Colors.blue.shade100
+                                      : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.home,
+                                  color: isSelected
+                                      ? Colors.blue.shade600
+                                      : Colors.grey.shade600,
+                                  size: 20,
+                                ),
+                              ),
+                              title: Text(
+                                addr['label'] ?? addr['address'] ?? 'Address',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: isSelected
+                                      ? Colors.blue.shade800
+                                      : Colors.grey.shade800,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '${addr['street'] ?? ''} ${addr['building'] ?? ''}\n${addr['address'] ?? ''}',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              onTap: () {
+                                setState(() {
+                                  selectedSavedAddress = addr;
+                                  selectedLocation = LatLng(
+                                    double.parse(addr['latitude'].toString()),
+                                    double.parse(addr['longitude'].toString()),
+                                  );
+                                  selectedAddress = addr['address'];
+                                  hasSelectedAddress = true;
+                                });
+                                Navigator.pop(context);
+                              },
+                              trailing: isSelected
+                                  ? Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade100,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.check,
+                                        color: Colors.green,
+                                        size: 16,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              const SizedBox(height: 16),
+
+              // Add new address button
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.shade200,
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    try {
+                      if (latitude == null || longitude == null) {
+                        // If no location available, show error and try to get default location
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'No location available. Please wait or check location permissions.'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                        // Try to get default location
+                        _setDefaultLocation();
+                        return;
+                      }
+
+                      print(
+                          '🗺️ Opening map picker with location: $latitude, $longitude');
+                      final picked = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MapPickerWithSearchScreen(
+                            initialLocation: selectedLocation ??
+                                LatLng(latitude!, longitude!),
+                          ),
                         ),
                       );
-                      // Try to get default location
-                      _setDefaultLocation();
-                      return;
-                    }
-
-                    print(
-                        '🗺️ Opening map picker with location: $latitude, $longitude');
-                    final picked = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MapPickerWithSearchScreen(
-                          initialLocation:
-                              selectedLocation ?? LatLng(latitude!, longitude!),
+                      if (picked != null &&
+                          picked is Map &&
+                          picked['latlng'] != null &&
+                          picked['address'] != null) {
+                        await _addNewAddressDialog(
+                            picked['latlng'], picked['address']);
+                        await _autoSelectRecentData(); // Auto-select the newly added address
+                      }
+                    } catch (e) {
+                      print('❌ Error opening map picker: $e');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error opening map: $e'),
+                          backgroundColor: Colors.red,
                         ),
-                      ),
-                    );
-                    if (picked != null &&
-                        picked is Map &&
-                        picked['latlng'] != null &&
-                        picked['address'] != null) {
-                      await _addNewAddressDialog(
-                          picked['latlng'], picked['address']);
-                      await _autoSelectRecentData(); // Auto-select the newly added address
+                      );
                     }
-                  } catch (e) {
-                    print('❌ Error opening map picker: $e');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error opening map: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
+                  icon: const Icon(Icons.add_location_alt, size: 20),
+                  label: Text(
+                    'Add New Address',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Cancel button
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
               ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
       ),
     );
   }

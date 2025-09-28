@@ -956,120 +956,346 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
     await showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+        builder: (context, setState) => Dialog(
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Add Address Details',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          elevation: 20,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white,
+                  Colors.grey.shade50,
+                ],
+              ),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                // Header with icon
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade600,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.location_on,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Add Address Details',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Colors.blue.shade800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Complete your address information',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Form fields
+                _buildModernTextField(
                   controller: labelController,
-                  decoration: const InputDecoration(
-                      labelText: 'Label (e.g. Home, Work)'),
+                  label: 'Label',
+                  hint: 'e.g. Home, Work',
+                  icon: Icons.label,
+                  isRequired: true,
                 ),
-                TextField(
+                const SizedBox(height: 16),
+                _buildModernTextField(
                   controller: streetController,
-                  decoration: const InputDecoration(labelText: 'Street'),
+                  label: 'Street',
+                  hint: 'Enter street name',
+                  icon: Icons.route,
                 ),
-                TextField(
+                const SizedBox(height: 16),
+                _buildModernTextField(
                   controller: buildingController,
-                  decoration: const InputDecoration(labelText: 'Building'),
+                  label: 'Building',
+                  hint: 'Enter building name/number',
+                  icon: Icons.business,
                 ),
-                TextField(
-                  controller: floorController,
-                  decoration: const InputDecoration(labelText: 'Floor'),
-                ),
-                TextField(
-                  controller: apartmentController,
-                  decoration: const InputDecoration(labelText: 'Apartment'),
-                ),
-                TextField(
+                const SizedBox(height: 16),
+                _buildModernTextField(
                   controller: notesController,
-                  decoration: const InputDecoration(labelText: 'Notes'),
+                  label: 'Notes',
+                  hint: 'Additional instructions (optional)',
+                  icon: Icons.note,
+                  maxLines: 2,
                 ),
-                const SizedBox(height: 12),
-                Text('Location: $address',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 20),
+
+                // Location display
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.place,
+                        color: Colors.green.shade600,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          address,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                setState(() => isSaving = true);
+                                try {
+                                  final baseUrl = dotenv.env['BASE_URL'];
+                                  if (baseUrl == null || baseUrl.isEmpty) {
+                                    setState(() => isSaving = false);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Configuration error: BASE_URL not found'),
+                                          backgroundColor: Colors.red),
+                                    );
+                                    return;
+                                  }
+
+                                  final res = await http.post(
+                                    Uri.parse('$baseUrl/api/addresses'),
+                                    headers: {
+                                      'Authorization': 'Bearer ${widget.token}',
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: jsonEncode({
+                                      'label': labelController.text,
+                                      'street': streetController.text,
+                                      'building': buildingController.text,
+                                      'floor': floorController.text,
+                                      'apartment': apartmentController.text,
+                                      'notes': notesController.text,
+                                      'address': address,
+                                      'latitude': latlng.latitude,
+                                      'longitude': latlng.longitude,
+                                    }),
+                                  );
+                                  setState(() => isSaving = false);
+                                  if (res.statusCode == 201) {
+                                    await fetchSavedAddresses();
+                                    // Auto-select the newly added address
+                                    await _autoSelectRecentAddress();
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text('Address saved!'),
+                                          backgroundColor: Colors.green),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content:
+                                              Text('Failed to save address'),
+                                          backgroundColor: Colors.red),
+                                    );
+                                  }
+                                } catch (e) {
+                                  setState(() => isSaving = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Error saving address: ${e.toString()}'),
+                                        backgroundColor: Colors.red),
+                                  );
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade600,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : Text(
+                                'Save Address',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: isSaving
-                  ? null
-                  : () async {
-                      setState(() => isSaving = true);
-                      try {
-                        final baseUrl = dotenv.env['BASE_URL'];
-                        if (baseUrl == null || baseUrl.isEmpty) {
-                          setState(() => isSaving = false);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text(
-                                    'Configuration error: BASE_URL not found'),
-                                backgroundColor: Colors.red),
-                          );
-                          return;
-                        }
+        ),
+      ),
+    );
+  }
 
-                        final res = await http.post(
-                          Uri.parse('$baseUrl/api/addresses'),
-                          headers: {
-                            'Authorization': 'Bearer ${widget.token}',
-                            'Content-Type': 'application/json',
-                          },
-                          body: jsonEncode({
-                            'label': labelController.text,
-                            'street': streetController.text,
-                            'building': buildingController.text,
-                            'floor': floorController.text,
-                            'apartment': apartmentController.text,
-                            'notes': notesController.text,
-                            'address': address,
-                            'latitude': latlng.latitude,
-                            'longitude': latlng.longitude,
-                          }),
-                        );
-                        setState(() => isSaving = false);
-                        if (res.statusCode == 201) {
-                          await fetchSavedAddresses();
-                          // Auto-select the newly added address
-                          await _autoSelectRecentAddress();
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Address saved!'),
-                                backgroundColor: Colors.green),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Failed to save address'),
-                                backgroundColor: Colors.red),
-                          );
-                        }
-                      } catch (e) {
-                        setState(() => isSaving = false);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content:
-                                  Text('Error saving address: ${e.toString()}'),
-                              backgroundColor: Colors.red),
-                        );
-                      }
-                    },
-              child: isSaving
-                  ? const CircularProgressIndicator()
-                  : const Text('Save'),
+  Widget _buildModernTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    bool isRequired = false,
+    int maxLines = 1,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          label: isRequired
+              ? RichText(
+                  text: TextSpan(
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    children: [
+                      TextSpan(text: label),
+                      const TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ],
+                  ),
+                )
+              : Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+          hintText: hint,
+          prefixIcon: Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
             ),
-          ],
+            child: Icon(
+              icon,
+              color: Colors.blue.shade600,
+              size: 20,
+            ),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.blue.shade600, width: 2),
+          ),
+          labelStyle: GoogleFonts.poppins(
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
+          ),
+          hintStyle: GoogleFonts.poppins(
+            color: Colors.grey.shade400,
+          ),
         ),
       ),
     );
