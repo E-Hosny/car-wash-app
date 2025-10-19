@@ -31,9 +31,11 @@ class PaymentScreen extends StatefulWidget {
 class _PaymentScreenState extends State<PaymentScreen> {
   bool _isLoading = false;
   bool _isProcessing = false;
+  String? _paymentIntentClientSecret;
+  String? _ephemeralKey;
+  String? _customerId;
   String? _paymentIntentId;
   String? _errorMessage;
-  CardFieldInputDetails? _card;
 
   @override
   void initState() {
@@ -44,6 +46,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final bool isPackagePurchase =
         widget.orderData['is_package_purchase'] == true;
     if (isPackagePurchase && widget.orderData['payment_intent_id'] != null) {
+      // للباقات، قد يكون payment intent تم إنشاؤه مسبقاً
+      // لكن مع PaymentSheet، نحتاج client_secret و ephemeral_key و customer
+      // لذا سنقوم بإنشاء payment intent جديد في جميع الحالات
       setState(() {
         _paymentIntentId = widget.orderData['payment_intent_id'];
       });
@@ -68,18 +73,35 @@ class _PaymentScreenState extends State<PaymentScreen> {
     });
 
     try {
-      final paymentIntent = await StripeService.createPaymentIntent(
+      print('🔄 Creating payment intent...');
+      print('Amount: ${widget.amount} AED');
+      print('Order ID: ${widget.orderId}');
+
+      final paymentData = await StripeService.createPaymentIntent(
         amount: widget.amount,
         currency: 'aed',
         orderId: widget.orderId,
         token: widget.token,
       );
 
+      print('📦 Payment data received: ${paymentData.keys.toList()}');
+
       setState(() {
-        _paymentIntentId = paymentIntent['client_secret'];
+        _paymentIntentClientSecret = paymentData['client_secret'];
+        _ephemeralKey = paymentData['ephemeral_key'];
+        _customerId = paymentData['customer'];
+        _paymentIntentId = paymentData['payment_intent_id'];
         _isLoading = false;
       });
+
+      print('✅ Payment Intent created successfully');
+      print(
+          'Client Secret: ${_paymentIntentClientSecret?.substring(0, 20)}...');
+      print('Ephemeral Key: ${_ephemeralKey?.substring(0, 20)}...');
+      print('Customer ID: $_customerId');
+      print('Payment Intent ID: $_paymentIntentId');
     } catch (e) {
+      print('❌ Failed to create payment intent: $e');
       setState(() {
         _errorMessage = 'Failed to create payment: $e';
         _isLoading = false;
@@ -127,8 +149,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
       return;
     }
 
-    // For payment orders, process payment FIRST
-    if (_paymentIntentId == null) {
+    // For payment orders, process payment FIRST using PaymentSheet
+    if (_paymentIntentClientSecret == null ||
+        _ephemeralKey == null ||
+        _customerId == null) {
       setState(() {
         _errorMessage = 'Payment intent not created';
       });
@@ -141,52 +165,89 @@ class _PaymentScreenState extends State<PaymentScreen> {
     });
 
     try {
-      print('Starting payment confirmation...');
-      
-      // معالجة الدفع أولاً
-      await Stripe.instance.confirmPayment(
-        paymentIntentClientSecret: _paymentIntentId!,
-        data: PaymentMethodParams.card(
-          paymentMethodData: PaymentMethodData(),
+      print('Starting PaymentSheet presentation...');
+
+      // تهيئة PaymentSheet
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          merchantDisplayName: 'Luxuria Car Wash',
+          paymentIntentClientSecret: _paymentIntentClientSecret!,
+          customerEphemeralKeySecret: _ephemeralKey!,
+          customerId: _customerId!,
+          style: ThemeMode.light,
+          appearance: PaymentSheetAppearance(
+            colors: PaymentSheetAppearanceColors(
+              primary: Colors.black,
+            ),
+            primaryButton: PaymentSheetPrimaryButtonAppearance(
+              colors: PaymentSheetPrimaryButtonTheme(
+                light: PaymentSheetPrimaryButtonThemeColors(
+                  background: Colors.black,
+                  text: Colors.white,
+                ),
+              ),
+            ),
+          ),
+          // دعم Google Pay
+          // ملاحظة: Apple Pay معطّل مؤقتاً حتى إكمال إعداد Xcode
+          // راجع APPLE_PAY_QUICK_START.md للإعداد
+          googlePay: const PaymentSheetGooglePay(
+            merchantCountryCode: 'AE',
+            testEnv: true, // غير إلى false في الإنتاج
+          ),
         ),
       );
 
-      print('Payment confirmed successfully');
-      
+      print('PaymentSheet initialized, presenting...');
+
+      // عرض PaymentSheet للمستخدم
+      await Stripe.instance.presentPaymentSheet();
+
+      print('Payment confirmed successfully via PaymentSheet');
+
       // إذا وصلنا هنا، فهذا يعني أن الدفع نجح
       await _processSuccessfulPayment();
-      
-    } catch (e) {
-      print('Payment error: $e');
-      
-      // فحص ما إذا كان الخطأ يشير إلى نجاح الدفع
-      String errorString = e.toString().toLowerCase();
-      
-      if (errorString.contains('succeeded') || 
-          errorString.contains('processing') ||
-          errorString.contains('requires_capture') ||
-          errorString.contains('payment_intent') && errorString.contains('succeeded')) {
-        print('Payment succeeded despite error message');
-        await _processSuccessfulPayment();
+    } on StripeException catch (e) {
+      print('Stripe error: ${e.error.code} - ${e.error.message}');
+
+      // المستخدم ألغى عملية الدفع
+      if (e.error.code == FailureCode.Canceled) {
+        setState(() {
+          _errorMessage = 'Payment was cancelled';
+          _isProcessing = false;
+        });
         return;
       }
-      
+
+      // خطأ في الدفع
+      setState(() {
+        _errorMessage = isPackagePurchase
+            ? 'Package purchase payment failed: ${e.error.localizedMessage ?? "Please try again"}'
+            : 'Payment failed: ${e.error.localizedMessage ?? "Please try again"}';
+        _isProcessing = false;
+      });
+    } catch (e) {
+      print('❌ Payment error: $e');
+      print('Error type: ${e.runtimeType}');
+      print('Error details: ${e.toString()}');
+
       // إذا كان خطأ حقيقي في الدفع
       setState(() {
         _errorMessage = isPackagePurchase
-            ? 'Package purchase payment failed. Please try again.'
-            : 'Payment failed. Please try again.';
+            ? 'Package purchase payment failed. Please try again.\nError: $e'
+            : 'Payment failed. Please try again.\nError: $e';
         _isProcessing = false;
       });
     }
   }
 
   Future<void> _processSuccessfulPayment() async {
-    final bool isPackagePurchase = widget.orderData['is_package_purchase'] == true;
-    
+    final bool isPackagePurchase =
+        widget.orderData['is_package_purchase'] == true;
+
     try {
       print('Processing successful payment...');
-      
+
       // تم الدفع بنجاح - الآن ننشئ الطلب
       final orderResponse = await _createOrder();
 
@@ -244,7 +305,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
       if (isPackagePurchase) {
         // شراء باقة
-        final response = await http.post(
+        final response = await http
+            .post(
           Uri.parse(
               '$baseUrl/api/packages/${widget.orderData['package_id']}/purchase'),
           headers: {
@@ -256,10 +318,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
             'payment_intent_id': widget.orderData['payment_intent_id'],
             'paid_amount': widget.amount,
           }),
-        ).timeout(
+        )
+            .timeout(
           const Duration(seconds: 30), // Add timeout
           onTimeout: () {
-            throw Exception('Request timeout. Please check your internet connection and try again.');
+            throw Exception(
+                'Request timeout. Please check your internet connection and try again.');
           },
         );
 
@@ -292,7 +356,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
         print('Request Body (JSON): ${jsonEncode(widget.orderData)}');
         print('==========================================');
 
-        final response = await http.post(
+        final response = await http
+            .post(
           Uri.parse('$baseUrl/api/$endpoint'),
           headers: {
             'Content-Type': 'application/json',
@@ -300,10 +365,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
             'Authorization': 'Bearer ${widget.token}',
           },
           body: jsonEncode(widget.orderData),
-        ).timeout(
+        )
+            .timeout(
           const Duration(seconds: 30), // Add timeout
           onTimeout: () {
-            throw Exception('Request timeout. Please check your internet connection and try again.');
+            throw Exception(
+                'Request timeout. Please check your internet connection and try again.');
           },
         );
 
@@ -358,7 +425,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<void> _updateOrderPaymentStatus(int orderId) async {
     try {
       final baseUrl = dotenv.env['BASE_URL']!;
-      await http.post(
+      await http
+          .post(
         Uri.parse('$baseUrl/api/orders/$orderId/payment-status'),
         headers: {
           'Content-Type': 'application/json',
@@ -369,7 +437,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
           'payment_status': 'paid',
           'payment_intent_id': _paymentIntentId,
         }),
-      ).timeout(
+      )
+          .timeout(
         const Duration(seconds: 15), // Shorter timeout for status update
         onTimeout: () {
           throw Exception('Payment status update timeout');
@@ -442,9 +511,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       MaterialPageRoute(
                         builder: (context) => MainNavigationScreen(
                           token: widget.token,
-                          initialIndex: 2, // Orders tab (0: Home, 1: Packages, 2: Orders)
-                          forceOrdersTab: false, // Don't force - allow normal navigation
-                          showPaymentSuccess: false, // Don't show success message - already shown in dialog
+                          initialIndex:
+                              2, // Orders tab (0: Home, 1: Packages, 2: Orders)
+                          forceOrdersTab:
+                              false, // Don't force - allow normal navigation
+                          showPaymentSuccess:
+                              false, // Don't show success message - already shown in dialog
                         ),
                       ),
                       (route) => false, // Remove all previous routes
@@ -711,10 +783,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
                 if (_errorMessage != null) const SizedBox(height: 20),
 
-                // أزرار الدفع
+                // زر تهيئة الدفع (فقط إذا لم يتم إنشاء payment intent بعد)
                 if (!isPackageOrder &&
                     !isPackagePurchase &&
-                    _paymentIntentId == null)
+                    _paymentIntentClientSecret == null)
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
@@ -806,25 +878,51 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     ),
                   ),
 
-                // حقل إدخال بيانات البطاقة وزر الدفع لشراء الباقات
-                if (_paymentIntentId != null &&
+                // زر الدفع باستخدام PaymentSheet (يدعم جميع طرق الدفع)
+                if (_paymentIntentClientSecret != null &&
                     (isPackagePurchase ||
                         (!isPackageOrder && !isPackagePurchase))) ...[
                   const SizedBox(height: 20),
-                  // حقل إدخال بيانات البطاقة
-                  CardField(
-                    onCardChanged: (card) {
-                      setState(() {
-                        _card = card;
-                      });
-                    },
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      labelText: 'Card Details',
+                  // معلومات عن طرق الدفع المتاحة
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
                     ),
-                    style: GoogleFonts.poppins(fontSize: 16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.payment, color: Colors.blue, size: 24),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Multiple Payment Methods Available',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Cards, Google Pay, Link & more',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: Colors.blue[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
+                  // زر الدفع
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
@@ -840,9 +938,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: ElevatedButton(
-                      onPressed: (_isProcessing || !(_card?.complete ?? false))
-                          ? null
-                          : _processPayment,
+                      onPressed: _isProcessing ? null : _processPayment,
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
                             isPackagePurchase ? Colors.green : Colors.black,

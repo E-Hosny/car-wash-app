@@ -3,10 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class StripeService {
-  static const String _publishableKey =
-      'pk_test_51QBy7wCMJLG6tciZfKvsEogik3Rhk1pSfEyaaiPldKGGkUNroUugRQCJdYMY10BfoE8zx8SabsZDIYkjVJR4Q5HF00EBYyFSn5';
-
-  // إنشاء Payment Intent
+  // إنشاء Payment Intent مع دعم PaymentSheet
   static Future<Map<String, dynamic>> createPaymentIntent({
     required double amount,
     required String currency,
@@ -30,7 +27,15 @@ class StripeService {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final data = jsonDecode(response.body);
+        // التأكد من وجود جميع البيانات المطلوبة لـ PaymentSheet
+        if (data['client_secret'] != null &&
+            data['ephemeral_key'] != null &&
+            data['customer'] != null) {
+          return data;
+        } else {
+          throw Exception('Missing required payment data');
+        }
       } else {
         throw Exception('Failed to create payment intent: ${response.body}');
       }
