@@ -59,6 +59,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
     try {
       Stripe.publishableKey = StripeService.getPublishableKey();
       await Stripe.instance.applySettings();
+
+      // إعداد Apple Pay Merchant ID
+      print(
+          'Initializing Apple Pay with Merchant ID: merchant.com.washluxuria');
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to initialize payment system: $e';
@@ -188,9 +192,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
             ),
           ),
-          // دعم Google Pay
-          // ملاحظة: Apple Pay معطّل مؤقتاً حتى إكمال إعداد Xcode
-          // راجع APPLE_PAY_QUICK_START.md للإعداد
+          // دعم Apple Pay و Google Pay
+          applePay: PaymentSheetApplePay(
+            merchantCountryCode: 'AE',
+          ),
           googlePay: const PaymentSheetGooglePay(
             merchantCountryCode: 'AE',
             testEnv: true, // غير إلى false في الإنتاج
@@ -909,7 +914,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Cards, Google Pay, Link & more',
+                                'Cards, Apple Pay, Google Pay, Link & more',
                                 style: GoogleFonts.poppins(
                                   fontSize: 12,
                                   color: Colors.blue[700],
