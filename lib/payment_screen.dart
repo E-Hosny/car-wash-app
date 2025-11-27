@@ -115,7 +115,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Future<void> _processPayment() async {
     // Prevent multiple simultaneous calls
-    if (_isProcessing) {
+    if (_isProcessing || _isLoading) {
       print('Payment already in progress, ignoring duplicate call');
       return;
     }
@@ -153,14 +153,53 @@ class _PaymentScreenState extends State<PaymentScreen> {
       return;
     }
 
-    // For payment orders, process payment FIRST using PaymentSheet
+    // For payment orders, create payment intent first if it doesn't exist
     if (_paymentIntentClientSecret == null ||
         _ephemeralKey == null ||
         _customerId == null) {
+      // Create payment intent automatically
       setState(() {
-        _errorMessage = 'Payment intent not created';
+        _isLoading = true;
+        _errorMessage = null;
       });
-      return;
+
+      try {
+        print('🔄 Creating payment intent automatically...');
+        print('Amount: ${widget.amount} AED');
+        print('Order ID: ${widget.orderId}');
+
+        final paymentData = await StripeService.createPaymentIntent(
+          amount: widget.amount,
+          currency: 'aed',
+          orderId: widget.orderId,
+          token: widget.token,
+        );
+
+        print('📦 Payment data received: ${paymentData.keys.toList()}');
+
+        setState(() {
+          _paymentIntentClientSecret = paymentData['client_secret'];
+          _ephemeralKey = paymentData['ephemeral_key'];
+          _customerId = paymentData['customer'];
+          _paymentIntentId = paymentData['payment_intent_id'];
+          _isLoading = false;
+        });
+
+        print('✅ Payment Intent created successfully');
+        print(
+            'Client Secret: ${_paymentIntentClientSecret?.substring(0, 20)}...');
+        print('Ephemeral Key: ${_ephemeralKey?.substring(0, 20)}...');
+        print('Customer ID: $_customerId');
+        print('Payment Intent ID: $_paymentIntentId');
+      } catch (e) {
+        print('❌ Failed to create payment intent: $e');
+        setState(() {
+          _errorMessage = 'Failed to create payment: $e';
+          _isLoading = false;
+          _isProcessing = false;
+        });
+        return;
+      }
     }
 
     setState(() {
@@ -788,51 +827,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
                 if (_errorMessage != null) const SizedBox(height: 20),
 
-                // زر تهيئة الدفع (فقط إذا لم يتم إنشاء payment intent بعد)
-                if (!isPackageOrder &&
-                    !isPackagePurchase &&
-                    _paymentIntentClientSecret == null)
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 15,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _createPaymentIntent,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2.5,
-                              ),
-                            )
-                          : Text(
-                              'Initialize Payment',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
-                  ),
-
                 // زر تأكيد طلب الباقة (لا يحتاج دفع)
                 if (isPackageOrder)
                   Container(
@@ -884,9 +878,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ),
 
                 // زر الدفع باستخدام PaymentSheet (يدعم جميع طرق الدفع)
-                if (_paymentIntentClientSecret != null &&
-                    (isPackagePurchase ||
-                        (!isPackageOrder && !isPackagePurchase))) ...[
+                if (!isPackageOrder) ...[
                   const SizedBox(height: 20),
                   // معلومات عن طرق الدفع المتاحة
                   Container(
@@ -943,7 +935,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: ElevatedButton(
-                      onPressed: _isProcessing ? null : _processPayment,
+                      onPressed: (_isProcessing || _isLoading) ? null : _processPayment,
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
                             isPackagePurchase ? Colors.green : Colors.black,
@@ -953,7 +945,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           borderRadius: BorderRadius.circular(25),
                         ),
                       ),
-                      child: _isProcessing
+                      child: (_isProcessing || _isLoading)
                           ? const SizedBox(
                               width: 20,
                               height: 20,
