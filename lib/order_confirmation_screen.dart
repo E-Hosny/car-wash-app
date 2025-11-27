@@ -1359,35 +1359,224 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('Schedule'),
+        const SizedBox(height: 16),
+        // Date Selection
         Container(
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 12,
-                offset: const Offset(0, 6),
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.blue.shade100),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.calendar_today,
+                      color: Colors.blue.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Select Date',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Column(
+                children: [
+                  _buildModernDateOptionInline(
+                      'Today',
+                      DateTime.now(),
+                      Icons.today),
+                  const SizedBox(height: 6),
+                  _buildModernDateOptionInline(
+                      'Tomorrow',
+                      DateTime.now()
+                          .add(const Duration(days: 1)),
+                      Icons.event_available),
+                  const SizedBox(height: 6),
+                  _buildModernDateOptionInline(
+                      'Day After',
+                      DateTime.now()
+                          .add(const Duration(days: 2)),
+                      Icons.date_range),
+                ],
               ),
             ],
-            borderRadius: BorderRadius.circular(24),
           ),
-          child: ElevatedButton.icon(
-            onPressed: _showTimeSlotDialog,
-            icon: Icon(selectedDateTime != null ? Icons.access_time : Icons.schedule),
-            label: Text(
-              selectedDateTime != null
-                  ? 'Selected: ${_formatSelectedTime(selectedDateTime!)}'
-                  : 'Select Time Slot',
-              style: const TextStyle(fontSize: 16),
+        ),
+        const SizedBox(height: 24),
+        // Time Slots
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.access_time,
+                    color: Colors.green.shade700, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Select Time',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+              ],
             ),
-            style: ElevatedButton.styleFrom(
-              foregroundColor: Colors.white,
-              backgroundColor: selectedDateTime != null ? Colors.green : Colors.black,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 200,
+              child: GridView.builder(
+                padding: EdgeInsets.zero,
+                gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 2.8,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: _generateTimeSlots().length,
+                itemBuilder: (context, index) {
+                  final slot = _generateTimeSlots()[index];
+                  final isSelected = selectedDateTime !=
+                          null &&
+                      selectedDateTime!.hour ==
+                          slot['hour'] &&
+                      _isSameDate(
+                          selectedDateTime!, selectedDate);
+                  final isBooked = slot['isBooked'] as bool;
+                  final isUnavailable =
+                      slot['isUnavailable'] as bool;
+                  final isPastHour =
+                      slot['isPastHour'] as bool;
+
+                  return GestureDetector(
+                    onTap: (isBooked ||
+                            isUnavailable ||
+                            isPastHour)
+                        ? null
+                        : () => _selectTimeSlotInline(slot),
+                    child: AnimatedContainer(
+                      duration:
+                          const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      decoration: BoxDecoration(
+                        color: isBooked
+                            ? Colors.red.shade50
+                            : isUnavailable
+                                ? Colors.orange.shade50
+                                : isPastHour
+                                    ? Colors.grey.shade100
+                                    : (isSelected
+                                        ? Colors
+                                            .green.shade600
+                                        : Colors.white),
+                        borderRadius:
+                            BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isBooked
+                              ? Colors.red.shade300
+                              : isUnavailable
+                                  ? Colors.orange.shade300
+                                  : isPastHour
+                                      ? Colors.grey.shade400
+                                      : (isSelected
+                                          ? Colors
+                                              .green.shade600
+                                          : Colors
+                                              .grey.shade300),
+                          width: isSelected ? 2 : 1,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color:
+                                      Colors.green.shade200,
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 6),
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : [
+                                BoxShadow(
+                                  color: Colors.grey.shade100,
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment:
+                              MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                slot['label'],
+                                style: GoogleFonts.poppins(
+                                  color: isBooked
+                                      ? Colors.red.shade600
+                                      : isUnavailable
+                                          ? Colors
+                                              .orange.shade600
+                                          : isPastHour
+                                              ? Colors.grey
+                                                  .shade500
+                                              : (isSelected
+                                                  ? Colors
+                                                      .white
+                                                  : Colors
+                                                      .grey
+                                                      .shade800),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow:
+                                    TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isBooked ||
+                                isUnavailable ||
+                                isPastHour) ...[
+                              const SizedBox(height: 2),
+                              Flexible(
+                                child: Text(
+                                  isPastHour ? 'Past' : 'OFF',
+                                  style: GoogleFonts.poppins(
+                                    color: isBooked
+                                        ? Colors.red.shade600
+                                        : isUnavailable
+                                            ? Colors.orange
+                                                .shade600
+                                            : Colors.grey
+                                                .shade500,
+                                    fontWeight:
+                                        FontWeight.bold,
+                                    fontSize: 9,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          ),
+          ],
         ),
       ],
     );
@@ -2261,6 +2450,146 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         ),
       ),
     );
+  }
+
+  // Inline version of _buildModernDateOption for direct use in page
+  Widget _buildModernDateOptionInline(
+      String label, DateTime date, IconData icon) {
+    final isSelected = _isSameDate(selectedDate, date);
+    final isToday = _isSameDate(date, DateTime.now());
+    final isTomorrow =
+        _isSameDate(date, DateTime.now().add(const Duration(days: 1)));
+
+    String displayLabel = label;
+    Color cardColor;
+    Color textColor;
+    Color iconColor;
+
+    if (isSelected) {
+      cardColor = Colors.blue.shade600;
+      textColor = Colors.white;
+      iconColor = Colors.white;
+    } else if (isToday) {
+      cardColor = Colors.green.shade50;
+      textColor = Colors.green.shade700;
+      iconColor = Colors.green.shade600;
+    } else if (isTomorrow) {
+      cardColor = Colors.orange.shade50;
+      textColor = Colors.orange.shade700;
+      iconColor = Colors.orange.shade600;
+    } else {
+      cardColor = Colors.purple.shade50;
+      textColor = Colors.purple.shade700;
+      iconColor = Colors.purple.shade600;
+    }
+
+    return GestureDetector(
+      onTap: () async {
+        if (_isSameDate(selectedDate, date) || isChangingDate) return;
+
+        setState(() {
+          isChangingDate = true;
+          selectedDate = date;
+          selectedDateTime = null;
+        });
+
+        await _fetchBookedTimeSlots(date);
+
+        setState(() {
+          isChangingDate = false;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? Colors.blue.shade600 : Colors.grey.shade200,
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? Colors.blue.shade200.withOpacity(0.5)
+                  : Colors.grey.shade200,
+              blurRadius: isSelected ? 12 : 6,
+              offset: const Offset(0, 4),
+              spreadRadius: isSelected ? 2 : 0,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withOpacity(0.2)
+                    : iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: 16,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayLabel,
+                    style: GoogleFonts.poppins(
+                      color: textColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    '${date.day}/${date.month}',
+                    style: GoogleFonts.poppins(
+                      color: textColor.withOpacity(0.8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Icon(
+                  Icons.check,
+                  color: Colors.white,
+                  size: 14,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Select time slot directly without confirmation dialog
+  void _selectTimeSlotInline(Map<String, dynamic> slot) {
+    setState(() {
+      selectedDateTime = slot['datetime'];
+      selectedDate = selectedDateTime!;
+    });
+
+    // Show success animation
+    _showSuccessAnimation(slot['label'] as String);
   }
 
   Widget _buildPackageSection() {
