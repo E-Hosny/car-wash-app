@@ -135,23 +135,37 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
             '📦 Loaded data from cache instantly, refreshing in background...');
       }
 
-      // Fetch fresh data in parallel in background (will update cache automatically)
-      // This runs even if we have cached data to ensure data is up-to-date
-      Future.wait([
-        _fetchServices(),
-        _fetchUserCars(),
-        _determineCurrentPosition(),
-        _fetchSavedAddresses(),
-        _fetchBookedTimeSlots(),
-        if (packagesEnabled) _checkUserPackage(),
-      ]).then((_) {
-        // Update selection with fresh data if needed
-        if (hasCachedData) {
-          _autoSelectRecentData();
-        }
-      }).catchError((e) {
-        print('⚠️ Error refreshing data in background: $e');
-      });
+      // Only refresh data in background if cache is expired or missing
+      // Check if we need to refresh each data type
+      bool needRefreshServices = cachedServices == null;
+      bool needRefreshCars = cachedCars == null;
+      bool needRefreshAddresses = cachedAddresses == null;
+      bool needRefreshTimeSlots = cachedTimeSlots == null;
+
+      List<Future> refreshTasks = [];
+
+      if (needRefreshServices) refreshTasks.add(_fetchServices());
+      if (needRefreshCars) refreshTasks.add(_fetchUserCars());
+      if (needRefreshAddresses) refreshTasks.add(_fetchSavedAddresses());
+      if (needRefreshTimeSlots) refreshTasks.add(_fetchBookedTimeSlots());
+
+      // Always fetch location and package info
+      refreshTasks.add(_determineCurrentPosition());
+      if (packagesEnabled) refreshTasks.add(_checkUserPackage());
+
+      // Refresh only what's needed in background
+      if (refreshTasks.isNotEmpty) {
+        Future.wait(refreshTasks).then((_) {
+          // Update selection with fresh data if needed
+          if (hasCachedData) {
+            _autoSelectRecentData();
+          }
+        }).catchError((e) {
+          print('⚠️ Error refreshing data in background: $e');
+        });
+      } else {
+        print('✅ All data is fresh from cache, no refresh needed');
+      }
 
       // If no cached data, wait for API calls
       if (!hasCachedData) {

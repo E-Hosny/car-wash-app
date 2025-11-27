@@ -24,28 +24,28 @@ class CacheService {
   // TTL for time slots (30 seconds - they change frequently)
   static const int _timeSlotsTTL = 30 * 1000; // 30 seconds
 
-  /// Get services from cache only (no API call)
+  /// Get services from cache only (no API call) - checks TTL
   List<dynamic>? getCachedServices(String token) {
     final cacheKey = '${_servicesKey}_$token';
-    if (_cache.containsKey(cacheKey)) {
+    if (_isValid(cacheKey, _servicesTTL)) {
       return _cache[cacheKey]!.data as List<dynamic>;
     }
     return null;
   }
 
-  /// Get user cars from cache only (no API call)
+  /// Get user cars from cache only (no API call) - checks TTL
   List<dynamic>? getCachedCars(String token) {
     final cacheKey = '${_carsKey}_$token';
-    if (_cache.containsKey(cacheKey)) {
+    if (_isValid(cacheKey, _carsTTL)) {
       return _cache[cacheKey]!.data as List<dynamic>;
     }
     return null;
   }
 
-  /// Get saved addresses from cache only (no API call)
+  /// Get saved addresses from cache only (no API call) - checks TTL
   List<Map<String, dynamic>>? getCachedAddresses(String token) {
     final cacheKey = '${_addressesKey}_$token';
-    if (_cache.containsKey(cacheKey)) {
+    if (_isValid(cacheKey, _addressesTTL)) {
       return List<Map<String, dynamic>>.from(_cache[cacheKey]!.data);
     }
     return null;
@@ -193,11 +193,11 @@ class CacheService {
     }
   }
 
-  /// Get booked time slots from cache only (no API call)
+  /// Get booked time slots from cache only (no API call) - checks TTL
   Map<String, dynamic>? getCachedTimeSlots(String token, DateTime date) {
     final dateString = date.toIso8601String().split('T')[0]; // YYYY-MM-DD format
     final cacheKey = '${_timeSlotsKey}_${dateString}_$token';
-    if (_cache.containsKey(cacheKey)) {
+    if (_isValid(cacheKey, _timeSlotsTTL)) {
       return Map<String, dynamic>.from(_cache[cacheKey]!.data);
     }
     return null;
