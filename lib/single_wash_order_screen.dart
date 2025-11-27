@@ -15,6 +15,7 @@ import 'utils/debug_helper.dart';
 import 'widgets/order_summary_card.dart';
 import 'main_navigation_screen.dart';
 import 'services/config_service.dart';
+import 'services/cache_service.dart';
 
 class SingleWashOrderScreen extends StatefulWidget {
   final String token;
@@ -81,22 +82,95 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
       // Load configuration first
       packagesEnabled = await ConfigService.fetchPackagesEnabled();
 
-      // Fetch all required data in parallel
-      await Future.wait([
+      // Try to load from cache first for instant display (synchronous, no API call)
+      final cacheService = CacheService();
+      bool hasCachedData = false;
+
+      final cachedServices = cacheService.getCachedServices(widget.token);
+      final cachedCars = cacheService.getCachedCars(widget.token);
+      final cachedAddresses = cacheService.getCachedAddresses(widget.token);
+      final cachedTimeSlots =
+          cacheService.getCachedTimeSlots(widget.token, selectedDate);
+
+      if (cachedServices != null && cachedServices.isNotEmpty ||
+          cachedCars != null && cachedCars.isNotEmpty ||
+          cachedAddresses != null && cachedAddresses.isNotEmpty ||
+          cachedTimeSlots != null) {
+        // Load cached data immediately (synchronous)
+        if (cachedServices != null && cachedServices.isNotEmpty) {
+          setState(() {
+            services = cachedServices;
+          });
+        }
+        if (cachedCars != null && cachedCars.isNotEmpty) {
+          setState(() {
+            cars = cachedCars;
+          });
+        }
+        if (cachedAddresses != null && cachedAddresses.isNotEmpty) {
+          setState(() {
+            savedAddresses = cachedAddresses;
+            isLoadingAddresses = false;
+          });
+        }
+        if (cachedTimeSlots != null) {
+          setState(() {
+            bookedHours = List<int>.from(cachedTimeSlots['booked_hours'] ?? []);
+            unavailableHours =
+                List<int>.from(cachedTimeSlots['unavailable_hours'] ?? []);
+            isLoadingTimeSlots = false;
+          });
+        }
+
+        // Auto-select most recent car and address from cached data
+        await _autoSelectRecentData();
+
+        // Hide loading indicator immediately if we have cached data
+        setState(() {
+          isLoading = false;
+        });
+        hasCachedData = true;
+
+        print(
+            '📦 Loaded data from cache instantly, refreshing in background...');
+      }
+
+      // Fetch fresh data in parallel in background (will update cache automatically)
+      // This runs even if we have cached data to ensure data is up-to-date
+      Future.wait([
         _fetchServices(),
         _fetchUserCars(),
         _determineCurrentPosition(),
         _fetchSavedAddresses(),
         _fetchBookedTimeSlots(),
         if (packagesEnabled) _checkUserPackage(),
-      ]);
-
-      // Auto-select most recent car and address
-      await _autoSelectRecentData();
-
-      setState(() {
-        isLoading = false;
+      ]).then((_) {
+        // Update selection with fresh data if needed
+        if (hasCachedData) {
+          _autoSelectRecentData();
+        }
+      }).catchError((e) {
+        print('⚠️ Error refreshing data in background: $e');
       });
+
+      // If no cached data, wait for API calls
+      if (!hasCachedData) {
+        await Future.wait([
+          _fetchServices(),
+          _fetchUserCars(),
+          _determineCurrentPosition(),
+          _fetchSavedAddresses(),
+          _fetchBookedTimeSlots(),
+          if (packagesEnabled) _checkUserPackage(),
+        ]);
+
+        // Auto-select most recent car and address with fresh data
+        await _autoSelectRecentData();
+
+        setState(() {
+          isLoading = false;
+        });
+      }
 
       print('✅ SingleWashOrderScreen initialization completed successfully');
     } catch (e) {
@@ -200,137 +274,128 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
 
   Future<void> _fetchServices() async {
     try {
-      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
-      print('🔗 Using BASE_URL for services: $baseUrl');
+      final cacheService = CacheService();
+      final servicesData = await cacheService.getServices(widget.token);
 
-      if (baseUrl.isEmpty) {
-        print('Error: BASE_URL not configured');
-        return;
-      }
-
-      final res = await http.get(
-        Uri.parse('$baseUrl/api/services'),
-        headers: {'Authorization': 'Bearer ${widget.token}'},
-      );
-      if (res.statusCode == 200) {
-        final servicesData = jsonDecode(res.body);
-        DebugHelper.logApiResponse('services', servicesData);
-        setState(() {
-          services = servicesData;
-        });
-        DebugHelper.logServiceData(services);
-      }
+      if (!mounted) return;
+      setState(() {
+        services = servicesData;
+      });
+      DebugHelper.logServiceData(services);
     } catch (e) {
       print('Error fetching services: $e');
+      if (!mounted) return;
+      setState(() {
+        services = [];
+      });
     }
   }
 
   Future<void> _fetchUserCars() async {
     try {
-      final baseUrl = dotenv.env['BASE_URL'];
-      if (baseUrl == null || baseUrl.isEmpty) {
-        print('Error: BASE_URL not configured');
-        return;
-      }
+      final cacheService = CacheService();
+      final carsData = await cacheService.getCars(widget.token);
 
-      final res = await http.get(
-        Uri.parse('$baseUrl/api/cars'),
-        headers: {'Authorization': 'Bearer ${widget.token}'},
-      );
-      if (res.statusCode == 200) {
-        if (!mounted) return;
-        setState(() {
-          cars = jsonDecode(res.body);
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        cars = carsData;
+      });
     } catch (e) {
       print('Error fetching user cars: $e');
+      if (!mounted) return;
+      setState(() {
+        cars = [];
+      });
     }
   }
 
   Future<void> _fetchSavedAddresses() async {
+    if (!mounted) return;
     setState(() => isLoadingAddresses = true);
     try {
-      final baseUrl = dotenv.env['BASE_URL'];
-      if (baseUrl == null || baseUrl.isEmpty) {
-        print('Error: BASE_URL not configured');
-        setState(() => isLoadingAddresses = false);
-        return;
-      }
+      final cacheService = CacheService();
+      final addressesData = await cacheService.getAddresses(widget.token);
 
-      final res = await http.get(
-        Uri.parse('$baseUrl/api/addresses'),
-        headers: {'Authorization': 'Bearer ${widget.token}'},
-      );
-      if (res.statusCode == 200) {
-        setState(() {
-          savedAddresses =
-              List<Map<String, dynamic>>.from(jsonDecode(res.body));
-          isLoadingAddresses = false;
-        });
-      } else {
-        setState(() => isLoadingAddresses = false);
-      }
+      if (!mounted) return;
+      setState(() {
+        savedAddresses = addressesData;
+        isLoadingAddresses = false;
+      });
     } catch (e) {
       print('Error fetching saved addresses: $e');
-      setState(() => isLoadingAddresses = false);
+      if (!mounted) return;
+      setState(() {
+        savedAddresses = [];
+        isLoadingAddresses = false;
+      });
     }
   }
 
   Future<void> _fetchBookedTimeSlots([DateTime? date]) async {
-    setState(() => isLoadingTimeSlots = true);
-    try {
-      final baseUrl = dotenv.env['BASE_URL'];
-      if (baseUrl == null || baseUrl.isEmpty) {
-        print('Error: BASE_URL not configured');
-        setState(() => isLoadingTimeSlots = false);
-        return;
-      }
+    final targetDate = date ?? selectedDate;
 
-      final targetDate = date ?? selectedDate;
-      final dateString =
-          targetDate.toIso8601String().split('T')[0]; // YYYY-MM-DD format
+    // Try to load from cache first (synchronous)
+    final cacheService = CacheService();
+    final cachedTimeSlots =
+        cacheService.getCachedTimeSlots(widget.token, targetDate);
 
-      print('🔍 Fetching booked time slots for date: $dateString');
-
-      final res = await http.get(
-        Uri.parse('$baseUrl/api/orders/booked-time-slots?date=$dateString'),
-        headers: {
-          'Authorization': 'Bearer ${widget.token}',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      print('📡 Response status: ${res.statusCode}');
-      print('📡 Response body: ${res.body}');
-
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        print('📊 Parsed data: $data');
-
-        setState(() {
-          bookedHours = List<int>.from(data['booked_hours'] ?? []);
-          unavailableHours = List<int>.from(data['unavailable_hours'] ?? []);
-          isLoadingTimeSlots = false;
-        });
-        print('📅 Booked hours loaded: $bookedHours');
-        print('🚫 Unavailable hours loaded: $unavailableHours');
-      } else {
-        print('❌ Failed to fetch booked time slots: ${res.statusCode}');
-        print('❌ Response body: ${res.body}');
-        setState(() {
-          bookedHours = []; // Reset to empty if API fails
-          unavailableHours = []; // Reset to empty if API fails
-          isLoadingTimeSlots = false;
-        });
-      }
-    } catch (e) {
-      print('❌ Error fetching booked time slots: $e');
+    if (cachedTimeSlots != null) {
+      // Load from cache immediately
       setState(() {
-        bookedHours = []; // Reset to empty on error
-        unavailableHours = []; // Reset to empty on error
+        bookedHours = List<int>.from(cachedTimeSlots['booked_hours'] ?? []);
+        unavailableHours =
+            List<int>.from(cachedTimeSlots['unavailable_hours'] ?? []);
         isLoadingTimeSlots = false;
       });
+      print(
+          '📦 Loaded time slots from cache for date: ${targetDate.toIso8601String().split('T')[0]}');
+
+      // Refresh in background
+      _refreshTimeSlotsInBackground(targetDate);
+      return;
+    }
+
+    // No cache, fetch from API
+    setState(() => isLoadingTimeSlots = true);
+    try {
+      final timeSlotsData =
+          await cacheService.getBookedTimeSlots(widget.token, targetDate);
+
+      if (!mounted) return;
+      setState(() {
+        bookedHours = List<int>.from(timeSlotsData['booked_hours'] ?? []);
+        unavailableHours =
+            List<int>.from(timeSlotsData['unavailable_hours'] ?? []);
+        isLoadingTimeSlots = false;
+      });
+      print('📅 Booked hours loaded: $bookedHours');
+      print('🚫 Unavailable hours loaded: $unavailableHours');
+    } catch (e) {
+      print('❌ Error fetching booked time slots: $e');
+      if (!mounted) return;
+      setState(() {
+        bookedHours = [];
+        unavailableHours = [];
+        isLoadingTimeSlots = false;
+      });
+    }
+  }
+
+  Future<void> _refreshTimeSlotsInBackground(DateTime date) async {
+    try {
+      final cacheService = CacheService();
+      final timeSlotsData =
+          await cacheService.getBookedTimeSlots(widget.token, date);
+
+      if (!mounted) return;
+      setState(() {
+        bookedHours = List<int>.from(timeSlotsData['booked_hours'] ?? []);
+        unavailableHours =
+            List<int>.from(timeSlotsData['unavailable_hours'] ?? []);
+      });
+      print('🔄 Time slots refreshed in background');
+    } catch (e) {
+      print('⚠️ Error refreshing time slots in background: $e');
     }
   }
 
@@ -1238,6 +1303,9 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                                   );
                                   setState(() => isSaving = false);
                                   if (res.statusCode == 201) {
+                                    // Invalidate cache and fetch fresh data
+                                    CacheService()
+                                        .invalidateAddresses(widget.token);
                                     await _fetchSavedAddresses();
                                     Navigator.pop(context);
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -1659,6 +1727,8 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen> {
                         ),
                       );
                       if (added == true) {
+                        // Invalidate cache and fetch fresh data
+                        CacheService().invalidateCars(widget.token);
                         await _fetchUserCars();
                         await _autoSelectRecentData();
                       }

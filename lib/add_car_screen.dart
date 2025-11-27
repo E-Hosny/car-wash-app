@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'services/cache_service.dart';
 
 class AddCarScreen extends StatefulWidget {
   final String token;
@@ -218,6 +219,8 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
     if (res.statusCode == 201) {
       if (!mounted) return;
+      // Invalidate cache so fresh data is loaded
+      CacheService().invalidateCars(widget.token);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ Car added successfully')),
       );

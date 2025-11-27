@@ -13,6 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'services/package_service.dart';
 import 'main_navigation_screen.dart';
 import 'add_car_screen.dart';
+import 'services/cache_service.dart';
 
 class MultiCarOrderScreen extends StatefulWidget {
   final String token;
@@ -193,111 +194,68 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
 
   Future<void> fetchServices() async {
     try {
-      debugPrint('Fetching services...');
-      final baseUrl = dotenv.env['BASE_URL'];
-      if (baseUrl == null || baseUrl.isEmpty) {
-        debugPrint('Error: BASE_URL not configured');
-        return;
-      }
-
-      final res = await http.get(
-        Uri.parse('$baseUrl/api/services'),
-        headers: {'Authorization': 'Bearer ${widget.token}'},
-      );
-
-      debugPrint('Services API response status: ${res.statusCode}');
-
-      if (res.statusCode == 200) {
-        final decoded = jsonDecode(res.body);
-        debugPrint('Services loaded: ${decoded.length} services');
-        setState(() {
-          services = decoded;
-          isLoadingServices = false;
-        });
-      } else {
-        debugPrint('Failed to fetch services: ${res.body}');
-        setState(() {
-          isLoadingServices = false;
-        });
-      }
+      final cacheService = CacheService();
+      final servicesData = await cacheService.getServices(widget.token);
+      
+      if (!mounted) return;
+      setState(() {
+        services = servicesData;
+        isLoadingServices = false;
+      });
+      debugPrint('Services loaded: ${servicesData.length} services');
     } catch (e) {
       debugPrint('Error fetching services: $e');
+      if (!mounted) return;
+      setState(() {
+        services = [];
+        isLoadingServices = false;
+      });
     }
   }
 
   Future<void> fetchUserCars() async {
     try {
-      debugPrint('Fetching user cars...');
-      final baseUrl = dotenv.env['BASE_URL'];
-      if (baseUrl == null || baseUrl.isEmpty) {
-        debugPrint('Error: BASE_URL not configured');
-        return;
-      }
-
-      final res = await http.get(
-        Uri.parse('$baseUrl/api/cars'),
-        headers: {'Authorization': 'Bearer ${widget.token}'},
-      );
-
-      debugPrint('🚗 fetchUserCars API response status: ${res.statusCode}');
-      debugPrint('🚗 fetchUserCars API response body: ${res.body}');
-
-      if (res.statusCode == 200) {
-        if (!mounted) return;
-        final decoded = jsonDecode(res.body);
-        debugPrint('✅ fetchUserCars loaded: ${decoded.length} cars');
-
-        // Debug each car
-        for (int i = 0; i < decoded.length; i++) {
-          final car = decoded[i];
-          debugPrint(
-              '  🚗 fetchUserCars Car ${i + 1}: ID=${car['id']}, UserID=${car['user_id']}, Brand=${car['brand']?['name']}, Model=${car['model']?['name']}');
-        }
-
-        setState(() {
-          cars = decoded;
-          isLoadingCars = false;
-        });
-      } else {
-        debugPrint('Failed to fetch cars: ${res.body}');
-        if (!mounted) return;
-        setState(() {
-          isLoadingCars = false;
-        });
-      }
+      final cacheService = CacheService();
+      final carsData = await cacheService.getCars(widget.token);
+      
+      if (!mounted) return;
+      setState(() {
+        cars = carsData;
+        isLoadingCars = false;
+      });
+      debugPrint('✅ fetchUserCars loaded: ${carsData.length} cars');
     } catch (e) {
       debugPrint('Error fetching user cars: $e');
+      if (!mounted) return;
+      setState(() {
+        cars = [];
+        isLoadingCars = false;
+      });
     }
   }
 
   Future<void> fetchSavedAddresses() async {
+    if (!mounted) return;
     setState(() => isLoadingAddresses = true);
     try {
-      final baseUrl = dotenv.env['BASE_URL'];
-      if (baseUrl == null || baseUrl.isEmpty) {
-        debugPrint('Error: BASE_URL not configured');
-        setState(() => isLoadingAddresses = false);
-        return;
-      }
-
-      final res = await http.get(
-        Uri.parse('$baseUrl/api/addresses'),
-        headers: {'Authorization': 'Bearer ${widget.token}'},
-      );
-      if (res.statusCode == 200) {
-        setState(() {
-          savedAddresses =
-              List<Map<String, dynamic>>.from(jsonDecode(res.body));
-          isLoadingAddresses = false;
-        });
-      } else {
-        setState(() => isLoadingAddresses = false);
-      }
+      final cacheService = CacheService();
+      final addressesData = await cacheService.getAddresses(widget.token);
+      
+      if (!mounted) return;
+      setState(() {
+        savedAddresses = addressesData;
+        isLoadingAddresses = false;
+      });
     } catch (e) {
       debugPrint('Error fetching saved addresses: $e');
-      setState(() => isLoadingAddresses = false);
+      if (!mounted) return;
+      setState(() {
+        savedAddresses = [];
+        isLoadingAddresses = false;
+      });
     }
   }
+
 
   Future<void> _fetchBookedTimeSlots([DateTime? date]) async {
     setState(() => isLoadingTimeSlots = true);
@@ -489,7 +447,10 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
             usePackage: usePackage,
             availableServices: availableServices,
             token: widget.token,
-            onCarsUpdated: () => fetchUserCars(),
+            onCarsUpdated: () {
+              CacheService().invalidateCars(widget.token);
+              fetchUserCars();
+            },
             onCarAdded: (carData) {
               debugPrint('Car added successfully: $carData');
               debugPrint('Points in carData: ${carData['points_used']}');
@@ -515,6 +476,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                       label: 'Refresh',
                       textColor: Colors.white,
                       onPressed: () {
+                        CacheService().invalidateCars(widget.token);
                         fetchUserCars(); // Refresh cars list
                       },
                     ),
@@ -776,6 +738,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
               setState(() {
                 selectedCars.clear();
               });
+              CacheService().invalidateCars(widget.token);
               await fetchUserCars();
             },
           ),
@@ -1150,6 +1113,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                   );
                                   setState(() => isSaving = false);
                                   if (res.statusCode == 201) {
+                                    CacheService().invalidateAddresses(widget.token);
                                     await fetchSavedAddresses();
                                     // Auto-select the newly added address
                                     await _autoSelectRecentAddress();

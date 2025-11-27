@@ -31,6 +31,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   late int currentIndex;
   bool packagesEnabled = true;
   bool loadingConfig = true;
+  List<Widget>? screens; // Store screens to prevent recreation
 
   @override
   void initState() {
@@ -45,6 +46,30 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     _loadConfig();
   }
 
+  void _buildScreens() {
+    screens = widget.isGuest
+        ? (packagesEnabled
+            ? [
+                const GuestServicesScreen(),
+                AllPackagesScreen(token: widget.token, isGuest: true),
+                const _LoginPromptScreen(),
+              ]
+            : [
+                const GuestServicesScreen(),
+                const _LoginPromptScreen(),
+              ])
+        : (packagesEnabled
+            ? [
+                HomeScreen(token: widget.token!),
+                AllPackagesScreen(token: widget.token, isGuest: false),
+                MyOrdersScreen(token: widget.token!, showSuccessMessage: widget.showPaymentSuccess),
+              ]
+            : [
+                HomeScreen(token: widget.token!),
+                MyOrdersScreen(token: widget.token!, showSuccessMessage: widget.showPaymentSuccess),
+              ]);
+  }
+
   Future<void> _loadConfig() async {
     final enabled = await ConfigService.fetchPackagesEnabled();
     if (!mounted) return;
@@ -52,6 +77,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     setState(() {
       packagesEnabled = enabled;
       loadingConfig = false;
+
+      // Build screens once after config is loaded
+      _buildScreens();
 
       // If forceOrdersTab is true, ensure we stay on orders tab
       if (widget.forceOrdersTab) {
@@ -103,33 +131,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (loadingConfig) {
+    if (loadingConfig || screens == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
-
-    final screens = widget.isGuest
-        ? (packagesEnabled
-            ? [
-                const GuestServicesScreen(),
-                AllPackagesScreen(token: widget.token, isGuest: true),
-                const _LoginPromptScreen(),
-              ]
-            : [
-                const GuestServicesScreen(),
-                const _LoginPromptScreen(),
-              ])
-        : (packagesEnabled
-            ? [
-                HomeScreen(token: widget.token!),
-                AllPackagesScreen(token: widget.token, isGuest: false),
-                MyOrdersScreen(token: widget.token!, showSuccessMessage: widget.showPaymentSuccess),
-              ]
-            : [
-                HomeScreen(token: widget.token!),
-                MyOrdersScreen(token: widget.token!, showSuccessMessage: widget.showPaymentSuccess),
-              ]);
 
     final items = widget.isGuest
         ? (packagesEnabled
@@ -222,7 +228,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ]);
 
     // Ensure currentIndex is within range
-    if (currentIndex >= screens.length) {
+    if (currentIndex >= screens!.length) {
       currentIndex = 0;
     }
 
@@ -270,7 +276,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             ),
         ],
       ),
-      body: screens[currentIndex],
+      body: IndexedStack(
+        index: currentIndex,
+        children: screens!,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
         currentIndex: currentIndex,
