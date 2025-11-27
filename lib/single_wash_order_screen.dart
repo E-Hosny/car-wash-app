@@ -10,6 +10,7 @@ import 'add_car_screen.dart';
 import 'map_picker_with_search_screen.dart';
 import 'payment_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'services/package_service.dart';
 import 'utils/debug_helper.dart';
 import 'main_navigation_screen.dart';
@@ -325,6 +326,12 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       final servicesData = await cacheService.getServices(widget.token);
 
       if (!mounted) return;
+      
+      // Debug: Print image_url for each service
+      for (var service in servicesData) {
+        print('📋 Service: ${service['name']}, image_url: ${service['image_url']}');
+      }
+      
       setState(() {
         services = servicesData;
       });
@@ -2008,10 +2015,74 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                 ],
               ),
               child: Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Service content
+                    // Service Image - takes 25% of card width
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected
+                              ? Colors.blue.shade300
+                              : Colors.grey.shade300,
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: Builder(
+                          builder: (context) {
+                            final imageUrl = s['image_url'];
+                            if (imageUrl != null && imageUrl.toString().isNotEmpty) {
+                              print('🖼️ Loading image for service ${s['name']}: $imageUrl');
+                              return CachedNetworkImage(
+                                imageUrl: imageUrl.toString(),
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.grey.shade200,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.blue.shade300,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) {
+                                  print('❌ Error loading image: $url');
+                                  print('❌ Error details: $error');
+                                  return Container(
+                                    color: Colors.grey.shade200,
+                                    child: Icon(
+                                      Icons.image_not_supported,
+                                      color: Colors.grey.shade400,
+                                      size: 32,
+                                    ),
+                                  );
+                                },
+                              );
+                            } else {
+                              print('⚠️ No image_url for service ${s['name']}');
+                              return Container(
+                                color: Colors.grey.shade100,
+                                child: Icon(
+                                  Icons.directions_car,
+                                  color: Colors.grey.shade400,
+                                  size: 40,
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // Service content - takes 75% of card width
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2019,6 +2090,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                           // Service name and price/points
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
                                 child: Text(
@@ -2030,18 +2102,20 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                                         ? Colors.blue.shade800
                                         : Colors.grey.shade800,
                                   ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 8),
                               // Price or points badge
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
+                                    horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: usePackage && isAvailableInPackage
                                       ? Colors.blue.shade600
                                       : Colors.green.shade100,
-                                  borderRadius: BorderRadius.circular(25),
+                                  borderRadius: BorderRadius.circular(20),
                                   border: usePackage && isAvailableInPackage
                                       ? null
                                       : Border.all(
@@ -2049,14 +2123,14 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                                 ),
                                 child: Text(
                                   usePackage && isAvailableInPackage
-                                      ? '${pointsRequired ?? 0} Points'
+                                      ? '${pointsRequired ?? 0} P'
                                       : '${price.toStringAsFixed(0)} AED',
                                   style: GoogleFonts.poppins(
                                     color: usePackage && isAvailableInPackage
                                         ? Colors.white
                                         : Colors.green.shade700,
                                     fontWeight: FontWeight.w700,
-                                    fontSize: 13,
+                                    fontSize: 12,
                                   ),
                                 ),
                               ),
@@ -2066,14 +2140,16 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                           // Service description
                           if (s['description'] != null &&
                               s['description'].toString().isNotEmpty) ...[
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Text(
                               s['description'],
                               style: GoogleFonts.poppins(
                                 color: Colors.grey.shade600,
-                                fontSize: 14,
-                                height: 1.4,
+                                fontSize: 13,
+                                height: 1.3,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ],
@@ -2082,17 +2158,17 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
 
                     // Selection indicator
                     if (isSelected) ...[
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: Colors.blue.shade600,
-                          borderRadius: BorderRadius.circular(12),
+                          shape: BoxShape.circle,
                         ),
                         child: const Icon(
                           Icons.check,
                           color: Colors.white,
-                          size: 20,
+                          size: 18,
                         ),
                       ),
                     ],

@@ -11,7 +11,7 @@ class CacheService {
   Map<String, _CachedData> _cache = {};
 
   // TTL durations (in milliseconds)
-  static const int _servicesTTL = 5 * 60 * 1000; // 5 minutes
+  static const int _servicesTTL = 30 * 1000; // 30 seconds (reduced for faster image updates)
   static const int _carsTTL = 1 * 60 * 1000; // 1 minute
   static const int _addressesTTL = 1 * 60 * 1000; // 1 minute
 
@@ -28,7 +28,13 @@ class CacheService {
   List<dynamic>? getCachedServices(String token) {
     final cacheKey = '${_servicesKey}_$token';
     if (_isValid(cacheKey, _servicesTTL)) {
-      return _cache[cacheKey]!.data as List<dynamic>;
+      final cachedData = _cache[cacheKey]!.data;
+      if (cachedData is Map && cachedData.containsKey('services')) {
+        return List<dynamic>.from(cachedData['services']);
+      } else if (cachedData is List) {
+        // Old format - direct list
+        return cachedData;
+      }
     }
     return null;
   }
@@ -58,7 +64,14 @@ class CacheService {
     // Check cache first
     if (_isValid(cacheKey, _servicesTTL)) {
       print('📦 Using cached services');
-      return _cache[cacheKey]!.data as List<dynamic>;
+      final cachedData = _cache[cacheKey]!.data;
+      if (cachedData is Map && cachedData.containsKey('services')) {
+        return List<dynamic>.from(cachedData['services']);
+      } else if (cachedData is List) {
+        // Old format - direct list
+        return cachedData;
+      }
+      return [];
     }
 
     // Fetch from API
@@ -75,11 +88,42 @@ class CacheService {
       );
 
       if (res.statusCode == 200) {
-        final servicesData = jsonDecode(res.body);
-        final services = servicesData is List ? servicesData : [];
+        final responseData = jsonDecode(res.body);
+        print('📥 API Response type: ${responseData.runtimeType}');
+        
+        // Handle both old format (List) and new format (Object with services and cache_version)
+        List<dynamic> services;
+        int? cacheVersion;
+        
+        if (responseData is List) {
+          // Old format - direct list
+          print('📋 Using old format (List)');
+          services = responseData;
+        } else if (responseData is Map && responseData.containsKey('services')) {
+          // New format - object with services and cache_version
+          print('📋 Using new format (Object with services)');
+          services = List<dynamic>.from(responseData['services'] ?? []);
+          cacheVersion = responseData['cache_version'];
+          print('📋 Services count: ${services.length}, Cache version: $cacheVersion');
+        } else {
+          print('⚠️ Unknown response format');
+          services = [];
+        }
+        
+        if (services.isEmpty) {
+          print('⚠️ No services found in response');
+        }
+        
+        // Store cache version with services data
+        final cacheData = {
+          'services': services,
+          'cache_version': cacheVersion,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        };
         
         // Update cache
-        _cache[cacheKey] = _CachedData(services, DateTime.now().millisecondsSinceEpoch);
+        _cache[cacheKey] = _CachedData(cacheData, DateTime.now().millisecondsSinceEpoch);
+        print('✅ Cached ${services.length} services');
         
         return services;
       } else {
@@ -90,7 +134,13 @@ class CacheService {
       // Return cached data even if expired, if available
       if (_cache.containsKey(cacheKey)) {
         print('⚠️ Using expired cache as fallback');
-        return _cache[cacheKey]!.data as List<dynamic>;
+        final cachedData = _cache[cacheKey]!.data;
+        if (cachedData is Map && cachedData.containsKey('services')) {
+          return List<dynamic>.from(cachedData['services']);
+        } else if (cachedData is List) {
+          return cachedData;
+        }
+        return [];
       }
       rethrow;
     }
