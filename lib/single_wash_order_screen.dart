@@ -12,10 +12,10 @@ import 'payment_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/package_service.dart';
 import 'utils/debug_helper.dart';
-import 'widgets/order_summary_card.dart';
 import 'main_navigation_screen.dart';
 import 'services/config_service.dart';
 import 'services/cache_service.dart';
+import 'order_confirmation_screen.dart';
 
 class SingleWashOrderScreen extends StatefulWidget {
   final String token;
@@ -1736,43 +1736,15 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Services Selection (First)
+                    // Services Selection Only
                     _buildServicesSection(),
-                    const SizedBox(height: 28),
-
-                    // Auto-selected Car Section (Second)
-                    _buildSelectedCarSection(),
-                    const SizedBox(height: 28),
-
-                    // Auto-selected Address Section (Third)
-                    _buildSelectedAddressSection(),
-                    const SizedBox(height: 28),
-
-                    // Schedule Section
-                    _buildScheduleSection(),
-                    const SizedBox(height: 28),
-
-                    // Package Section (if available)
-                    if (packagesEnabled && userPackage != null) ...[
-                      _buildPackageSection(),
-                      const SizedBox(height: 28),
-                    ],
-
-                    // Order Summary
-                    OrderSummaryCard(
-                      totalPrice: totalPrice,
-                      usePackage: usePackage,
-                      selectedServicesCount: selectedServices.length,
-                      remainingPoints: userPackage?['remaining_points'],
-                      totalPointsUsed: _calculateTotalPointsUsed(),
-                    ),
                   ],
                 ),
               ),
             ),
 
-            // Fixed Payment Button at bottom
-            _buildFixedPaymentButton(),
+            // Fixed Confirm Button at bottom
+            _buildFixedConfirmButton(),
           ],
         ),
       ),
@@ -3741,12 +3713,8 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
     );
   }
 
-  Widget _buildFixedPaymentButton() {
-    final bool isReadyToProceed = selectedCarId != null &&
-        selectedServices.isNotEmpty &&
-        hasSelectedAddress &&
-        selectedDateTime != null &&
-        !isSubmittingOrder;
+  Widget _buildFixedConfirmButton() {
+    final bool isReadyToProceed = selectedServices.isNotEmpty;
 
     return Container(
       decoration: BoxDecoration(
@@ -3769,145 +3737,68 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-          child: Row(
-            children: [
-              // Price Display
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Total Amount',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          'AED ${totalPrice.toStringAsFixed(2)}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: usePackage
-                                ? Colors.green.shade700
-                                : Colors.black,
-                          ),
-                        ),
-                        if (usePackage) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'Package',
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.green.shade700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 16),
-
-              // Payment Button
-              Container(
-                decoration: BoxDecoration(
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: isReadyToProceed
+                  ? () {
+                      HapticFeedback.mediumImpact();
+                      _navigateToConfirmation();
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isReadyToProceed
+                    ? Colors.black
+                    : Colors.grey.shade300,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: isReadyToProceed
-                      ? [
-                          BoxShadow(
-                            color: (usePackage ? Colors.green : Colors.black)
-                                .withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                            spreadRadius: 0,
-                          ),
-                        ]
-                      : [],
                 ),
-                child: ElevatedButton(
-                  onPressed: isReadyToProceed
-                      ? () {
-                          // Add haptic feedback
-                          HapticFeedback.mediumImpact();
-                          _submitOrder();
-                        }
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isReadyToProceed
-                        ? (usePackage ? Colors.green.shade600 : Colors.black)
-                        : Colors.grey.shade300,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                    minimumSize: const Size(140, 56),
-                  ),
-                  child: isSubmittingOrder
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Processing...',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        )
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              usePackage ? Icons.card_giftcard : Icons.payment,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              usePackage ? 'Use Package' : 'Pay Now',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
+                elevation: isReadyToProceed ? 4 : 0,
               ),
-            ],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check_circle, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Confirm',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _navigateToConfirmation() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OrderConfirmationScreen(
+          token: widget.token,
+          selectedCarId: selectedCarId,
+          selectedServices: selectedServices,
+          selectedSavedAddress: selectedSavedAddress,
+          selectedAddress: selectedAddress,
+          selectedLocation: selectedLocation,
+          selectedDateTime: selectedDateTime,
+          totalPrice: totalPrice,
+          usePackage: usePackage,
+          userPackage: userPackage,
+          availableServices: availableServices,
+          cars: cars,
+          savedAddresses: savedAddresses,
+          services: services,
+          selectedDate: selectedDate,
         ),
       ),
     );
