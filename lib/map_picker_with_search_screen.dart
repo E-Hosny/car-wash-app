@@ -1028,7 +1028,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                   padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Colors.black, Colors.grey.shade800],
+                      colors: [Colors.blue.shade600, Colors.blue.shade700],
                     ),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(24),
@@ -1272,7 +1272,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
+                            backgroundColor: Colors.blue.shade600,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
@@ -1368,7 +1368,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.black, width: 2),
+              borderSide: BorderSide(color: Colors.blue.shade600, width: 2),
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
