@@ -1458,19 +1458,19 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              height: 200,
-              child: GridView.builder(
-                padding: EdgeInsets.zero,
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 2.8,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: _generateTimeSlots().length,
-                itemBuilder: (context, index) {
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                childAspectRatio: 2.8,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemCount: _generateTimeSlots().length,
+              itemBuilder: (context, index) {
                   final slot = _generateTimeSlots()[index];
                   final isSelected = selectedDateTime !=
                           null &&
@@ -1601,7 +1601,6 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     ),
                   );
                 },
-              ),
             ),
           ],
         ),
