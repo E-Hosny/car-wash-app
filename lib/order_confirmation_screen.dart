@@ -692,66 +692,269 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   void _showCarSelectionDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Select Car',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-        ),
-        content: SizedBox(
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Container(
           width: double.maxFinite,
-          height: 350,
+          constraints: const BoxConstraints(maxHeight: 500),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: ListView.builder(
-                  itemCount: cars.length,
-                  itemBuilder: (context, index) {
-                    final car = cars[index];
-                    return RadioListTile<int>(
-                      value: car['id'],
-                      groupValue: selectedCarId,
-                      title: Text('${car['brand']['name']} ${car['model']['name']}'),
-                      subtitle: Text('Year: ${car['year']['year']} • Color: ${car['color']}'),
-                      onChanged: (val) {
-                        setState(() {
-                          selectedCarId = val;
-                        });
-                        Navigator.pop(context);
-                      },
-                      activeColor: Colors.black,
-                    );
-                  },
-                ),
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.add_circle_outline, color: Colors.black),
-                title: Text(
-                  'Add New Car',
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
+              // Header with gradient
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade600, Colors.blue.shade700],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
                   ),
                 ),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final added = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddCarScreen(token: widget.token),
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.directions_car,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
-                  );
-                  if (added == true) {
-                    CacheService().invalidateCars(widget.token);
-                    await _fetchUserCars();
-                    if (cars.isNotEmpty) {
-                      setState(() {
-                        selectedCarId = cars.last['id'];
-                      });
-                    }
-                  }
-                },
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'Select Car',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 22,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Flexible(
+                child: cars.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.directions_car_outlined,
+                              size: 64,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No cars available',
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Add a new car to continue',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: cars.length,
+                        itemBuilder: (context, index) {
+                          final car = cars[index];
+                          final isSelected = selectedCarId == car['id'];
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.blue.shade50
+                                  : Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isSelected
+                                    ? Colors.blue.shade600
+                                    : Colors.grey.shade300,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    selectedCarId = car['id'];
+                                  });
+                                  Navigator.pop(context);
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? Colors.blue.shade600
+                                              : Colors.grey.shade300,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Icon(
+                                          Icons.directions_car,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : Colors.grey.shade700,
+                                          size: 24,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '${car['brand']['name']} ${car['model']['name']}',
+                                              style: GoogleFonts.poppins(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: isSelected
+                                                    ? Colors.blue.shade900
+                                                    : Colors.grey.shade900,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Year: ${car['year']['year']} • Color: ${car['color']}',
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 13,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.shade600,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.check,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                        )
+                                      else
+                                        Container(
+                                          width: 24,
+                                          height: 24,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Colors.grey.shade400,
+                                              width: 2,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              // Divider
+              if (cars.isNotEmpty)
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Colors.grey.shade200,
+                ),
+              // Add New Car Button
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final added = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AddCarScreen(token: widget.token),
+                        ),
+                      );
+                      if (added == true) {
+                        CacheService().invalidateCars(widget.token);
+                        await _fetchUserCars();
+                        if (cars.isNotEmpty) {
+                          setState(() {
+                            selectedCarId = cars.last['id'];
+                          });
+                        }
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.blue.shade200,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.add_circle,
+                            color: Colors.blue.shade700,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Add New Car',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
