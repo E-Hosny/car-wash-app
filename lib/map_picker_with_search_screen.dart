@@ -5,6 +5,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'services/cache_service.dart';
 import 'dart:convert';
 import 'dart:async';
 
@@ -1231,6 +1232,12 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                                     );
                                     setDialogState(() => isSaving = false);
                                     if (res.statusCode == 201) {
+                                      // Invalidate cache to ensure fresh data is fetched
+                                      if (widget.token != null &&
+                                          widget.token!.isNotEmpty) {
+                                        CacheService()
+                                            .invalidateAddresses(widget.token!);
+                                      }
                                       Navigator.pop(context, true);
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
