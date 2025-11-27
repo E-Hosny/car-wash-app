@@ -2451,6 +2451,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                           builder: (context) => MapPickerWithSearchScreen(
                             initialLocation: selectedLocation ??
                                 LatLng(latitude!, longitude!),
+                            token: widget.token,
                           ),
                         ),
                       );

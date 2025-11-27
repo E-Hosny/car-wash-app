@@ -950,6 +950,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                         builder: (context) => MapPickerWithSearchScreen(
                           initialLocation:
                               selectedLocation ?? LatLng(latitude!, longitude!),
+                          token: widget.token,
                         ),
                       ),
                     );

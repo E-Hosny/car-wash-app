@@ -3,13 +3,19 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import 'dart:async';
 
 class MapPickerWithSearchScreen extends StatefulWidget {
   final LatLng initialLocation;
-  const MapPickerWithSearchScreen({Key? key, required this.initialLocation})
-      : super(key: key);
+  final String? token; // Optional token for saving address
+  const MapPickerWithSearchScreen({
+    Key? key,
+    required this.initialLocation,
+    this.token,
+  }) : super(key: key);
 
   @override
   State<MapPickerWithSearchScreen> createState() =>
@@ -919,6 +925,8 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: ElevatedButton.icon(
                 onPressed: () async {
+                  if (_selectedLocation == null) return;
+
                   setState(() {
                     _addressLoading = true;
                   });
@@ -938,8 +946,24 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                       _address = address;
                       _addressLoading = false;
                     });
-                    Navigator.pop(context,
-                        {'latlng': _selectedLocation, 'address': address});
+
+                    // Show Add Address Details modal if token is provided
+                    if (widget.token != null && widget.token!.isNotEmpty) {
+                      final result = await _showAddAddressDetailsDialog(
+                        _selectedLocation!,
+                        address,
+                      );
+                      if (result == true) {
+                        // Address was saved, return the data
+                        Navigator.pop(context,
+                            {'latlng': _selectedLocation, 'address': address});
+                      }
+                      // If result is false or null, user cancelled, don't return
+                    } else {
+                      // No token, return directly
+                      Navigator.pop(context,
+                          {'latlng': _selectedLocation, 'address': address});
+                    }
                   } catch (e) {
                     setState(() {
                       _addressLoading = false;
@@ -966,6 +990,392 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<bool?> _showAddAddressDetailsDialog(
+      LatLng latlng, String address) async {
+    final labelController = TextEditingController();
+    final streetController = TextEditingController();
+    final notesController = TextEditingController();
+    bool isSaving = false;
+
+    return await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.white, Colors.grey.shade50],
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.black, Colors.grey.shade800],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.location_on,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Add Address Details',
+                          style: GoogleFonts.poppins(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Location Preview Card
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.map,
+                                  color: Colors.blue.shade700, size: 20),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Selected Location',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      address,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 13,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        // Form Fields
+                        _buildTextField(
+                          controller: labelController,
+                          label: 'Label',
+                          hint: 'e.g. Home, Work, Office',
+                          icon: Icons.label_outline,
+                          isRequired: true,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          controller: streetController,
+                          label: 'Street',
+                          hint: 'Enter street name',
+                          icon: Icons.streetview,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          controller: notesController,
+                          label: 'Additional Notes',
+                          hint: 'Any special instructions (optional)',
+                          icon: Icons.note_outlined,
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Footer Actions
+                Container(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: isSaving
+                              ? null
+                              : () => Navigator.pop(context, false),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.grey.shade300),
+                            ),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: isSaving
+                              ? null
+                              : () async {
+                                  if (labelController.text.trim().isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            'Please enter a label for this address'),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  setDialogState(() => isSaving = true);
+                                  try {
+                                    final baseUrl = dotenv.env['BASE_URL'];
+                                    if (baseUrl == null || baseUrl.isEmpty) {
+                                      setDialogState(() => isSaving = false);
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Configuration error: BASE_URL not found'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    final res = await http.post(
+                                      Uri.parse('$baseUrl/api/addresses'),
+                                      headers: {
+                                        'Authorization':
+                                            'Bearer ${widget.token}',
+                                        'Content-Type': 'application/json',
+                                      },
+                                      body: jsonEncode({
+                                        'label': labelController.text.trim(),
+                                        'street': streetController.text.trim(),
+                                        'notes': notesController.text.trim(),
+                                        'address': address,
+                                        'latitude': latlng.latitude,
+                                        'longitude': latlng.longitude,
+                                      }),
+                                    );
+                                    setDialogState(() => isSaving = false);
+                                    if (res.statusCode == 201) {
+                                      Navigator.pop(context, true);
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Row(
+                                            children: [
+                                              const Icon(Icons.check_circle,
+                                                  color: Colors.white),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                    'Address saved successfully!'),
+                                              ),
+                                            ],
+                                          ),
+                                          backgroundColor: Colors.green,
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('Failed to save address'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    setDialogState(() => isSaving = false);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            'Error saving address: ${e.toString()}'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
+                          ),
+                          child: isSaving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.save, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Save Address',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    bool isRequired = false,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 18, color: Colors.grey.shade600),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            if (isRequired) ...[
+              const SizedBox(width: 4),
+              Text(
+                '*',
+                style: TextStyle(color: Colors.red, fontSize: 14),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey.shade400),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.black, width: 2),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+      ],
     );
   }
 }

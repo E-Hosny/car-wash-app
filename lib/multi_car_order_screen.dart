@@ -1406,6 +1406,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                   builder: (context) => MapPickerWithSearchScreen(
                     initialLocation:
                         selectedLocation ?? LatLng(latitude!, longitude!),
+                    token: widget.token,
                   ),
                 ),
               );

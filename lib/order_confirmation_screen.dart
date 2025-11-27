@@ -1156,7 +1156,11 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         elevation: 20,
         child: Container(
-          padding: const EdgeInsets.all(24),
+          width: MediaQuery.of(context).size.width * 0.9,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 28),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             gradient: LinearGradient(
@@ -1165,70 +1169,74 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
               colors: [Colors.white, Colors.grey.shade50],
             ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade600,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.location_on, color: Colors.white, size: 26),
+                      ),
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Select Address',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                                color: Colors.blue.shade800,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Choose from your saved addresses',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
               Container(
-                padding: const EdgeInsets.all(16),
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.4,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade600,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.location_on, color: Colors.white, size: 24),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Select Address',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: Colors.blue.shade800,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Choose from your saved addresses',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                constraints: const BoxConstraints(maxHeight: 300),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: Colors.grey.shade200, width: 1.5),
                 ),
                 child: savedAddresses.isEmpty
                     ? Container(
-                        padding: const EdgeInsets.all(32),
+                        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.location_off, size: 48, color: Colors.grey.shade400),
-                            const SizedBox(height: 16),
+                            Icon(Icons.location_off, size: 56, color: Colors.grey.shade400),
+                            const SizedBox(height: 20),
                             Text(
                               'No saved addresses',
                               style: GoogleFonts.poppins(
-                                fontSize: 16,
+                                fontSize: 17,
                                 fontWeight: FontWeight.w500,
                                 color: Colors.grey.shade600,
                               ),
@@ -1238,6 +1246,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                       )
                     : ListView.builder(
                         shrinkWrap: true,
+                        physics: const AlwaysScrollableScrollPhysics(),
                         itemCount: savedAddresses.length,
                         itemBuilder: (context, index) {
                           final address = savedAddresses[index];
@@ -1255,20 +1264,21 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                               Navigator.pop(context);
                             },
                             child: Container(
-                              padding: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                               decoration: BoxDecoration(
                                 color: isSelected ? Colors.blue.shade50 : Colors.transparent,
                                 border: Border(
-                                  bottom: BorderSide(color: Colors.grey.shade200),
+                                  bottom: BorderSide(color: Colors.grey.shade200, width: 1),
                                 ),
                               ),
                               child: Row(
                                 children: [
                                   Icon(
                                     Icons.location_on,
-                                    color: isSelected ? Colors.blue.shade600 : Colors.grey,
+                                    size: 24,
+                                    color: isSelected ? Colors.blue.shade600 : Colors.grey.shade600,
                                   ),
-                                  const SizedBox(width: 12),
+                                  const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1277,17 +1287,19 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                                           address['label'] ?? 'Address',
                                           style: GoogleFonts.poppins(
                                             fontWeight: FontWeight.w600,
+                                            fontSize: 15,
                                             color: isSelected
                                                 ? Colors.blue.shade800
-                                                : Colors.black,
+                                                : Colors.black87,
                                           ),
                                         ),
-                                        const SizedBox(height: 4),
+                                        const SizedBox(height: 6),
                                         Text(
                                           address['address'] ?? '',
                                           style: GoogleFonts.poppins(
-                                            fontSize: 12,
+                                            fontSize: 13,
                                             color: Colors.grey.shade600,
+                                            height: 1.4,
                                           ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
@@ -1295,8 +1307,11 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                                       ],
                                     ),
                                   ),
+                                  const SizedBox(width: 12),
                                   if (isSelected)
-                                    Icon(Icons.check_circle, color: Colors.blue.shade600),
+                                    Icon(Icons.check_circle, 
+                                         color: Colors.blue.shade600, 
+                                         size: 24),
                                 ],
                               ),
                             ),
@@ -1304,50 +1319,62 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                         },
                       ),
               ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  try {
-                    final picked = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MapPickerWithSearchScreen(
-                          initialLocation: selectedLocation ??
-                              const LatLng(25.2048, 55.2708),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    try {
+                      final picked = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MapPickerWithSearchScreen(
+                            initialLocation: selectedLocation ??
+                                const LatLng(25.2048, 55.2708),
+                            token: widget.token,
+                          ),
                         ),
-                      ),
-                    );
-                    if (picked != null && picked is Map && picked['latlng'] != null) {
-                      // Address will be saved in the dialog
-                      await _fetchSavedAddresses();
-                      if (savedAddresses.isNotEmpty) {
-                        setState(() {
-                          selectedSavedAddress = savedAddresses.last;
-                          selectedAddress = savedAddresses.last['address'];
-                          selectedLocation = LatLng(
-                            double.parse(savedAddresses.last['latitude'].toString()),
-                            double.parse(savedAddresses.last['longitude'].toString()),
-                          );
-                        });
+                      );
+                      if (picked != null && picked is Map && picked['latlng'] != null) {
+                        // Address will be saved in the dialog
+                        await _fetchSavedAddresses();
+                        if (savedAddresses.isNotEmpty) {
+                          setState(() {
+                            selectedSavedAddress = savedAddresses.last;
+                            selectedAddress = savedAddresses.last['address'];
+                            selectedLocation = LatLng(
+                              double.parse(savedAddresses.last['latitude'].toString()),
+                              double.parse(savedAddresses.last['longitude'].toString()),
+                            );
+                          });
+                        }
                       }
+                    } catch (e) {
+                      print('Error opening map picker: $e');
                     }
-                  } catch (e) {
-                    print('Error opening map picker: $e');
-                  }
-                },
-                icon: const Icon(Icons.add_location_alt),
-                label: const Text('Add New Address'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade600,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  },
+                  icon: const Icon(Icons.add_location_alt, size: 22),
+                  label: Text(
+                    'Add New Address',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 2,
                   ),
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
