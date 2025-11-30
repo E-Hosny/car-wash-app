@@ -17,6 +17,7 @@ import 'main_navigation_screen.dart';
 import 'services/config_service.dart';
 import 'services/cache_service.dart';
 import 'order_confirmation_screen.dart';
+import 'widgets/animated_loading_indicator.dart';
 
 class SingleWashOrderScreen extends StatefulWidget {
   final String token;
@@ -65,6 +66,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
   bool hasSelectedAddress = false;
 
   bool isLoading = true;
+  bool isRefreshing = false;
   String? errorMessage;
 
   // Loading animation controller
@@ -1033,50 +1035,9 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       // Show loading indicator
       if (mounted) {
         setState(() {
-          // Trigger rebuild to show loading state
+          isRefreshing = true;
         });
       }
-
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.shade200,
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(Colors.blue.shade600),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Refreshing Data...',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue.shade800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
 
       // Reload all data
       await Future.wait([
@@ -1086,44 +1047,20 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
         _fetchSavedAddresses(),
       ]);
 
-      // Close loading dialog
+      // Hide loading indicator
       if (mounted) {
-        Navigator.pop(context);
-      }
-
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.refresh, color: Colors.white),
-                const SizedBox(width: 8),
-                Text(
-                  'Page data refreshed successfully!',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green.shade600,
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        setState(() {
+          isRefreshing = false;
+        });
       }
     } catch (e) {
       print('Error reloading page data: $e');
 
-      // Close loading dialog if still open
+      // Hide loading indicator
       if (mounted) {
-        Navigator.pop(context);
+        setState(() {
+          isRefreshing = false;
+        });
       }
 
       if (mounted) {
@@ -1726,38 +1663,53 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.white, Color(0xFFF5F5F7)],
-          ),
-        ),
-        child: Column(
-          children: [
-            // Main content with bottom padding for fixed button
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                    20, 20, 20, 100), // Extra bottom padding for fixed button
-                physics: isMapInteracting
-                    ? const NeverScrollableScrollPhysics()
-                    : null,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Services Selection Only
-                    _buildServicesSection(),
-                  ],
-                ),
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.white, Color(0xFFF5F5F7)],
               ),
             ),
+            child: Column(
+              children: [
+                // Main content with bottom padding for fixed button
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _reloadPageData,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(
+                          20, 20, 20, 100), // Extra bottom padding for fixed button
+                      physics: isMapInteracting
+                          ? const NeverScrollableScrollPhysics()
+                          : null,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Services Selection Only
+                          _buildServicesSection(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
 
-            // Fixed Confirm Button at bottom
-            _buildFixedConfirmButton(),
-          ],
-        ),
+                // Fixed Confirm Button at bottom
+                _buildFixedConfirmButton(),
+              ],
+            ),
+          ),
+          // Show AnimatedLoadingIndicator when refreshing
+          if (isRefreshing)
+            Container(
+              color: Colors.white.withOpacity(0.8),
+              child: const AnimatedLoadingIndicator(
+                message: 'Refreshing Data...',
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -12,6 +12,7 @@ import 'all_packages_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import 'services/package_service.dart';
+import 'services/cache_service.dart';
 import 'utils/debug_helper.dart';
 import 'widgets/order_summary_card.dart';
 import 'widgets/optimized_package_card.dart';
@@ -85,6 +86,57 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     }
   }
 
+  Future<void> _refreshData() async {
+    try {
+      // Refresh all data in parallel
+      await Future.wait([
+        fetchServices(),
+        fetchUserCars(),
+        fetchSavedAddresses(),
+        if (packagesEnabled) ...[
+          fetchPackages(),
+          checkUserPackage(),
+        ],
+      ]);
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Data refreshed successfully!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error refreshing data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Error refreshing data. Please try again.'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _loadConfigAndPackages() async {
     packagesEnabled = await ConfigService.fetchPackagesEnabled();
     if (!mounted) return;
@@ -116,22 +168,32 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       final res = await http.get(
         Uri.parse('$baseUrl/api/packages'),
         headers: {'Authorization': 'Bearer ${widget.token}'},
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw Exception('Connection timeout while fetching packages');
+        },
       );
 
       if (res.statusCode == 200) {
+        if (!mounted) return;
         final data = jsonDecode(res.body);
         setState(() {
           packages = data['data'] ?? [];
           isLoadingPackages = false;
         });
       } else {
+        print('Error fetching packages: Status ${res.statusCode}');
+        if (!mounted) return;
         setState(() {
           isLoadingPackages = false;
         });
       }
     } catch (e) {
       print('Error fetching packages: $e');
+      if (!mounted) return;
       setState(() {
+        packages = [];
         isLoadingPackages = false;
       });
     }
@@ -178,28 +240,22 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
 
   Future<void> fetchServices() async {
     try {
-      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
-      print('🔗 Using BASE_URL for services: $baseUrl');
+      final cacheService = CacheService();
+      final servicesData = await cacheService.getServices(widget.token);
 
-      if (baseUrl.isEmpty) {
-        print('Error: BASE_URL not configured');
-        return;
-      }
+      if (!mounted) return;
 
-      final res = await http.get(
-        Uri.parse('$baseUrl/api/services'),
-        headers: {'Authorization': 'Bearer ${widget.token}'},
-      );
-      if (res.statusCode == 200) {
-        final servicesData = jsonDecode(res.body);
-        DebugHelper.logApiResponse('services', servicesData);
-        setState(() {
-          services = servicesData;
-        });
-        DebugHelper.logServiceData(services);
-      }
+      DebugHelper.logApiResponse('services', servicesData);
+      setState(() {
+        services = servicesData;
+      });
+      DebugHelper.logServiceData(services);
     } catch (e) {
       print('Error fetching services: $e');
+      if (!mounted) return;
+      setState(() {
+        services = [];
+      });
     }
   }
 
@@ -214,15 +270,26 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       final res = await http.get(
         Uri.parse('$baseUrl/api/cars'),
         headers: {'Authorization': 'Bearer ${widget.token}'},
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw Exception('Connection timeout while fetching cars');
+        },
       );
       if (res.statusCode == 200) {
         if (!mounted) return;
         setState(() {
           cars = jsonDecode(res.body);
         });
+      } else {
+        print('Error fetching cars: Status ${res.statusCode}');
       }
     } catch (e) {
       print('Error fetching user cars: $e');
+      if (!mounted) return;
+      setState(() {
+        cars = [];
+      });
     }
   }
 
@@ -239,19 +306,31 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       final res = await http.get(
         Uri.parse('$baseUrl/api/addresses'),
         headers: {'Authorization': 'Bearer ${widget.token}'},
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw Exception('Connection timeout while fetching addresses');
+        },
       );
       if (res.statusCode == 200) {
+        if (!mounted) return;
         setState(() {
           savedAddresses =
               List<Map<String, dynamic>>.from(jsonDecode(res.body));
           isLoadingAddresses = false;
         });
       } else {
+        print('Error fetching addresses: Status ${res.statusCode}');
+        if (!mounted) return;
         setState(() => isLoadingAddresses = false);
       }
     } catch (e) {
       print('Error fetching saved addresses: $e');
-      setState(() => isLoadingAddresses = false);
+      if (!mounted) return;
+      setState(() {
+        savedAddresses = [];
+        isLoadingAddresses = false;
+      });
     }
   }
 
@@ -266,18 +345,30 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       final res = await http.get(
         Uri.parse('$baseUrl/api/packages/my/current'),
         headers: {'Authorization': 'Bearer ${widget.token}'},
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw Exception('Connection timeout while checking user package');
+        },
       );
 
       if (res.statusCode == 200) {
+        if (!mounted) return;
         final data = jsonDecode(res.body);
         setState(() {
           userPackage = data['data'];
         });
         fetchAvailableServices();
+      } else {
+        print('Error checking user package: Status ${res.statusCode}');
       }
     } catch (e) {
       print('Error checking user package: $e');
-      // Handle error silently
+      // Handle error silently - user may not have a package
+      if (!mounted) return;
+      setState(() {
+        userPackage = null;
+      });
     }
   }
 
@@ -292,19 +383,32 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       final res = await http.get(
         Uri.parse('$baseUrl/api/packages/my/services'),
         headers: {'Authorization': 'Bearer ${widget.token}'},
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw Exception(
+              'Connection timeout while fetching available services');
+        },
       );
 
       if (res.statusCode == 200) {
+        if (!mounted) return;
         final data = jsonDecode(res.body);
         DebugHelper.logApiResponse('packages/my/services', data);
         setState(() {
           availableServices = data['data']['available_services'] ?? [];
         });
         DebugHelper.logAvailableServices(availableServices);
+      } else {
+        print('Error fetching available services: Status ${res.statusCode}');
       }
     } catch (e) {
       print('Error fetching available services: $e');
       // Handle error silently
+      if (!mounted) return;
+      setState(() {
+        availableServices = [];
+      });
     }
   }
 
@@ -556,439 +660,643 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
             colors: [Colors.white, Color(0xFFF5F5F7)],
           ),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          physics:
-              isMapInteracting ? const NeverScrollableScrollPhysics() : null,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Banner Section
-              Container(
-                width: double.infinity,
-                height: 200,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.only(left: 20, right: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                    ),
-                    child: Image.asset(
-                      'assets/banner.png',
-                      fit: BoxFit.contain,
-                      alignment: Alignment.center,
-                    ),
-                  ),
-                ),
-              ),
-
-              // 2. Multi-Car Order Option (Prominent)
-              Container(
-                margin: const EdgeInsets.only(bottom: 24),
-                child: Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: LinearGradient(
-                        colors: [Colors.grey.shade800, Colors.black],
-                      ),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(16),
-                      leading: const Icon(
-                        Icons.directions_car,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                      title: Text(
-                        'Multi-Car Order',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Select multiple cars with different services for each',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
-                      ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios,
-                        color: Colors.white,
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MultiCarOrderScreen(
-                              token: widget.token,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-
-              // 3. Your Car Selection (Most Important)
-              sectionTitle('Your Car'),
-              TextButton.icon(
-                onPressed: () async {
-                  final added = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddCarScreen(token: widget.token),
-                    ),
-                  );
-                  if (added == true) fetchUserCars();
-                },
-                icon: const Icon(Icons.add_circle_outline, color: Colors.black),
-                label: const Text('Add a new car',
-                    style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 16)),
-              ),
-              ...cars.map((c) {
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
+        child: RefreshIndicator(
+          onRefresh: _refreshData,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            physics:
+                isMapInteracting ? const NeverScrollableScrollPhysics() : null,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Banner Section
+                Container(
+                  width: double.infinity,
+                  height: 200,
+                  margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: selectedCarId == c['id']
-                          ? Colors.black
-                          : Colors.grey.shade300,
-                      width: 1.2,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.only(left: 20, right: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                      ),
+                      child: Image.asset(
+                        'assets/banner.png',
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                      ),
                     ),
                   ),
-                  child: RadioListTile<int>(
-                    value: c['id'],
-                    groupValue: selectedCarId,
-                    title: Text('${c['brand']['name']} ${c['model']['name']}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                            'Year: ${c['year']['year']} • Color: ${c['color']}',
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 14)),
-                        if (c['license_plate'] != null &&
-                            c['license_plate'].toString().isNotEmpty)
-                          Text('License Plate: ${c['license_plate']}',
-                              style: const TextStyle(
-                                  color: Colors.grey, fontSize: 14)),
-                      ],
+                ),
+
+                // 2. Multi-Car Order Option (Prominent)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 24),
+                  child: Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    onChanged: (val) => setState(() => selectedCarId = val),
-                    activeColor: Colors.black,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          colors: [Colors.grey.shade800, Colors.black],
+                        ),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(16),
+                        leading: const Icon(
+                          Icons.directions_car,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                        title: Text(
+                          'Multi-Car Order',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Select multiple cars with different services for each',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.white,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MultiCarOrderScreen(
+                                token: widget.token,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
-                );
-              }).toList(),
-              const SizedBox(height: 28),
+                ),
 
-              // 4. Services Selection
-              sectionTitle('Services'),
-              ...services.map((s) {
-                final price = double.tryParse(s['price'].toString()) ?? 0.0;
-                final isAvailableInPackage = usePackage &&
-                    availableServices
-                        .any((service) => service['id'] == s['id']);
-                final pointsRequired = usePackage && isAvailableInPackage
-                    ? PackageService.getPointsRequiredForService(
-                        availableServices, s['id'])
-                    : null;
-                final isSelected = selectedServices.contains(s['id']);
-
-                return GestureDetector(
-                  onTap: () => toggleService(s['id'], price, !isSelected),
-                  child: AnimatedContainer(
+                // 3. Your Car Selection (Most Important)
+                sectionTitle('Your Car'),
+                TextButton.icon(
+                  onPressed: () async {
+                    final added = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddCarScreen(token: widget.token),
+                      ),
+                    );
+                    if (added == true) fetchUserCars();
+                  },
+                  icon:
+                      const Icon(Icons.add_circle_outline, color: Colors.black),
+                  label: const Text('Add a new car',
+                      style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 16)),
+                ),
+                ...cars.map((c) {
+                  return AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
                     margin: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? Colors.black.withOpacity(0.05)
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                        color: isSelected ? Colors.black : Colors.grey.shade300,
-                        width: isSelected ? 2.0 : 1.0,
+                        color: selectedCarId == c['id']
+                            ? Colors.black
+                            : Colors.grey.shade300,
+                        width: 1.2,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: isSelected
-                              ? Colors.black.withOpacity(0.1)
-                              : Colors.grey.withOpacity(0.05),
-                          blurRadius: isSelected ? 8 : 4,
-                          offset: Offset(0, isSelected ? 4 : 2),
-                        ),
-                      ],
                     ),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
+                    child: RadioListTile<int>(
+                      value: c['id'],
+                      groupValue: selectedCarId,
+                      title: Text('${c['brand']['name']} ${c['model']['name']}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Custom checkbox
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? Colors.black
-                                  : Colors.transparent,
-                              border: Border.all(
+                          Text(
+                              'Year: ${c['year']['year']} • Color: ${c['color']}',
+                              style: const TextStyle(
+                                  color: Colors.grey, fontSize: 14)),
+                          if (c['license_plate'] != null &&
+                              c['license_plate'].toString().isNotEmpty)
+                            Text('License Plate: ${c['license_plate']}',
+                                style: const TextStyle(
+                                    color: Colors.grey, fontSize: 14)),
+                        ],
+                      ),
+                      onChanged: (val) => setState(() => selectedCarId = val),
+                      activeColor: Colors.black,
+                    ),
+                  );
+                }).toList(),
+                const SizedBox(height: 28),
+
+                // 4. Services Selection
+                sectionTitle('Services'),
+                ...services.map((s) {
+                  final price = double.tryParse(s['price'].toString()) ?? 0.0;
+                  final isAvailableInPackage = usePackage &&
+                      availableServices
+                          .any((service) => service['id'] == s['id']);
+                  final pointsRequired = usePackage && isAvailableInPackage
+                      ? PackageService.getPointsRequiredForService(
+                          availableServices, s['id'])
+                      : null;
+                  final isSelected = selectedServices.contains(s['id']);
+
+                  return GestureDetector(
+                    onTap: () => toggleService(s['id'], price, !isSelected),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.black.withOpacity(0.05)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color:
+                              isSelected ? Colors.black : Colors.grey.shade300,
+                          width: isSelected ? 2.0 : 1.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isSelected
+                                ? Colors.black.withOpacity(0.1)
+                                : Colors.grey.withOpacity(0.05),
+                            blurRadius: isSelected ? 8 : 4,
+                            offset: Offset(0, isSelected ? 4 : 2),
+                          ),
+                        ],
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            // Custom checkbox
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
                                 color: isSelected
                                     ? Colors.black
-                                    : Colors.grey.shade400,
-                                width: 2,
+                                    : Colors.transparent,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? Colors.black
+                                      : Colors.grey.shade400,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
                               ),
-                              borderRadius: BorderRadius.circular(6),
+                              child: isSelected
+                                  ? const Icon(
+                                      Icons.check,
+                                      color: Colors.white,
+                                      size: 16,
+                                    )
+                                  : null,
                             ),
-                            child: isSelected
-                                ? const Icon(
-                                    Icons.check,
-                                    color: Colors.white,
-                                    size: 16,
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 16),
+                            const SizedBox(width: 16),
 
-                          // Service content
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Service name and price/points
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        s['name'],
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 16,
-                                          color: isSelected
-                                              ? Colors.black
-                                              : Colors.grey.shade800,
+                            // Service content
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Service name and price/points
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          s['name'],
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 16,
+                                            color: isSelected
+                                                ? Colors.black
+                                                : Colors.grey.shade800,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    // Price or points badge
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            usePackage && isAvailableInPackage
-                                                ? Colors.black
-                                                : Colors.grey.shade100,
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: usePackage &&
-                                                isAvailableInPackage
-                                            ? null
-                                            : Border.all(
-                                                color: Colors.grey.shade300),
-                                      ),
-                                      child: Text(
-                                        usePackage && isAvailableInPackage
-                                            ? '${pointsRequired ?? 0} Points'
-                                            : '${price.toStringAsFixed(0)} AED',
-                                        style: GoogleFonts.poppins(
+                                      const SizedBox(width: 12),
+                                      // Price or points badge
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
                                           color:
                                               usePackage && isAvailableInPackage
-                                                  ? Colors.white
-                                                  : Colors.black,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 12,
+                                                  ? Colors.black
+                                                  : Colors.grey.shade100,
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          border: usePackage &&
+                                                  isAvailableInPackage
+                                              ? null
+                                              : Border.all(
+                                                  color: Colors.grey.shade300),
                                         ),
+                                        child: Text(
+                                          usePackage && isAvailableInPackage
+                                              ? '${pointsRequired ?? 0} Points'
+                                              : '${price.toStringAsFixed(0)} AED',
+                                          style: GoogleFonts.poppins(
+                                            color: usePackage &&
+                                                    isAvailableInPackage
+                                                ? Colors.white
+                                                : Colors.black,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  // Service description
+                                  if (s['description'] != null &&
+                                      s['description']
+                                          .toString()
+                                          .isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      s['description'],
+                                      style: GoogleFonts.poppins(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 14,
+                                        height: 1.3,
                                       ),
                                     ),
                                   ],
-                                ),
-
-                                // Service description
-                                if (s['description'] != null &&
-                                    s['description'].toString().isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    s['description'],
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 14,
-                                      height: 1.3,
-                                    ),
-                                  ),
                                 ],
-                              ],
-                            ),
-                          ),
-
-                          // Selection indicator
-                          if (isSelected) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 4,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.black,
-                                borderRadius: BorderRadius.circular(2),
                               ),
                             ),
+
+                            // Selection indicator
+                            if (isSelected) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                width: 4,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ],
                           ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+                const SizedBox(height: 28),
+
+                // 5. Address Selection
+                sectionTitle('Address'),
+                if (isLoadingAddresses)
+                  const SizedBox(
+                    height: 100,
+                    child: AnimatedLoadingIndicator(
+                        message: 'Loading addresses...'),
+                  ),
+                if (!isLoadingAddresses && savedAddresses.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ...savedAddresses.map((addr) => Card(
+                            color: selectedSavedAddress != null &&
+                                    selectedSavedAddress!['id'] == addr['id']
+                                ? Colors.green[50]
+                                : Colors.white,
+                            child: ListTile(
+                              title: Text(
+                                  addr['label'] ?? addr['address'] ?? 'Address',
+                                  style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.bold)),
+                              subtitle: Text(
+                                  '${addr['street'] ?? ''} ${addr['building'] ?? ''} ${addr['floor'] ?? ''} ${addr['apartment'] ?? ''}\n${addr['address'] ?? ''}',
+                                  style: const TextStyle(fontSize: 13)),
+                              trailing: selectedSavedAddress != null &&
+                                      selectedSavedAddress!['id'] == addr['id']
+                                  ? const Icon(Icons.check_circle,
+                                      color: Colors.green)
+                                  : null,
+                              onTap: () {
+                                setState(() {
+                                  selectedSavedAddress = addr;
+                                  selectedLocation = LatLng(
+                                    double.parse(addr['latitude'].toString()),
+                                    double.parse(addr['longitude'].toString()),
+                                  );
+                                  selectedAddress = addr['address'];
+                                });
+                              },
+                            ),
+                          )),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add_location_alt),
+                  label: const Text('Add New Address'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
+                  onPressed: () async {
+                    try {
+                      if (latitude == null || longitude == null) {
+                        // If no location available, show error and try to get default location
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'No location available. Please wait or check location permissions.'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                        // Try to get default location
+                        _setDefaultLocation();
+                        return;
+                      }
+
+                      print(
+                          '🗺️ Opening map picker with location: $latitude, $longitude');
+                      final picked = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MapPickerWithSearchScreen(
+                            initialLocation: selectedLocation ??
+                                LatLng(latitude!, longitude!),
+                            token: widget.token,
+                          ),
+                        ),
+                      );
+                      if (picked != null &&
+                          picked is Map &&
+                          picked['latlng'] != null &&
+                          picked['address'] != null) {
+                        await addNewAddressDialog(
+                            picked['latlng'], picked['address']);
+                      }
+                    } catch (e) {
+                      print('❌ Error opening map picker: $e');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error opening map: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(height: 28),
+
+                // 6. Schedule Selection
+                sectionTitle('Schedule'),
+                SwitchListTile(
+                  title: const Text('Request for now',
+                      style: TextStyle(fontSize: 16)),
+                  value: useCurrentTime,
+                  onChanged: (val) {
+                    setState(() {
+                      useCurrentTime = val;
+                      if (val) selectedDateTime = null;
+                    });
+                  },
+                ),
+                if (!useCurrentTime)
+                  Container(
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 30)),
+                        );
+                        if (date != null) {
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                          );
+                          if (time != null) {
+                            setState(() {
+                              selectedDateTime = DateTime(
+                                date.year,
+                                date.month,
+                                date.day,
+                                time.hour,
+                                time.minute,
+                              );
+                            });
+                          }
+                        }
+                      },
+                      child: Text(
+                        selectedDateTime != null
+                            ? 'Selected: ${selectedDateTime.toString()}'
+                            : 'Schedule for later',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24)),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 28),
+
+                // 7. Package Section (Current User Package)
+                if (packagesEnabled && userPackage != null) ...[
+                  Card(
+                    color: Colors.grey.shade50,
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.card_giftcard, color: Colors.black),
+                              SizedBox(width: 8),
+                              Text(
+                                'Your Current Package',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            '${userPackage!['package']['name']} - ${userPackage!['remaining_points']} points remaining',
+                            style: TextStyle(fontSize: 14, color: Colors.black),
+                          ),
+                          SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Switch(
+                                value: usePackage,
+                                onChanged: togglePackageUsage,
+                                activeColor: Colors.black,
+                              ),
+                              Text('Use Package',
+                                  style: TextStyle(color: Colors.black)),
+                            ],
+                          ),
                         ],
                       ),
                     ),
                   ),
-                );
-              }).toList(),
-              const SizedBox(height: 28),
+                  SizedBox(height: 16),
+                ],
 
-              // 5. Address Selection
-              sectionTitle('Address'),
-              if (isLoadingAddresses)
-                const SizedBox(
-                  height: 100,
-                  child:
-                      AnimatedLoadingIndicator(message: 'Loading addresses...'),
-                ),
-              if (!isLoadingAddresses && savedAddresses.isNotEmpty)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ...savedAddresses.map((addr) => Card(
-                          color: selectedSavedAddress != null &&
-                                  selectedSavedAddress!['id'] == addr['id']
-                              ? Colors.green[50]
-                              : Colors.white,
-                          child: ListTile(
-                            title: Text(
-                                addr['label'] ?? addr['address'] ?? 'Address',
-                                style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold)),
-                            subtitle: Text(
-                                '${addr['street'] ?? ''} ${addr['building'] ?? ''} ${addr['floor'] ?? ''} ${addr['apartment'] ?? ''}\n${addr['address'] ?? ''}',
-                                style: const TextStyle(fontSize: 13)),
-                            trailing: selectedSavedAddress != null &&
-                                    selectedSavedAddress!['id'] == addr['id']
-                                ? const Icon(Icons.check_circle,
-                                    color: Colors.green)
-                                : null,
-                            onTap: () {
-                              setState(() {
-                                selectedSavedAddress = addr;
-                                selectedLocation = LatLng(
-                                  double.parse(addr['latitude'].toString()),
-                                  double.parse(addr['longitude'].toString()),
-                                );
-                                selectedAddress = addr['address'];
-                              });
-                            },
-                          ),
-                        )),
-                    const SizedBox(height: 8),
+                // 8. Available Packages (Promotional)
+                if (packagesEnabled && packages.isNotEmpty) ...[
+                  sectionTitle('Available Packages'),
+                  const SizedBox(height: 16),
+                  Container(
+                    height: 320,
+                    child: PageView.builder(
+                      controller: _packagePageController,
+                      itemCount: packages.length,
+                      itemBuilder: (context, index) {
+                        final package = packages[index];
+                        return OptimizedPackageCard(
+                          package: package,
+                          userPackage: userPackage,
+                          onPurchase: () => _showPackagePurchaseDialog(package),
+                          onViewDetails: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MyPackageScreen(
+                                  token: widget.token,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  // Page Indicators
+                  if (packages.length > 1) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        packages.length,
+                        (index) {
+                          final currentPage = _packagePageController.hasClients
+                              ? _packagePageController.page?.round() ?? 0
+                              : 0;
+                          return Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: index == currentPage
+                                  ? Colors.black
+                                  : Colors.grey.shade300,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ],
-                ),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add_location_alt),
-                label: const Text('Add New Address'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                ),
-                onPressed: () async {
-                  try {
-                    if (latitude == null || longitude == null) {
-                      // If no location available, show error and try to get default location
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'No location available. Please wait or check location permissions.'),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
-                      // Try to get default location
-                      _setDefaultLocation();
-                      return;
-                    }
-
-                    print(
-                        '🗺️ Opening map picker with location: $latitude, $longitude');
-                    final picked = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MapPickerWithSearchScreen(
-                          initialLocation:
-                              selectedLocation ?? LatLng(latitude!, longitude!),
-                          token: widget.token,
+                  // View All Packages Button
+                  if (packages.length > 1) ...[
+                    const SizedBox(height: 16),
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AllPackagesScreen(
+                                token: widget.token,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: Icon(Icons.view_list, color: Colors.black),
+                        label: Text(
+                          'View All Packages',
+                          style: GoogleFonts.poppins(
+                            color: Colors.black,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    );
-                    if (picked != null &&
-                        picked is Map &&
-                        picked['latlng'] != null &&
-                        picked['address'] != null) {
-                      await addNewAddressDialog(
-                          picked['latlng'], picked['address']);
-                    }
-                  } catch (e) {
-                    print('❌ Error opening map picker: $e');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error opening map: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-              ),
-              const SizedBox(height: 28),
+                    ),
+                  ],
+                  const SizedBox(height: 32),
+                ],
 
-              // 6. Schedule Selection
-              sectionTitle('Schedule'),
-              SwitchListTile(
-                title: const Text('Request for now',
-                    style: TextStyle(fontSize: 16)),
-                value: useCurrentTime,
-                onChanged: (val) {
-                  setState(() {
-                    useCurrentTime = val;
-                    if (val) selectedDateTime = null;
-                  });
-                },
-              ),
-              if (!useCurrentTime)
+                // 9. Order Summary Card (Final)
+                OrderSummaryCard(
+                  totalPrice: totalPrice,
+                  usePackage: usePackage,
+                  selectedServicesCount: selectedServices.length,
+                  remainingPoints: userPackage?['remaining_points'],
+                  totalPointsUsed: _calculateTotalPointsUsed(),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Submit Button
                 Container(
                   decoration: BoxDecoration(
                     boxShadow: [
@@ -1000,221 +1308,28 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                     ],
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 30)),
-                      );
-                      if (date != null) {
-                        final time = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay.now(),
-                        );
-                        if (time != null) {
-                          setState(() {
-                            selectedDateTime = DateTime(
-                              date.year,
-                              date.month,
-                              date.day,
-                              time.hour,
-                              time.minute,
-                            );
-                          });
-                        }
-                      }
-                    },
-                    child: Text(
-                      selectedDateTime != null
-                          ? 'Selected: ${selectedDateTime.toString()}'
-                          : 'Schedule for later',
-                      style: const TextStyle(fontSize: 16),
+                  child: ElevatedButton.icon(
+                    onPressed: submitOrder,
+                    icon:
+                        Icon(usePackage ? Icons.card_giftcard : Icons.payment),
+                    label: Text(
+                      usePackage ? 'Use Package Points' : 'Proceed to Payment',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: usePackage ? Colors.green : Colors.black,
                       foregroundColor: Colors.white,
-                      backgroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(24)),
                     ),
                   ),
                 ),
-              const SizedBox(height: 28),
-
-              // 7. Package Section (Current User Package)
-              if (packagesEnabled && userPackage != null) ...[
-                Card(
-                  color: Colors.grey.shade50,
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.card_giftcard, color: Colors.black),
-                            SizedBox(width: 8),
-                            Text(
-                              'Your Current Package',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          '${userPackage!['package']['name']} - ${userPackage!['remaining_points']} points remaining',
-                          style: TextStyle(fontSize: 14, color: Colors.black),
-                        ),
-                        SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Switch(
-                              value: usePackage,
-                              onChanged: togglePackageUsage,
-                              activeColor: Colors.black,
-                            ),
-                            Text('Use Package',
-                                style: TextStyle(color: Colors.black)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16),
+                const SizedBox(height: 24),
               ],
-
-              // 8. Available Packages (Promotional)
-              if (packagesEnabled && packages.isNotEmpty) ...[
-                sectionTitle('Available Packages'),
-                const SizedBox(height: 16),
-                Container(
-                  height: 320,
-                  child: PageView.builder(
-                    controller: _packagePageController,
-                    itemCount: packages.length,
-                    itemBuilder: (context, index) {
-                      final package = packages[index];
-                      return OptimizedPackageCard(
-                        package: package,
-                        userPackage: userPackage,
-                        onPurchase: () => _showPackagePurchaseDialog(package),
-                        onViewDetails: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => MyPackageScreen(
-                                token: widget.token,
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                // Page Indicators
-                if (packages.length > 1) ...[
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      packages.length,
-                      (index) {
-                        final currentPage = _packagePageController.hasClients
-                            ? _packagePageController.page?.round() ?? 0
-                            : 0;
-                        return Container(
-                          width: 8,
-                          height: 8,
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: index == currentPage
-                                ? Colors.black
-                                : Colors.grey.shade300,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-                // View All Packages Button
-                if (packages.length > 1) ...[
-                  const SizedBox(height: 16),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AllPackagesScreen(
-                              token: widget.token,
-                            ),
-                          ),
-                        );
-                      },
-                      icon: Icon(Icons.view_list, color: Colors.black),
-                      label: Text(
-                        'View All Packages',
-                        style: GoogleFonts.poppins(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 32),
-              ],
-
-              // 9. Order Summary Card (Final)
-              OrderSummaryCard(
-                totalPrice: totalPrice,
-                usePackage: usePackage,
-                selectedServicesCount: selectedServices.length,
-                remainingPoints: userPackage?['remaining_points'],
-                totalPointsUsed: _calculateTotalPointsUsed(),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Submit Button
-              Container(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: ElevatedButton.icon(
-                  onPressed: submitOrder,
-                  icon: Icon(usePackage ? Icons.card_giftcard : Icons.payment),
-                  label: Text(
-                    usePackage ? 'Use Package Points' : 'Proceed to Payment',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: usePackage ? Colors.green : Colors.black,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 28, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
         ),
       ),

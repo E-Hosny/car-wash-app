@@ -11,7 +11,7 @@ class CacheService {
   Map<String, _CachedData> _cache = {};
 
   // TTL durations (in milliseconds)
-  static const int _servicesTTL = 30 * 1000; // 30 seconds (reduced for faster image updates)
+  static const int _servicesTTL = 5 * 60 * 1000; // 5 minutes (increased for better performance)
   static const int _carsTTL = 1 * 60 * 1000; // 1 minute
   static const int _addressesTTL = 1 * 60 * 1000; // 1 minute
   static const int _ordersTTL = 2 * 60 * 1000; // 2 minutes
@@ -96,6 +96,11 @@ class CacheService {
       final res = await http.get(
         Uri.parse('$baseUrl/api/services'),
         headers: {'Authorization': 'Bearer $token'},
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw Exception('Connection timeout while fetching services');
+        },
       );
 
       if (res.statusCode == 200) {
