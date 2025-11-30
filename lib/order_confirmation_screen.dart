@@ -292,6 +292,10 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
       );
 
       if (result == true) {
+        // Invalidate orders cache to ensure fresh data
+        final cacheService = CacheService();
+        cacheService.invalidateOrders(widget.token);
+        
         await _showOrderSuccessAnimation();
         _navigateToOrders();
       } else if (result == false) {

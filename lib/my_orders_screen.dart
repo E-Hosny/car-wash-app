@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'main_navigation_screen.dart';
+import 'services/cache_service.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   final String token;
@@ -21,6 +19,9 @@ class MyOrdersScreen extends StatefulWidget {
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
   List orders = [];
   bool isLoading = true; // Add loading state
+  String? errorMessage;
+  int retryCount = 0;
+  static const int maxRetries = 3;
 
   @override
   void initState() {
@@ -53,59 +54,121 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         }
       }
     });
-    fetchOrders();
+    _loadOrders();
   }
 
-  Future<void> fetchOrders() async {
-    setState(() {
-      isLoading = true; // Start loading
-    });
+  Future<void> _loadOrders() async {
+    // Try to load from cache first for instant display
+    final cacheService = CacheService();
+    final cachedOrders = cacheService.getCachedOrders(widget.token);
+    
+    if (cachedOrders != null && cachedOrders.isNotEmpty) {
+      setState(() {
+        orders = cachedOrders;
+        isLoading = false;
+        errorMessage = null;
+      });
+      print('📦 Loaded ${orders.length} orders from cache, refreshing in background...');
+      
+      // Refresh in background
+      fetchOrders(showLoading: false);
+    } else {
+      // No cache, fetch from API
+      await fetchOrders();
+    }
+  }
+
+  Future<void> fetchOrders({bool showLoading = true, bool forceRefresh = false}) async {
+    if (showLoading) {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+    }
 
     try {
-      final baseUrl = dotenv.env['BASE_URL']!;
-      final res = await http.get(
-        Uri.parse('$baseUrl/api/orders/my'),
-        headers: {'Authorization': 'Bearer ${widget.token}'},
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw Exception('Connection timeout');
-        },
-      );
+      final cacheService = CacheService();
+      
+      // If force refresh, invalidate cache first
+      if (forceRefresh) {
+        cacheService.invalidateOrders(widget.token);
+      }
+      
+      // Use cache service which handles caching automatically
+      final ordersData = await cacheService.getOrders(widget.token);
 
       if (!mounted) return;
 
-      if (res.statusCode == 200) {
-        final ordersData = jsonDecode(res.body);
-
-        if (ordersData != null && ordersData is List) {
-          setState(() {
-            orders = ordersData;
-            isLoading = false; // Stop loading
-          });
-        } else {
-          setState(() {
-            orders = [];
-            isLoading = false; // Stop loading
-          });
-        }
-      } else {
-        // Handle non-200 status codes silently - don't show error messages
-        print('Orders fetch returned status: ${res.statusCode}');
-        setState(() {
-          orders = [];
-          isLoading = false; // Stop loading
-        });
-      }
+      setState(() {
+        orders = ordersData;
+        isLoading = false;
+        errorMessage = null;
+        retryCount = 0; // Reset retry count on success
+      });
     } catch (e) {
-      // Handle errors silently - don't show error messages to user
       print('Error fetching orders: $e');
-      if (mounted) {
-        setState(() {
-          orders = [];
-          isLoading = false; // Stop loading
-        });
+      if (!mounted) return;
+
+      // Retry logic with exponential backoff
+      if (retryCount < maxRetries) {
+        retryCount++;
+        final delay = Duration(seconds: retryCount * 2); // 2s, 4s, 6s
+        print('🔄 Retrying order fetch (attempt $retryCount/$maxRetries) after ${delay.inSeconds}s...');
+        
+        await Future.delayed(delay);
+        return fetchOrders(showLoading: showLoading, forceRefresh: forceRefresh);
       }
+
+      // All retries failed, show error
+      setState(() {
+        isLoading = false;
+        errorMessage = _getErrorMessage(e);
+      });
+
+      // Show error message to user
+      if (mounted && showLoading) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    errorMessage ?? 'Failed to load orders. Please try again.',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () {
+                retryCount = 0;
+                fetchOrders();
+              },
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  String _getErrorMessage(dynamic error) {
+    if (error.toString().contains('timeout') || error.toString().contains('Connection timeout')) {
+      return 'Connection timeout. Please check your internet connection.';
+    } else if (error.toString().contains('Failed host lookup') || error.toString().contains('SocketException')) {
+      return 'No internet connection. Please check your network settings.';
+    } else if (error.toString().contains('401') || error.toString().contains('Unauthorized')) {
+      return 'Session expired. Please login again.';
+    } else if (error.toString().contains('500') || error.toString().contains('Internal Server Error')) {
+      return 'Server error. Please try again later.';
+    } else {
+      return 'Failed to load orders. Please try again.';
     }
   }
 
@@ -382,6 +445,57 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     }
   }
 
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 80,
+              color: Colors.red.shade300,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Failed to Load Orders',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.red.shade700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              errorMessage ?? 'An error occurred while loading your orders.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton.icon(
+              onPressed: () {
+                retryCount = 0;
+                fetchOrders();
+              },
+              icon: Icon(Icons.refresh),
+              label: Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMultiCarDetail(dynamic carDetail, int carIndex) {
     try {
       final carData = carDetail; // The car data is directly in carDetail
@@ -442,7 +556,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         ),
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
-            : orders.isEmpty
+            : errorMessage != null && orders.isEmpty
+                ? _buildErrorWidget()
+                : orders.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -533,13 +649,21 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                           ),
                         ),
                       ),
-                      // Orders List
+                      // Orders List with Pull-to-Refresh
                       Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: orders.length,
-                          itemBuilder: (context, index) =>
-                              _buildOrderCard(orders[index], index),
+                        child: RefreshIndicator(
+                          onRefresh: () async {
+                            retryCount = 0; // Reset retry count on manual refresh
+                            await fetchOrders(forceRefresh: true);
+                          },
+                          child: errorMessage != null && orders.isEmpty
+                              ? _buildErrorWidget()
+                              : ListView.builder(
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: orders.length,
+                                  itemBuilder: (context, index) =>
+                                      _buildOrderCard(orders[index], index),
+                                ),
                         ),
                       ),
                     ],

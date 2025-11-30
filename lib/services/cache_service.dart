@@ -14,12 +14,14 @@ class CacheService {
   static const int _servicesTTL = 30 * 1000; // 30 seconds (reduced for faster image updates)
   static const int _carsTTL = 1 * 60 * 1000; // 1 minute
   static const int _addressesTTL = 1 * 60 * 1000; // 1 minute
+  static const int _ordersTTL = 2 * 60 * 1000; // 2 minutes
 
   // Cache keys
   static const String _servicesKey = 'services';
   static const String _carsKey = 'cars';
   static const String _addressesKey = 'addresses';
   static const String _timeSlotsKey = 'time_slots';
+  static const String _ordersKey = 'orders';
   
   // TTL for time slots (30 seconds - they change frequently)
   static const int _timeSlotsTTL = 30 * 1000; // 30 seconds
@@ -53,6 +55,15 @@ class CacheService {
     final cacheKey = '${_addressesKey}_$token';
     if (_isValid(cacheKey, _addressesTTL)) {
       return List<Map<String, dynamic>>.from(_cache[cacheKey]!.data);
+    }
+    return null;
+  }
+
+  /// Get orders from cache only (no API call) - checks TTL
+  List<dynamic>? getCachedOrders(String token) {
+    final cacheKey = '${_ordersKey}_$token';
+    if (_isValid(cacheKey, _ordersTTL)) {
+      return List<dynamic>.from(_cache[cacheKey]!.data);
     }
     return null;
   }
@@ -327,11 +338,70 @@ class CacheService {
     print('🗑️ Services cache invalidated');
   }
 
+  /// Get orders from cache or API
+  Future<List<dynamic>> getOrders(String token) async {
+    final cacheKey = '${_ordersKey}_$token';
+    
+    // Check cache first
+    if (_isValid(cacheKey, _ordersTTL)) {
+      print('📦 Using cached orders');
+      return List<dynamic>.from(_cache[cacheKey]!.data);
+    }
+
+    // Fetch from API
+    print('🌐 Fetching orders from API');
+    try {
+      final baseUrl = dotenv.env['BASE_URL'];
+      if (baseUrl == null || baseUrl.isEmpty) {
+        throw Exception('BASE_URL not configured');
+      }
+
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/orders/my'),
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Connection timeout');
+        },
+      );
+
+      if (res.statusCode == 200) {
+        final ordersData = jsonDecode(res.body);
+        final orders = ordersData != null && ordersData is List ? ordersData : [];
+        
+        // Update cache
+        _cache[cacheKey] = _CachedData(orders, DateTime.now().millisecondsSinceEpoch);
+        print('✅ Cached ${orders.length} orders');
+        
+        return orders;
+      } else {
+        throw Exception('Failed to fetch orders: ${res.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error fetching orders: $e');
+      // Return cached data even if expired, if available
+      if (_cache.containsKey(cacheKey)) {
+        print('⚠️ Using expired cache as fallback');
+        return List<dynamic>.from(_cache[cacheKey]!.data);
+      }
+      rethrow;
+    }
+  }
+
+  /// Invalidate orders cache (call after creating/updating an order)
+  void invalidateOrders(String token) {
+    final cacheKey = '${_ordersKey}_$token';
+    _cache.remove(cacheKey);
+    print('🗑️ Orders cache invalidated');
+  }
+
   /// Clear all cache for a token
   void clearCache(String token) {
     _cache.remove('${_servicesKey}_$token');
     _cache.remove('${_carsKey}_$token');
     _cache.remove('${_addressesKey}_$token');
+    _cache.remove('${_ordersKey}_$token');
     print('🗑️ All cache cleared for token');
   }
 

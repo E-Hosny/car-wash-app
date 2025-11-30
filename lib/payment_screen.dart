@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/stripe_service.dart';
+import 'services/cache_service.dart';
 import 'main_navigation_screen.dart';
 import 'screens/package_success_screen.dart';
 
@@ -307,6 +308,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
       }
 
       print('Order created successfully: ${orderResponse['id']}');
+
+      // Invalidate orders cache to ensure fresh data
+      final cacheService = CacheService();
+      cacheService.invalidateOrders(widget.token);
 
       // تحديث حالة الطلب إلى مدفوع (فقط للطلبات العادية)
       if (!isPackagePurchase && orderResponse['id'] != null) {

@@ -604,6 +604,10 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
 
       // Check if payment was successful
       if (result == true) {
+        // Invalidate orders cache to ensure fresh data
+        final cacheService = CacheService();
+        cacheService.invalidateOrders(widget.token);
+        
         // Show success animation before navigating
         await _showOrderSuccessAnimation();
         // Navigate to orders screen directly - no need to reload data

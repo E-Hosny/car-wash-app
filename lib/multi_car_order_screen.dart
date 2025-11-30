@@ -855,6 +855,10 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
 
       // Check if payment was successful before navigating
       if (result == true) {
+        // Invalidate orders cache to ensure fresh data
+        final cacheService = CacheService();
+        cacheService.invalidateOrders(widget.token);
+        
         debugPrint('Payment successful, navigating to orders');
         _navigateToOrders();
       } else {
