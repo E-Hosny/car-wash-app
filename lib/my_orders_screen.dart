@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main_navigation_screen.dart';
 import 'services/cache_service.dart';
+import 'widgets/animated_loading_indicator.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   final String token;
@@ -555,7 +556,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           ),
         ),
         child: isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const AnimatedLoadingIndicator(message: 'Loading your orders...')
             : errorMessage != null && orders.isEmpty
                 ? _buildErrorWidget()
                 : orders.isEmpty

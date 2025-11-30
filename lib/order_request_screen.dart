@@ -13,12 +13,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import 'services/package_service.dart';
 import 'utils/debug_helper.dart';
-import 'widgets/package_display_card.dart';
 import 'widgets/order_summary_card.dart';
-import 'widgets/compact_package_card.dart';
-import 'widgets/enhanced_package_card.dart';
-import 'widgets/package_grid_view.dart';
 import 'widgets/optimized_package_card.dart';
+import 'widgets/animated_loading_indicator.dart';
 import 'main_navigation_screen.dart';
 import 'screens/my_package_screen.dart';
 import 'multi_car_order_screen.dart';
@@ -879,7 +876,11 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
               // 5. Address Selection
               sectionTitle('Address'),
               if (isLoadingAddresses)
-                const Center(child: CircularProgressIndicator()),
+                const SizedBox(
+                  height: 100,
+                  child:
+                      AnimatedLoadingIndicator(message: 'Loading addresses...'),
+                ),
               if (!isLoadingAddresses && savedAddresses.isNotEmpty)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

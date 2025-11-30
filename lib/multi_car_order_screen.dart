@@ -14,6 +14,7 @@ import 'services/package_service.dart';
 import 'main_navigation_screen.dart';
 import 'add_car_screen.dart';
 import 'services/cache_service.dart';
+import 'widgets/animated_loading_indicator.dart';
 
 class MultiCarOrderScreen extends StatefulWidget {
   final String token;
@@ -1344,7 +1345,10 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
       children: [
         _sectionTitle('Address'),
         if (isLoadingAddresses)
-          const Center(child: CircularProgressIndicator()),
+          const SizedBox(
+            height: 100,
+            child: AnimatedLoadingIndicator(message: 'Loading addresses...'),
+          ),
         if (!isLoadingAddresses && savedAddresses.isNotEmpty)
           ...savedAddresses.map((addr) => Card(
                 color: selectedSavedAddress != null &&
