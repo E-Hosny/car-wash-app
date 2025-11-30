@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:upgrader/upgrader.dart';
+import 'services/force_update_messages.dart';
 import 'login_screen.dart'; // استيراد صفحة تسجيل الدخول
 import 'package:shared_preferences/shared_preferences.dart';
 import 'main_navigation_screen.dart';
@@ -101,13 +103,23 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Image(
-          image: AssetImage('assets/logo.png'),
-          width: 300,
-          height: 300,
+    return UpgradeAlert(
+      upgrader: Upgrader(
+        // Country code for App Store/Play Store
+        countryCode: 'us',
+        // Check immediately
+        durationUntilAlertAgain: const Duration(days: 0),
+        // Custom messages for force update
+        messages: ForceUpdateMessages(),
+      ),
+      child: const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Image(
+            image: AssetImage('assets/logo.png'),
+            width: 300,
+            height: 300,
+          ),
         ),
       ),
     );

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:upgrader/upgrader.dart';
+import 'services/force_update_messages.dart';
 import 'splash_screen.dart'; // أو login_screen.dart
 
 void main() async {
@@ -41,9 +43,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: SplashScreen(), // أو LoginScreen() حسب حالة البداية
+      home: UpgradeAlert(
+        upgrader: Upgrader(
+          // Country code for App Store/Play Store
+          countryCode: 'us',
+          // Check immediately
+          durationUntilAlertAgain: const Duration(days: 0),
+          // Custom messages for force update
+          messages: ForceUpdateMessages(),
+        ),
+        child: const SplashScreen(),
+      ),
     );
   }
 }
