@@ -63,6 +63,9 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   bool isLoadingAddresses = false;
   bool packagesEnabled = true;
 
+  // Track expanded descriptions for each service
+  Map<int, bool> expandedServices = {};
+
   @override
   void initState() {
     super.initState();
@@ -945,19 +948,61 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                                     ],
                                   ),
 
-                                  // Service description
+                                  // Service description with Read more/Show less
                                   if (s['description'] != null &&
                                       s['description']
                                           .toString()
                                           .isNotEmpty) ...[
                                     const SizedBox(height: 8),
-                                    Text(
-                                      s['description'],
-                                      style: GoogleFonts.poppins(
-                                        color: Colors.grey.shade600,
-                                        fontSize: 14,
-                                        height: 1.3,
-                                      ),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          s['description'],
+                                          style: GoogleFonts.poppins(
+                                            color: Colors.grey.shade600,
+                                            fontSize: 14,
+                                            height: 1.3,
+                                          ),
+                                          maxLines:
+                                              expandedServices[s['id']] == true
+                                                  ? null
+                                                  : 2,
+                                          overflow:
+                                              expandedServices[s['id']] == true
+                                                  ? null
+                                                  : TextOverflow.ellipsis,
+                                        ),
+                                        // Show Read more/Show less button if description is long
+                                        if (s['description'].toString().length >
+                                            100)
+                                          GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                expandedServices[s['id']] =
+                                                    !(expandedServices[
+                                                            s['id']] ??
+                                                        false);
+                                              });
+                                            },
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.only(top: 4),
+                                              child: Text(
+                                                expandedServices[s['id']] ==
+                                                        true
+                                                    ? 'Show less'
+                                                    : 'Read more',
+                                                style: GoogleFonts.poppins(
+                                                  color: Colors.blue.shade600,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ],
                                 ],
