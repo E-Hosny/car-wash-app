@@ -52,6 +52,10 @@ dependencies:
   flutter_stripe: ^10.1.0
   
   # Google Places API for location search - using custom implementation
+  
+  # Force Update functionality
+  upgrader: ^11.5.1
+  package_info_plus: ^4.2.0
 
 dev_dependencies:
   flutter_test:
