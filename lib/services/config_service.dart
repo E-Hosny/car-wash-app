@@ -6,7 +6,9 @@ class ConfigService {
   static Future<bool> fetchPackagesEnabled() async {
     final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
     try {
-      final res = await http.get(Uri.parse('$baseUrl/api/config'));
+      final res = await http
+          .get(Uri.parse('$baseUrl/api/config'))
+          .timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final enabled = data['data']?['packages_enabled'];
@@ -15,7 +17,9 @@ class ConfigService {
           return enabled == '1' || enabled.toLowerCase() == 'true';
         if (enabled is num) return enabled == 1;
       }
-    } catch (_) {}
+    } catch (e) {
+      print('⚠️ ConfigService error: $e');
+    }
     return true; // default enabled
   }
 }

@@ -71,31 +71,42 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   Future<void> _loadConfig() async {
-    final enabled = await ConfigService.fetchPackagesEnabled();
-    if (!mounted) return;
-    
-    setState(() {
-      packagesEnabled = enabled;
-      loadingConfig = false;
+    try {
+      final enabled = await ConfigService.fetchPackagesEnabled();
+      if (!mounted) return;
+      
+      setState(() {
+        packagesEnabled = enabled;
+        loadingConfig = false;
 
-      // Build screens once after config is loaded
-      _buildScreens();
+        // Build screens once after config is loaded
+        _buildScreens();
 
-      // If forceOrdersTab is true, ensure we stay on orders tab
-      if (widget.forceOrdersTab) {
-        currentIndex = packagesEnabled ? 2 : 1; // Orders tab index
-      } else {
-        // Adjust currentIndex based on packages availability
-        if (!packagesEnabled) {
-          // If packages are disabled, adjust index for orders tab
-          if (currentIndex == 2) {
-            currentIndex = 1; // Orders tab when packages disabled
-          } else if (currentIndex == 1) {
-            currentIndex = 0; // Home tab
+        // If forceOrdersTab is true, ensure we stay on orders tab
+        if (widget.forceOrdersTab) {
+          currentIndex = packagesEnabled ? 2 : 1; // Orders tab index
+        } else {
+          // Adjust currentIndex based on packages availability
+          if (!packagesEnabled) {
+            // If packages are disabled, adjust index for orders tab
+            if (currentIndex == 2) {
+              currentIndex = 1; // Orders tab when packages disabled
+            } else if (currentIndex == 1) {
+              currentIndex = 0; // Home tab
+            }
           }
         }
-      }
-    });
+      });
+    } catch (e) {
+      print('⚠️ Error loading config: $e');
+      if (!mounted) return;
+      // Default to enabled if error occurs
+      setState(() {
+        packagesEnabled = true;
+        loadingConfig = false;
+        _buildScreens();
+      });
+    }
   }
 
   void _showLoginPrompt() {

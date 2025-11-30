@@ -24,7 +24,7 @@ def flutterVersionName = localProperties.getProperty('flutter.versionName')
 android {
     namespace = "com.washluxuria.carwash"
     compileSdk = 35
-    ndkVersion = flutter.ndkVersion
+    ndkVersion "26.1.10909125"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -37,7 +37,7 @@ android {
 
     defaultConfig {
         applicationId = "com.washluxuria.carwash"
-        minSdk = 21
+        minSdkVersion = flutter.minSdkVersion
         targetSdk = 35  
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
