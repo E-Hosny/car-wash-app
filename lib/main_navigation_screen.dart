@@ -6,6 +6,7 @@ import 'guest_services_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'services/config_service.dart';
+import 'services/data_preloader_service.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final String? token; // Made nullable to support guest mode
@@ -97,6 +98,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           }
         }
       });
+
+      // Preload critical data in background for logged-in users only
+      // This improves performance for Single Car Wash screen
+      if (!widget.isGuest && widget.token != null && widget.token!.isNotEmpty) {
+        _preloadDataInBackground();
+      }
     } catch (e) {
       print('⚠️ Error loading config: $e');
       if (!mounted) return;
@@ -106,7 +113,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         loadingConfig = false;
         _buildScreens();
       });
+
+      // Still try to preload data even if config loading failed
+      if (!widget.isGuest && widget.token != null && widget.token!.isNotEmpty) {
+        _preloadDataInBackground();
+      }
     }
+  }
+
+  /// Preload critical data in background without blocking UI
+  void _preloadDataInBackground() {
+    // Start preload in background, don't await it
+    DataPreloaderService().preloadCriticalData(widget.token!).catchError((e) {
+      print('⚠️ Error during background data preload: $e');
+      // Don't show error to user, this is a background operation
+      return false;
+    });
   }
 
   void _showLoginPrompt() {

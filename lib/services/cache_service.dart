@@ -11,9 +11,9 @@ class CacheService {
   Map<String, _CachedData> _cache = {};
 
   // TTL durations (in milliseconds)
-  static const int _servicesTTL = 5 * 60 * 1000; // 5 minutes (increased for better performance)
-  static const int _carsTTL = 1 * 60 * 1000; // 1 minute
-  static const int _addressesTTL = 1 * 60 * 1000; // 1 minute
+  static const int _servicesTTL = 15 * 60 * 1000; // 15 minutes (increased for better performance - services don't change frequently)
+  static const int _carsTTL = 5 * 60 * 1000; // 5 minutes (increased for better performance)
+  static const int _addressesTTL = 5 * 60 * 1000; // 5 minutes (increased for better performance)
   static const int _ordersTTL = 2 * 60 * 1000; // 2 minutes
 
   // Cache keys
@@ -41,6 +41,21 @@ class CacheService {
     return null;
   }
 
+  /// Get services from cache even if expired (for instant display)
+  List<dynamic>? getCachedServicesEvenExpired(String token) {
+    final cacheKey = '${_servicesKey}_$token';
+    if (_cache.containsKey(cacheKey)) {
+      final cachedData = _cache[cacheKey]!.data;
+      if (cachedData is Map && cachedData.containsKey('services')) {
+        return List<dynamic>.from(cachedData['services']);
+      } else if (cachedData is List) {
+        // Old format - direct list
+        return cachedData;
+      }
+    }
+    return null;
+  }
+
   /// Get user cars from cache only (no API call) - checks TTL
   List<dynamic>? getCachedCars(String token) {
     final cacheKey = '${_carsKey}_$token';
@@ -50,10 +65,28 @@ class CacheService {
     return null;
   }
 
+  /// Get user cars from cache even if expired (for instant display)
+  List<dynamic>? getCachedCarsEvenExpired(String token) {
+    final cacheKey = '${_carsKey}_$token';
+    if (_cache.containsKey(cacheKey)) {
+      return _cache[cacheKey]!.data as List<dynamic>;
+    }
+    return null;
+  }
+
   /// Get saved addresses from cache only (no API call) - checks TTL
   List<Map<String, dynamic>>? getCachedAddresses(String token) {
     final cacheKey = '${_addressesKey}_$token';
     if (_isValid(cacheKey, _addressesTTL)) {
+      return List<Map<String, dynamic>>.from(_cache[cacheKey]!.data);
+    }
+    return null;
+  }
+
+  /// Get saved addresses from cache even if expired (for instant display)
+  List<Map<String, dynamic>>? getCachedAddressesEvenExpired(String token) {
+    final cacheKey = '${_addressesKey}_$token';
+    if (_cache.containsKey(cacheKey)) {
       return List<Map<String, dynamic>>.from(_cache[cacheKey]!.data);
     }
     return null;
@@ -264,6 +297,16 @@ class CacheService {
     final dateString = date.toIso8601String().split('T')[0]; // YYYY-MM-DD format
     final cacheKey = '${_timeSlotsKey}_${dateString}_$token';
     if (_isValid(cacheKey, _timeSlotsTTL)) {
+      return Map<String, dynamic>.from(_cache[cacheKey]!.data);
+    }
+    return null;
+  }
+
+  /// Get booked time slots from cache even if expired (for instant display)
+  Map<String, dynamic>? getCachedTimeSlotsEvenExpired(String token, DateTime date) {
+    final dateString = date.toIso8601String().split('T')[0]; // YYYY-MM-DD format
+    final cacheKey = '${_timeSlotsKey}_${dateString}_$token';
+    if (_cache.containsKey(cacheKey)) {
       return Map<String, dynamic>.from(_cache[cacheKey]!.data);
     }
     return null;

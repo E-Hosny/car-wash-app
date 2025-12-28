@@ -142,15 +142,31 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       }
 
       // Try to load from cache first for instant display (synchronous, no API call)
+      // Use even expired cache for instant display - better UX
       final cacheService = CacheService();
       bool hasCachedData = false;
 
-      final cachedServices = cacheService.getCachedServices(widget.token);
-      final cachedCars = cacheService.getCachedCars(widget.token);
-      final cachedAddresses = cacheService.getCachedAddresses(widget.token);
-      final cachedTimeSlots =
-          cacheService.getCachedTimeSlots(widget.token, selectedDate);
+      // First try valid cache
+      var cachedServices = cacheService.getCachedServices(widget.token);
+      var cachedCars = cacheService.getCachedCars(widget.token);
+      var cachedAddresses = cacheService.getCachedAddresses(widget.token);
+      var cachedTimeSlots = cacheService.getCachedTimeSlots(widget.token, selectedDate);
 
+      // If no valid cache, try expired cache for instant display
+      if (cachedServices == null || cachedServices.isEmpty) {
+        cachedServices = cacheService.getCachedServicesEvenExpired(widget.token);
+      }
+      if (cachedCars == null || cachedCars.isEmpty) {
+        cachedCars = cacheService.getCachedCarsEvenExpired(widget.token);
+      }
+      if (cachedAddresses == null || cachedAddresses.isEmpty) {
+        cachedAddresses = cacheService.getCachedAddressesEvenExpired(widget.token);
+      }
+      if (cachedTimeSlots == null) {
+        cachedTimeSlots = cacheService.getCachedTimeSlotsEvenExpired(widget.token, selectedDate);
+      }
+
+      // Load any available cached data immediately (even if expired) for instant display
       if (cachedServices != null && cachedServices.isNotEmpty ||
           cachedCars != null && cachedCars.isNotEmpty ||
           cachedAddresses != null && cachedAddresses.isNotEmpty ||
@@ -158,25 +174,26 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
         // Load cached data immediately (synchronous)
         if (cachedServices != null && cachedServices.isNotEmpty) {
           setState(() {
-            services = cachedServices;
+            services = List<dynamic>.from(cachedServices!);
           });
         }
         if (cachedCars != null && cachedCars.isNotEmpty) {
           setState(() {
-            cars = cachedCars;
+            cars = List<dynamic>.from(cachedCars!);
           });
         }
         if (cachedAddresses != null && cachedAddresses.isNotEmpty) {
           setState(() {
-            savedAddresses = cachedAddresses;
+            savedAddresses = List<Map<String, dynamic>>.from(cachedAddresses!);
             isLoadingAddresses = false;
           });
         }
         if (cachedTimeSlots != null) {
+          final timeSlots = cachedTimeSlots;
           setState(() {
-            bookedHours = List<int>.from(cachedTimeSlots['booked_hours'] ?? []);
+            bookedHours = List<int>.from(timeSlots['booked_hours'] ?? []);
             unavailableHours =
-                List<int>.from(cachedTimeSlots['unavailable_hours'] ?? []);
+                List<int>.from(timeSlots['unavailable_hours'] ?? []);
             isLoadingTimeSlots = false;
           });
         }
@@ -191,15 +208,20 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
         hasCachedData = true;
 
         print(
-            '📦 Loaded data from cache instantly, refreshing in background...');
+            '📦 Loaded data from cache instantly (may include expired cache), refreshing in background...');
       }
 
-      // Only refresh data in background if cache is expired or missing
-      // Check if we need to refresh each data type
-      bool needRefreshServices = cachedServices == null;
-      bool needRefreshCars = cachedCars == null;
-      bool needRefreshAddresses = cachedAddresses == null;
-      bool needRefreshTimeSlots = cachedTimeSlots == null;
+      // Check if we need to refresh each data type (check valid cache, not expired)
+      final validCachedServices = cacheService.getCachedServices(widget.token);
+      final validCachedCars = cacheService.getCachedCars(widget.token);
+      final validCachedAddresses = cacheService.getCachedAddresses(widget.token);
+      final validCachedTimeSlots = cacheService.getCachedTimeSlots(widget.token, selectedDate);
+
+      // Only refresh data in background if valid cache is expired or missing
+      bool needRefreshServices = validCachedServices == null || validCachedServices.isEmpty;
+      bool needRefreshCars = validCachedCars == null || validCachedCars.isEmpty;
+      bool needRefreshAddresses = validCachedAddresses == null || validCachedAddresses.isEmpty;
+      bool needRefreshTimeSlots = validCachedTimeSlots == null;
 
       List<Future> refreshTasks = [];
 
