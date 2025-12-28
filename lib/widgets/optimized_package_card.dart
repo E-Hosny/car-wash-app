@@ -25,7 +25,7 @@ class OptimizedPackageCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
-      height: 320, // Fixed height to prevent overflow
+      height: 380, // Fixed height to prevent overflow - increased for larger image
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: Colors.white,
@@ -48,7 +48,7 @@ class OptimizedPackageCard extends StatelessWidget {
         children: [
           // Image Section with Badge
           SizedBox(
-            height: 120, // Fixed height for image
+            height: 180, // Fixed height for image - increased for better visibility
             child: Stack(
               children: [
                 Container(
@@ -247,7 +247,7 @@ class OptimizedPackageCard extends StatelessWidget {
         ),
         child: Image.network(
           imageUrl,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
           width: double.infinity,
           height: double.infinity,
           errorBuilder: (context, error, stackTrace) {

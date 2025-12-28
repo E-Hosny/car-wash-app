@@ -25,7 +25,7 @@ class CompactPackageCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
-      height: 260, // Fixed height to prevent overflow
+      height: 300, // Fixed height to prevent overflow - increased for larger image
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: Colors.white,
@@ -50,7 +50,7 @@ class CompactPackageCard extends StatelessWidget {
           Stack(
             children: [
               Container(
-                height: 80, // Reduced height
+                height: 120, // Increased height for better image visibility
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.vertical(
@@ -245,7 +245,7 @@ class CompactPackageCard extends StatelessWidget {
         ),
         child: Image.network(
           imageUrl,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
             return _buildPlaceholderImage();
           },

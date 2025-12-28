@@ -83,7 +83,7 @@ class PackageGridView extends StatelessWidget {
         children: [
           // Image Section
           Expanded(
-            flex: 3,
+            flex: 4,
             child: Stack(
               children: [
                 Container(
@@ -234,7 +234,7 @@ class PackageGridView extends StatelessWidget {
         ),
         child: Image.network(
           imageUrl,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
           width: double.infinity,
           height: double.infinity,
           errorBuilder: (context, error, stackTrace) {

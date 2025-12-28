@@ -49,7 +49,7 @@ class PackageDisplayCard extends StatelessWidget {
           Stack(
             children: [
               Container(
-                height: 100,
+                height: 150,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.vertical(
@@ -227,7 +227,7 @@ class PackageDisplayCard extends StatelessWidget {
         ),
         child: Image.network(
           imageUrl,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
             return _buildPlaceholderImage();
           },

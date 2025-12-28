@@ -25,7 +25,7 @@ class EnhancedPackageCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
-      height: 300, // Increased height for better image display
+      height: 360, // Increased height for better image display
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: Colors.white,
@@ -50,7 +50,7 @@ class EnhancedPackageCard extends StatelessWidget {
           Stack(
             children: [
               Container(
-                height: 140, // Increased height for better image display
+                height: 180, // Increased height for better image display
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.vertical(
@@ -245,7 +245,7 @@ class EnhancedPackageCard extends StatelessWidget {
         ),
         child: Image.network(
           imageUrl,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
           width: double.infinity,
           height: double.infinity,
           errorBuilder: (context, error, stackTrace) {

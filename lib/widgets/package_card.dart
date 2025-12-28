@@ -42,7 +42,7 @@ class PackageCard extends StatelessWidget {
                 top: Radius.circular(AppTheme.radiusL),
               ),
               child: Container(
-                height: 120,
+                height: 180,
                 width: double.infinity,
                 color: Colors.grey.shade50,
                 child: _buildPackageImage(),
@@ -168,7 +168,7 @@ class PackageCard extends StatelessWidget {
 
       return Image.network(
         imageUrl,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
           return _buildPlaceholderImage();
         },
@@ -247,7 +247,7 @@ class PackagePurchaseDialog extends StatelessWidget {
         children: [
           // Package Image
           Container(
-            height: 120,
+            height: 180,
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppTheme.radiusM),
@@ -351,7 +351,7 @@ class PackagePurchaseDialog extends StatelessWidget {
 
       return Image.network(
         imageUrl,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
           return _buildPlaceholderImage();
         },

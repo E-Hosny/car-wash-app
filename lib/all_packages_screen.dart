@@ -189,7 +189,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              childAspectRatio: 0.65,
+                              childAspectRatio: 0.48,
                               crossAxisSpacing: 16,
                               mainAxisSpacing: 16,
                             ),
@@ -246,13 +246,13 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(18)),
                 child: Container(
-                  height: 90,
+                  height: 180,
                   width: double.infinity,
                   color: Colors.grey.shade100,
                   child: package['image'] != null
                       ? Image.network(
                           '${dotenv.env['BASE_URL'] ?? 'http://localhost:8000'}/storage/${package['image']}',
-                          fit: BoxFit.cover,
+                          fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) {
                             return Center(
                               child: Icon(
@@ -273,7 +273,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,46 +281,46 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                     Text(
                       package['name'] ?? 'Premium Package',
                       style: GoogleFonts.poppins(
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     if (package['description'] != null)
                       Text(
                         package['description'],
                         style: GoogleFonts.poppins(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: Colors.grey.shade700,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     // Price only
                     Row(
                       children: [
                         Text(
                           'Price: ',
                           style: GoogleFonts.poppins(
-                            fontSize: 10,
+                            fontSize: 9,
                             color: Colors.grey.shade600,
                           ),
                         ),
                         Text(
                           '${package['price']} AED',
                           style: GoogleFonts.poppins(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
                             color: Colors.black,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -336,7 +336,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 6),
                           elevation: 0,
                         ),
                         child: isCurrentPackage
@@ -429,7 +429,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
           children: [
             if (package['image'] != null)
               Container(
-                height: 120,
+                height: 180,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
@@ -438,7 +438,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(
                     '${dotenv.env['BASE_URL'] ?? 'http://localhost:8000'}/storage/${package['image']}',
-                    fit: BoxFit.cover,
+                    fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         decoration: BoxDecoration(
