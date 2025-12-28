@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../utils/app_theme.dart';
 import '../services/package_service.dart';
 
@@ -215,20 +216,38 @@ class PackageDisplayCard extends StatelessWidget {
   }
 
   Widget _buildPackageImage() {
-    final imagePath = package['image'];
-
-    if (imagePath != null && imagePath.toString().isNotEmpty) {
+    // Check for image_url first (full URL like services)
+    String? imageUrl;
+    if (package['image_url'] != null && package['image_url'].toString().isNotEmpty) {
+      imageUrl = package['image_url'].toString();
+      print('🖼️ Loading package image from image_url: $imageUrl');
+    } else if (package['image'] != null && package['image'].toString().isNotEmpty) {
+      // Build URL from image path
       final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
-      final imageUrl = '$baseUrl/storage/$imagePath';
+      imageUrl = '$baseUrl/storage/${package['image']}';
+      print('🖼️ Loading package image from image path: $imageUrl');
+    }
 
+    if (imageUrl != null && imageUrl.isNotEmpty) {
       return ClipRRect(
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(16),
         ),
-        child: Image.network(
-          imageUrl,
+        child: CachedNetworkImage(
+          imageUrl: imageUrl,
           fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
+          placeholder: (context, url) => Container(
+            color: Colors.grey.shade200,
+            child: Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+              ),
+            ),
+          ),
+          errorWidget: (context, url, error) {
+            print('❌ Error loading package image: $url');
+            print('❌ Error details: $error');
             return _buildPlaceholderImage();
           },
         ),

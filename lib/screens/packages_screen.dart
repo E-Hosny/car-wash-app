@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../services/stripe_service.dart';
 
 class PackagesScreen extends StatefulWidget {
@@ -104,21 +106,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                                     borderRadius: const BorderRadius.vertical(
                                       top: Radius.circular(12),
                                     ),
-                                    child: Image.network(
-                                      'http://localhost:8000/storage/${package['image']}',
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Container(
-                                          color: Colors.grey[300],
-                                          child: const Icon(
-                                            Icons.image_not_supported,
-                                            size: 50,
-                                            color: Colors.grey,
-                                          ),
-                                        );
-                                      },
-                                    ),
+                                    child: _buildPackageImage(package),
                                   ),
                                 ),
                               Padding(
@@ -233,6 +221,54 @@ class _PackagesScreenState extends State<PackagesScreen> {
                     ),
     );
   }
+
+  Widget _buildPackageImage(Map<String, dynamic> package) {
+    // Check for image_url first (full URL like services)
+    String? imageUrl;
+    if (package['image_url'] != null && package['image_url'].toString().isNotEmpty) {
+      imageUrl = package['image_url'].toString();
+      print('🖼️ Loading package image from image_url: $imageUrl');
+    } else if (package['image'] != null && package['image'].toString().isNotEmpty) {
+      // Build URL from image path using BASE_URL from .env
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
+      imageUrl = '$baseUrl/storage/${package['image']}';
+      print('🖼️ Loading package image from image path: $imageUrl');
+    }
+
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          color: Colors.grey[300],
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+        errorWidget: (context, url, error) {
+          print('❌ Error loading package image: $url');
+          print('❌ Error details: $error');
+          return Container(
+            color: Colors.grey[300],
+            child: const Icon(
+              Icons.image_not_supported,
+              size: 50,
+              color: Colors.grey,
+            ),
+          );
+        },
+      );
+    }
+
+    return Container(
+      color: Colors.grey[300],
+      child: const Icon(
+        Icons.image_not_supported,
+        size: 50,
+        color: Colors.grey,
+      ),
+    );
+  }
 }
 
 class PackageDetailsScreen extends StatefulWidget {
@@ -344,24 +380,11 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            if (widget.package['image'] != null)
+            if (widget.package['image'] != null || widget.package['image_url'] != null)
               SizedBox(
                 height: 250,
                 width: double.infinity,
-                child: Image.network(
-                  'http://localhost:8000/storage/${widget.package['image']}',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[300],
-                      child: const Icon(
-                        Icons.image_not_supported,
-                        size: 80,
-                        color: Colors.grey,
-                      ),
-                    );
-                  },
-                ),
+                child: _buildPackageImage(widget.package),
               ),
             Padding(
               padding: const EdgeInsets.all(16),
@@ -479,6 +502,54 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPackageImage(Map<String, dynamic> package) {
+    // Check for image_url first (full URL like services)
+    String? imageUrl;
+    if (package['image_url'] != null && package['image_url'].toString().isNotEmpty) {
+      imageUrl = package['image_url'].toString();
+      print('🖼️ Loading package image from image_url: $imageUrl');
+    } else if (package['image'] != null && package['image'].toString().isNotEmpty) {
+      // Build URL from image path using BASE_URL from .env
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
+      imageUrl = '$baseUrl/storage/${package['image']}';
+      print('🖼️ Loading package image from image path: $imageUrl');
+    }
+
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          color: Colors.grey[300],
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+        errorWidget: (context, url, error) {
+          print('❌ Error loading package image: $url');
+          print('❌ Error details: $error');
+          return Container(
+            color: Colors.grey[300],
+            child: const Icon(
+              Icons.image_not_supported,
+              size: 80,
+              color: Colors.grey,
+            ),
+          );
+        },
+      );
+    }
+
+    return Container(
+      color: Colors.grey[300],
+      child: const Icon(
+        Icons.image_not_supported,
+        size: 80,
+        color: Colors.grey,
       ),
     );
   }

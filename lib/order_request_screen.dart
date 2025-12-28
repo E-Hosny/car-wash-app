@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'add_car_screen.dart';
 import 'map_picker_with_search_screen.dart';
 import 'payment_screen.dart';
@@ -1410,7 +1411,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (package['image'] != null)
+            if (package['image'] != null || package['image_url'] != null)
               Container(
                 height: 120,
                 width: double.infinity,
@@ -1419,14 +1420,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    '${dotenv.env['BASE_URL'] ?? 'http://localhost:8000'}/storage/${package['image']}',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: Colors.grey.shade200,
+                  child: _buildPackageImage(package),
                         ),
                         child: Icon(
                           Icons.card_giftcard,
@@ -1670,4 +1664,62 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
               fontSize: 22, fontWeight: FontWeight.w700, color: Colors.black),
         ),
       );
+  }
+
+  Widget _buildPackageImage(Map<String, dynamic> package) {
+    // Check for image_url first (full URL like services)
+    String? imageUrl;
+    if (package['image_url'] != null && package['image_url'].toString().isNotEmpty) {
+      imageUrl = package['image_url'].toString();
+      print('🖼️ Loading package image from image_url: $imageUrl');
+    } else if (package['image'] != null && package['image'].toString().isNotEmpty) {
+      // Build URL from image path
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
+      imageUrl = '$baseUrl/storage/${package['image']}';
+      print('🖼️ Loading package image from image path: $imageUrl');
+    }
+
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.grey.shade200,
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+        errorWidget: (context, url, error) {
+          print('❌ Error loading package image: $url');
+          print('❌ Error details: $error');
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey.shade200,
+            ),
+            child: const Icon(
+              Icons.card_giftcard,
+              size: 50,
+              color: Colors.black,
+            ),
+          );
+        },
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.shade200,
+      ),
+      child: const Icon(
+        Icons.card_giftcard,
+        size: 50,
+        color: Colors.black,
+      ),
+    );
+  }
 }

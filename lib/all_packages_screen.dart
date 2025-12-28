@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'payment_screen.dart';
 import 'login_screen.dart';
 import 'single_wash_order_screen.dart';
@@ -53,8 +54,19 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
+        final packagesList = data['data'] ?? [];
+        
+        // Log package data for debugging
+        print('📦 Fetched ${packagesList.length} packages');
+        for (var package in packagesList) {
+          print('📦 Package: ${package['name'] ?? 'Unknown'}');
+          print('   - image: ${package['image']}');
+          print('   - image_url: ${package['image_url']}');
+          print('   - All keys: ${package.keys.toList()}');
+        }
+        
         setState(() {
-          packages = data['data'] ?? [];
+          packages = packagesList;
           isLoading = false;
         });
       } else {
@@ -249,27 +261,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                   height: 180,
                   width: double.infinity,
                   color: Colors.grey.shade100,
-                  child: package['image'] != null
-                      ? Image.network(
-                          '${dotenv.env['BASE_URL'] ?? 'http://localhost:8000'}/storage/${package['image']}',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Center(
-                              child: Icon(
-                                Icons.card_giftcard,
-                                size: 40,
-                                color: Colors.black,
-                              ),
-                            );
-                          },
-                        )
-                      : Center(
-                          child: Icon(
-                            Icons.card_giftcard,
-                            size: 40,
-                            color: Colors.black,
-                          ),
-                        ),
+                  child: _buildPackageImage(package),
                 ),
               ),
               Padding(
@@ -427,7 +419,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (package['image'] != null)
+            if (package['image'] != null || package['image_url'] != null)
               Container(
                 height: 180,
                 width: double.infinity,
@@ -436,23 +428,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    '${dotenv.env['BASE_URL'] ?? 'http://localhost:8000'}/storage/${package['image']}',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: Colors.grey.shade200,
-                        ),
-                        child: Icon(
-                          Icons.card_giftcard,
-                          size: 50,
-                          color: Colors.blue.shade400,
-                        ),
-                      );
-                    },
-                  ),
+                  child: _buildPackageImage(package),
                 ),
               ),
             const SizedBox(height: 16),
@@ -917,6 +893,66 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
           token: widget.token!,
           initialUsePackage: true, // Enable package usage automatically
           preselectedServiceId: serviceId is int ? serviceId : int.tryParse(serviceId.toString()),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPackageImage(Map<String, dynamic> package) {
+    // Check for image_url first (full URL like services)
+    String? imageUrl;
+    if (package['image_url'] != null && package['image_url'].toString().isNotEmpty) {
+      imageUrl = package['image_url'].toString();
+      print('🖼️ Loading package image from image_url: $imageUrl');
+    } else if (package['image'] != null && package['image'].toString().isNotEmpty) {
+      // Build URL from image path
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
+      imageUrl = '$baseUrl/storage/${package['image']}';
+      print('🖼️ Loading package image from image path: $imageUrl');
+    }
+
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.contain,
+        placeholder: (context, url) => Container(
+          color: Colors.grey.shade200,
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade300),
+            ),
+          ),
+        ),
+        errorWidget: (context, url, error) {
+          print('❌ Error loading package image: $url');
+          print('❌ Error details: $error');
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+            ),
+            child: Center(
+              child: Icon(
+                Icons.card_giftcard,
+                size: 50,
+                color: Colors.blue.shade400,
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    // Placeholder if no image
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+      ),
+      child: Center(
+        child: Icon(
+          Icons.card_giftcard,
+          size: 50,
+          color: Colors.blue.shade400,
         ),
       ),
     );

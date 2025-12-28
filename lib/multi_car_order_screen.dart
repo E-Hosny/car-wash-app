@@ -197,7 +197,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
     try {
       final cacheService = CacheService();
       final servicesData = await cacheService.getServices(widget.token);
-      
+
       if (!mounted) return;
       setState(() {
         services = servicesData;
@@ -218,7 +218,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
     try {
       final cacheService = CacheService();
       final carsData = await cacheService.getCars(widget.token);
-      
+
       if (!mounted) return;
       setState(() {
         cars = carsData;
@@ -241,7 +241,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
     try {
       final cacheService = CacheService();
       final addressesData = await cacheService.getAddresses(widget.token);
-      
+
       if (!mounted) return;
       setState(() {
         savedAddresses = addressesData;
@@ -256,7 +256,6 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
       });
     }
   }
-
 
   Future<void> _fetchBookedTimeSlots([DateTime? date]) async {
     setState(() => isLoadingTimeSlots = true);
@@ -554,26 +553,31 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
   String _getPackageServicesText(Map<String, dynamic> userPackage) {
     final services = userPackage['services'] as List? ?? [];
     int totalRemaining = 0;
-    
+
     for (var service in services) {
       final remaining = service['remaining_quantity'] ?? 0;
-      totalRemaining += remaining is int ? remaining : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
+      totalRemaining += remaining is int
+          ? remaining
+          : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
     }
-    
+
     final packageName = userPackage['package']['name'] ?? 'Package';
     return '$packageName - $totalRemaining services remaining';
   }
 
-  int _calculateRemainingServices(Map<String, dynamic>? userPackage, int usedServices) {
+  int _calculateRemainingServices(
+      Map<String, dynamic>? userPackage, int usedServices) {
     if (userPackage == null) return 0;
     final services = userPackage['services'] as List? ?? [];
     int totalRemaining = 0;
-    
+
     for (var service in services) {
       final remaining = service['remaining_quantity'] ?? 0;
-      totalRemaining += remaining is int ? remaining : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
+      totalRemaining += remaining is int
+          ? remaining
+          : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
     }
-    
+
     return totalRemaining - usedServices;
   }
 
@@ -620,7 +624,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
             }
           }
           final oldCount = car['points_used'] ?? 0;
-          car['points_used'] = carServicesCount; // Keep field name for compatibility
+          car['points_used'] =
+              carServicesCount; // Keep field name for compatibility
           debugPrint(
               'Car ${car['car_id']} services count updated: $oldCount -> $carServicesCount');
         }
@@ -830,6 +835,35 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
       debugPrint('  Apartment: ${selectedSavedAddress!['apartment']}');
     }
 
+    // التحقق من أن كل سيارة لديها services صحيحة
+    for (int i = 0; i < selectedCars.length; i++) {
+      final car = selectedCars[i];
+      if (car['services'] == null || (car['services'] as List).isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Car ${i + 1} must have at least one service selected'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // التأكد من أن services هي List<int>
+      final services = car['services'] as List;
+      final validServices = services.where((s) => s is int).toList();
+      if (validServices.length != services.length) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Car ${i + 1} has invalid service IDs. Please re-select services.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
     final orderData = {
       'latitude': selectedLocation!.latitude,
       'longitude': selectedLocation!.longitude,
@@ -840,12 +874,26 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
       'apartment': selectedSavedAddress?['apartment'],
       'scheduled_at': selectedDateTime?.toIso8601String(),
       'use_package': usePackage,
-      'cars': selectedCars
-          .map((car) => {
-                'car_id': car['car_id'],
-                'services': car['services'],
-              })
-          .toList(),
+      'cars': selectedCars.map((car) {
+        // التأكد من أن services هي List<int>
+        final services = car['services'] as List;
+        final intServices = <int>[];
+        for (var s in services) {
+          if (s is int) {
+            intServices.add(s);
+          } else {
+            final parsed = int.tryParse(s.toString());
+            if (parsed != null) {
+              intServices.add(parsed);
+            }
+          }
+        }
+
+        return {
+          'car_id': car['car_id'],
+          'services': intServices,
+        };
+      }).toList(),
     };
 
     debugPrint('Final order data: $orderData');
@@ -892,7 +940,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
         // Invalidate orders cache to ensure fresh data
         final cacheService = CacheService();
         cacheService.invalidateOrders(widget.token);
-        
+
         debugPrint('Payment successful, navigating to orders');
         _navigateToOrders();
       } else {
@@ -1151,7 +1199,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                   );
                                   setState(() => isSaving = false);
                                   if (res.statusCode == 201) {
-                                    CacheService().invalidateAddresses(widget.token);
+                                    CacheService()
+                                        .invalidateAddresses(widget.token);
                                     await fetchSavedAddresses();
                                     // Auto-select the newly added address
                                     await _autoSelectRecentAddress();
@@ -1936,9 +1985,13 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                     final isBooked = slot['isBooked'] as bool;
                                     final isUnavailable =
                                         slot['isUnavailable'] as bool;
+                                    final isPastHour =
+                                        slot['isPastHour'] as bool;
 
                                     return GestureDetector(
-                                      onTap: (isBooked || isUnavailable)
+                                      onTap: (isBooked ||
+                                              isUnavailable ||
+                                              isPastHour)
                                           ? null
                                           : () => _showTimeSlotConfirmation(
                                               slot, setDialogState),
@@ -1951,9 +2004,12 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                               ? Colors.red.shade50
                                               : isUnavailable
                                                   ? Colors.orange.shade50
-                                                  : (isSelected
-                                                      ? Colors.green.shade600
-                                                      : Colors.white),
+                                                  : isPastHour
+                                                      ? Colors.grey.shade100
+                                                      : (isSelected
+                                                          ? Colors
+                                                              .green.shade600
+                                                          : Colors.white),
                                           borderRadius:
                                               BorderRadius.circular(12),
                                           border: Border.all(
@@ -1961,9 +2017,13 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                                 ? Colors.red.shade300
                                                 : isUnavailable
                                                     ? Colors.orange.shade300
-                                                    : (isSelected
-                                                        ? Colors.green.shade600
-                                                        : Colors.grey.shade300),
+                                                    : isPastHour
+                                                        ? Colors.grey.shade400
+                                                        : (isSelected
+                                                            ? Colors
+                                                                .green.shade600
+                                                            : Colors
+                                                                .grey.shade300),
                                             width: isSelected ? 2 : 1,
                                           ),
                                           boxShadow: isSelected
@@ -1999,10 +2059,15 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                                         : isUnavailable
                                                             ? Colors
                                                                 .orange.shade600
-                                                            : (isSelected
-                                                                ? Colors.white
-                                                                : Colors.grey
-                                                                    .shade800),
+                                                            : isPastHour
+                                                                ? Colors.grey
+                                                                    .shade500
+                                                                : (isSelected
+                                                                    ? Colors
+                                                                        .white
+                                                                    : Colors
+                                                                        .grey
+                                                                        .shade800),
                                                     fontWeight: FontWeight.w600,
                                                     fontSize: 12,
                                                   ),
@@ -2013,16 +2078,20 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                                 ),
                                               ),
                                               if (isBooked ||
-                                                  isUnavailable) ...[
+                                                  isUnavailable ||
+                                                  isPastHour) ...[
                                                 const SizedBox(height: 2),
                                                 Flexible(
                                                   child: Text(
-                                                    'OFF',
+                                                    isPastHour ? 'Past' : 'OFF',
                                                     style: GoogleFonts.poppins(
                                                       color: isBooked
                                                           ? Colors.red.shade600
-                                                          : Colors
-                                                              .orange.shade600,
+                                                          : isUnavailable
+                                                              ? Colors.orange
+                                                                  .shade600
+                                                              : Colors.grey
+                                                                  .shade500,
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       fontSize: 9,
@@ -2046,72 +2115,6 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                     ),
                   ),
                 ),
-
-                // Footer Actions
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(24),
-                      bottomRight: Radius.circular(24),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            'Cancel',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: selectedDateTime != null
-                              ? () {
-                                  setState(() {
-                                    selectedDate = selectedDateTime!;
-                                  });
-                                  Navigator.pop(context);
-                                }
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: selectedDateTime != null
-                                ? Colors.green.shade600
-                                : Colors.grey.shade300,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: selectedDateTime != null ? 4 : 0,
-                          ),
-                          child: Text(
-                            'Confirm',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -2123,6 +2126,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
   // Helper function to generate time slots
   List<Map<String, dynamic>> _generateTimeSlots() {
     List<Map<String, dynamic>> timeSlots = [];
+    final now = DateTime.now();
+    final isToday = _isSameDate(selectedDate, now);
 
     for (int hour = 10; hour <= 23; hour++) {
       String period = hour < 12 ? 'AM' : 'PM';
@@ -2131,6 +2136,13 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
 
       bool isBooked = bookedHours.contains(hour);
       bool isUnavailable = unavailableHours.contains(hour);
+
+      // Check if this hour is in the past (only for today)
+      bool isPastHour = false;
+      if (isToday) {
+        final slotDateTime = DateTime(now.year, now.month, now.day, hour, 0);
+        isPastHour = slotDateTime.isBefore(now);
+      }
 
       timeSlots.add({
         'hour': hour,
@@ -2141,6 +2153,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
             hour: hour, minute: 0, second: 0, millisecond: 0),
         'isBooked': isBooked,
         'isUnavailable': isUnavailable,
+        'isPastHour': isPastHour,
       });
     }
 
@@ -3142,10 +3155,11 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                         final isAvailableInPackage = widget.usePackage &&
                             PackageService.isServiceAvailableInPackage(
                                 widget.availableServices, service['id']);
-                        final remainingQuantity = widget.usePackage && isAvailableInPackage
-                            ? PackageService.getRemainingQuantityForService(
-                                widget.availableServices, service['id'])
-                            : 0;
+                        final remainingQuantity =
+                            widget.usePackage && isAvailableInPackage
+                                ? PackageService.getRemainingQuantityForService(
+                                    widget.availableServices, service['id'])
+                                : 0;
 
                         debugPrint(
                             'Service ${'${service['name']}'}: available=$isAvailableInPackage, remaining=$remainingQuantity');

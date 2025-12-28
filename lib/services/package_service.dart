@@ -22,9 +22,19 @@ class PackageService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final packagesList = data['data'] ?? [];
+        
+        // Log package data for debugging
+        print('📦 PackageService: Fetched ${packagesList.length} packages');
+        for (var package in packagesList) {
+          print('📦 Package: ${package['name'] ?? 'Unknown'}');
+          print('   - image: ${package['image']}');
+          print('   - image_url: ${package['image_url']}');
+        }
+        
         return {
           'success': true,
-          'data': data['data'] ?? [],
+          'data': packagesList,
         };
       } else {
         return {
