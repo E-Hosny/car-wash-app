@@ -435,6 +435,19 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     });
   }
 
+  String _getPackageServicesText(Map<String, dynamic> userPackage) {
+    final services = userPackage['services'] as List? ?? [];
+    int totalRemaining = 0;
+    
+    for (var service in services) {
+      final remaining = service['remaining_quantity'] ?? 0;
+      totalRemaining += remaining is int ? remaining : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
+    }
+    
+    final packageName = userPackage['package']['name'] ?? 'Package';
+    return '$packageName - $totalRemaining services remaining';
+  }
+
   void togglePackageUsage(bool value) {
     setState(() {
       usePackage = value;
@@ -828,8 +841,8 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                   final isAvailableInPackage = usePackage &&
                       availableServices
                           .any((service) => service['id'] == s['id']);
-                  final pointsRequired = usePackage && isAvailableInPackage
-                      ? PackageService.getPointsRequiredForService(
+                  final remainingQuantity = usePackage && isAvailableInPackage
+                      ? PackageService.getRemainingQuantityForService(
                           availableServices, s['id'])
                       : null;
                   final isSelected = selectedServices.contains(s['id']);
@@ -933,7 +946,9 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                                         ),
                                         child: Text(
                                           usePackage && isAvailableInPackage
-                                              ? '${pointsRequired ?? 0} Points'
+                                              ? remainingQuantity != null && remainingQuantity > 0
+                                                  ? '$remainingQuantity remaining'
+                                                  : 'Not available'
                                               : '${price.toStringAsFixed(0)} AED',
                                           style: GoogleFonts.poppins(
                                             color: usePackage &&
@@ -1224,7 +1239,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                           ),
                           SizedBox(height: 8),
                           Text(
-                            '${userPackage!['package']['name']} - ${userPackage!['remaining_points']} points remaining',
+                            _getPackageServicesText(userPackage!),
                             style: TextStyle(fontSize: 14, color: Colors.black),
                           ),
                           SizedBox(height: 8),
@@ -1358,7 +1373,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                     icon:
                         Icon(usePackage ? Icons.card_giftcard : Icons.payment),
                     label: Text(
-                      usePackage ? 'Use Package Points' : 'Proceed to Payment',
+                      usePackage ? 'Use Package' : 'Proceed to Payment',
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
@@ -1619,7 +1634,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     );
   }
 
-  // Calculate total points used for selected services
+  // Calculate total services used for selected services
   int _calculateTotalPointsUsed() {
     if (!usePackage || userPackage == null || availableServices.isEmpty)
       return 0;
@@ -1636,11 +1651,13 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
         continue; // Skip invalid service
       }
 
-      final pointsRequired = PackageService.getPointsRequiredForService(
+      final remaining = PackageService.getRemainingQuantityForService(
         availableServices,
         serviceId,
       );
-      totalPoints += pointsRequired;
+      if (remaining > 0) {
+        totalPoints += 1; // Each service uses 1 quantity
+      }
     }
     return totalPoints;
   }

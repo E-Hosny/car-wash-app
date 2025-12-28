@@ -102,7 +102,7 @@ class OrderSummaryCard extends StatelessWidget {
                         const SizedBox(height: AppTheme.spacingXS),
                         Text(
                           usePackage
-                              ? 'Using package points for services'
+                              ? 'Using package services'
                               : 'Pay with credit card or cash',
                           style: AppTheme.bodySmall.copyWith(
                             color: AppTheme.textSecondaryColor,
@@ -117,17 +117,17 @@ class OrderSummaryCard extends StatelessWidget {
 
             const SizedBox(height: AppTheme.spacingL),
 
-            // Points Information (if using package)
+            // Services Information (if using package)
             if (usePackage && remainingPoints != null) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Points to Use',
+                    'Services to Use',
                     style: AppTheme.bodyMedium,
                   ),
                   Text(
-                    '${totalPointsUsed ?? 0} points',
+                    '${totalPointsUsed ?? 0} services',
                     style: AppTheme.bodyMedium.copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppTheme.primaryColor,
@@ -142,11 +142,11 @@ class OrderSummaryCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Remaining Points',
+                    'Remaining Services',
                     style: AppTheme.bodyMedium,
                   ),
                   Text(
-                    '${remainingPoints! - (totalPointsUsed ?? 0)} points',
+                    '${remainingPoints! - (totalPointsUsed ?? 0)} services',
                     style: AppTheme.bodyMedium.copyWith(
                       fontWeight: FontWeight.w600,
                       color: Colors.green,
@@ -157,12 +157,12 @@ class OrderSummaryCard extends StatelessWidget {
 
               const SizedBox(height: AppTheme.spacingM),
 
-              // Progress Bar for Points
+              // Progress Bar for Services
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Points Usage',
+                    'Services Usage',
                     style: AppTheme.bodySmall.copyWith(
                       color: AppTheme.textSecondaryColor,
                     ),
@@ -235,7 +235,7 @@ class OrderSummaryCard extends StatelessWidget {
                     const SizedBox(width: AppTheme.spacingS),
                     Expanded(
                       child: Text(
-                        'Free with Package Points!',
+                        'Free with Package!',
                         style: AppTheme.bodyMedium.copyWith(
                           fontWeight: FontWeight.w600,
                           color: Colors.green,

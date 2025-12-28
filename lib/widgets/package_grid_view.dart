@@ -192,7 +192,7 @@ class PackageGridView extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            PackageService.formatPoints(package['points']),
+                            _formatServices(package['services']),
                             style: GoogleFonts.poppins(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -330,5 +330,20 @@ class PackageGridView extends StatelessWidget {
         ),
       );
     }
+  }
+
+  String _formatServices(dynamic services) {
+    if (services == null || services is! List || services.isEmpty) {
+      return '0 Services';
+    }
+    final servicesList = services as List;
+    int totalQuantity = 0;
+    for (var service in servicesList) {
+      final qty = service['quantity'];
+      if (qty != null) {
+        totalQuantity += qty is int ? qty : (qty is num ? qty.toInt() : 0);
+      }
+    }
+    return '$totalQuantity Services';
   }
 }

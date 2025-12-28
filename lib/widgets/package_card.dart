@@ -110,11 +110,11 @@ class PackageCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              'Points',
+                              'Services',
                               style: AppTheme.caption,
                             ),
                             Text(
-                              PackageService.formatPoints(package['points']),
+                              _formatServices(package['services']),
                               style: AppTheme.bodyMedium.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -204,6 +204,21 @@ class PackageCard extends StatelessWidget {
       ),
     );
   }
+
+  String _formatServices(dynamic services) {
+    if (services == null || services is! List || services.isEmpty) {
+      return '0 Services';
+    }
+    final servicesList = services as List;
+    int totalQuantity = 0;
+    for (var service in servicesList) {
+      final qty = service['quantity'];
+      if (qty != null) {
+        totalQuantity += qty is int ? qty : (qty is num ? qty.toInt() : 0);
+      }
+    }
+    return '$totalQuantity Services';
+  }
 }
 
 class PackagePurchaseDialog extends StatelessWidget {
@@ -285,11 +300,11 @@ class PackagePurchaseDialog extends StatelessWidget {
               Column(
                 children: [
                   Text(
-                    'Points',
+                    'Services',
                     style: AppTheme.caption,
                   ),
                   Text(
-                    PackageService.formatPoints(package['points']),
+                    _formatServicesForDialog(package['services']),
                     style: AppTheme.bodyLarge.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -358,5 +373,20 @@ class PackagePurchaseDialog extends StatelessWidget {
         color: AppTheme.primaryColor,
       ),
     );
+  }
+
+  String _formatServicesForDialog(dynamic services) {
+    if (services == null || services is! List || services.isEmpty) {
+      return '0 Services';
+    }
+    final servicesList = services as List;
+    int totalQuantity = 0;
+    for (var service in servicesList) {
+      final qty = service['quantity'];
+      if (qty != null) {
+        totalQuantity += qty is int ? qty : (qty is num ? qty.toInt() : 0);
+      }
+    }
+    return '$totalQuantity Services';
   }
 }

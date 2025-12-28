@@ -167,29 +167,38 @@ class _PackagesScreenState extends State<PackagesScreen> {
                                             color: Colors.green,
                                           ),
                                         ),
-                                        const Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
+                                      ],
+                                    ),
+                                    if (package['services'] != null && (package['services'] as List).isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      const Text(
+                                        'الخدمات المتاحة:',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ...(package['services'] as List).map((service) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 4),
+                                        child: Row(
                                           children: [
-                                            Text(
-                                              'النقاط',
-                                              style: TextStyle(
-                                                color: Colors.grey,
-                                                fontSize: 12,
+                                            const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                '${service['name'] ?? ''} × ${service['quantity'] ?? 0}',
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.black87,
+                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
-                                        Text(
-                                          '${package['points']} نقطة',
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.blue,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      )).toList(),
+                                    ],
                                     const SizedBox(height: 16),
                                     SizedBox(
                                       width: double.infinity,
@@ -379,87 +388,78 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      child: Column(
                         children: [
-                          const Column(
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                'السعر',
+                              const Text(
+                                'السعر: ',
                                 style: TextStyle(
                                   color: Colors.grey,
                                   fontSize: 14,
                                 ),
                               ),
-                            ],
-                          ),
-                          Text(
-                            '${widget.package['price']} درهم',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
-                            ),
-                          ),
-                          const Column(
-                            children: [
                               Text(
-                                'النقاط',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 14,
+                                '${widget.package['price']} درهم',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
                                 ),
                               ),
                             ],
                           ),
-                          Text(
-                            '${widget.package['points']} نقطة',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
+                          if (services.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'الخدمات المتاحة:',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 12),
+                            ...services.map((service) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.check_circle, size: 20, color: Colors.green),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      '${service['name'] ?? ''}',
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      '× ${service['quantity'] ?? 0}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )).toList(),
+                          ],
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'الخدمات المتاحة',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  if (isLoading)
-                    const Center(child: CircularProgressIndicator())
-                  else
-                    ...services
-                        .map((service) => Card(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              child: ListTile(
-                                title: Text(service['name']),
-                                subtitle: Text(service['description'] ?? ''),
-                                trailing: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    '${service['points_required']} نقطة',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ))
-                        .toList(),
                   const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,

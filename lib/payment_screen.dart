@@ -694,7 +694,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       ] else ...[
                         _buildSummaryRow('Order ID', widget.orderId),
                         if (isPackageOrder) ...[
-                          _buildSummaryRow('Payment Method', 'Package Points'),
+                          _buildSummaryRow('Payment Method', 'Package'),
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(15),
@@ -710,7 +710,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    'This order will be paid using your package points',
+                                    'This order will be paid using your package',
                                     style: GoogleFonts.poppins(
                                       fontSize: 14,
                                       color: Colors.blue,

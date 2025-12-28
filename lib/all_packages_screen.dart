@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'payment_screen.dart';
 import 'login_screen.dart';
+import 'single_wash_order_screen.dart';
 
 class AllPackagesScreen extends StatefulWidget {
   final String? token; // Made nullable for guest mode
@@ -179,21 +180,36 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                         ],
                       ),
                     )
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio:
-                            0.65, // Increased from 0.75 to give more height
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                      ),
-                      itemCount: packages.length,
-                      itemBuilder: (context, index) {
-                        final package = packages[index];
-                        return _buildPackageCard(package);
-                      },
+                  : CustomScrollView(
+                      slivers: [
+                        // Packages Grid
+                        SliverPadding(
+                          padding: const EdgeInsets.all(16),
+                          sliver: SliverGrid(
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.65,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                            ),
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                final package = packages[index];
+                                return _buildPackageCard(package);
+                              },
+                              childCount: packages.length,
+                            ),
+                          ),
+                        ),
+                        // Services section for current package
+                        if (userPackage != null && 
+                            userPackage!['services'] != null && 
+                            (userPackage!['services'] as List).isNotEmpty)
+                          SliverToBoxAdapter(
+                            child: _buildCurrentPackageServicesSection(),
+                          ),
+                      ],
                     ),
     );
   }
@@ -284,58 +300,22 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     const SizedBox(height: 8),
+                    // Price only
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          flex: 1,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Price',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 10,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              Text(
-                                '${package['price']} AED',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+                        Text(
+                          'Price: ',
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            color: Colors.grey.shade600,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 1,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'Points',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 10,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              Text(
-                                '${package['points']} Points',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+                        Text(
+                          '${package['price']} AED',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
                           ),
                         ),
                       ],
@@ -496,49 +476,60 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                 textAlign: TextAlign.center,
               ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            // Price only
+            Column(
               children: [
-                Column(
-                  children: [
-                    Text(
-                      'Price',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    Text(
-                      '${package['price']} AED',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Price',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
                 ),
-                Column(
-                  children: [
-                    Text(
-                      'Points',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    Text(
-                      '${package['points']} Points',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 4),
+                Text(
+                  '${package['price']} AED',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
                 ),
               ],
             ),
+            // Services list if available
+            if (package['services'] != null && (package['services'] as List).isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                'Services Included:',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...(package['services'] as List).map((service) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, size: 16, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${service['name'] ?? ''} × ${service['quantity'] ?? 0}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ],
           ],
         ),
         actions: [
@@ -685,5 +676,249 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
         ),
       );
     }
+  }
+
+  Widget _buildCurrentPackageServicesSection() {
+    final services = userPackage!['services'] as List;
+    
+    return Container(
+      margin: const EdgeInsets.only(top: 8, left: 16, right: 16, bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with gradient background
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.green.shade600, Colors.green.shade400],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.card_giftcard,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Current Package Services',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Services list
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ...services.map((service) {
+            final remaining = service['remaining_quantity'] ?? 0;
+            final total = service['total_quantity'] ?? 0;
+            final percentage = total > 0 ? (remaining / total) : 0.0;
+            final isAvailable = remaining > 0;
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isAvailable ? Colors.green.shade200 : Colors.red.shade200,
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        isAvailable ? Icons.check_circle : Icons.cancel,
+                        color: isAvailable ? Colors.green : Colors.red,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          service['name'] ?? 'Service',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isAvailable ? Colors.green : Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '$remaining / $total',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: percentage,
+                            minHeight: 6,
+                            backgroundColor: Colors.grey.shade200,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              isAvailable ? Colors.green : Colors.red,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${(percentage * 100).toInt()}%',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isAvailable
+                        ? '$remaining remaining out of $total'
+                        : 'Quantity exhausted',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: isAvailable ? Colors.green.shade700 : Colors.red.shade700,
+                    ),
+                  ),
+                  // Request Service Button
+                  if (isAvailable) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _requestService(service),
+                        icon: Icon(Icons.add_shopping_cart, size: 16),
+                        label: Text(
+                          'Request Service',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }).toList(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _requestService(Map<String, dynamic> service) {
+    if (widget.isGuest || widget.token == null) {
+      _showLoginPrompt();
+      return;
+    }
+
+    // Get service ID from the service data
+    // From API: service['id'] contains the service_id
+    final serviceId = service['id'];
+    if (serviceId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Service ID not found',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Navigate to single wash order screen with package enabled
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SingleWashOrderScreen(
+          token: widget.token!,
+          initialUsePackage: true, // Enable package usage automatically
+          preselectedServiceId: serviceId is int ? serviceId : int.tryParse(serviceId.toString()),
+        ),
+      ),
+    );
   }
 }

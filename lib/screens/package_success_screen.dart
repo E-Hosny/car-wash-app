@@ -213,7 +213,7 @@ class PackageSuccessScreen extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'You can now use your package points to request car wash services',
+                          'You can now use your package to request car wash services',
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             color: Colors.blue[700],

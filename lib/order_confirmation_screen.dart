@@ -175,26 +175,6 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     }
   }
 
-  void _togglePackageUsage(bool value) {
-    setState(() {
-      usePackage = value;
-      if (usePackage) {
-        totalPrice = 0;
-      } else {
-        totalPrice = 0;
-        for (int serviceId in widget.selectedServices) {
-          try {
-            final service = widget.services.firstWhere((s) => s['id'] == serviceId);
-            final price = double.tryParse(service['price'].toString()) ?? 0.0;
-            totalPrice += price;
-          } catch (e) {
-            print('Error calculating price for service $serviceId: $e');
-          }
-        }
-      }
-    });
-  }
-
   int _calculateTotalPointsUsed() {
     if (!usePackage || widget.userPackage == null || widget.availableServices.isEmpty)
       return 0;
@@ -210,11 +190,13 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         continue;
       }
 
-      final pointsRequired = PackageService.getPointsRequiredForService(
+      final remaining = PackageService.getRemainingQuantityForService(
         widget.availableServices,
         serviceId,
       );
-      totalPoints += pointsRequired;
+      if (remaining > 0) {
+        totalPoints += 1; // Each service uses 1 quantity
+      }
     }
     return totalPoints;
   }
@@ -538,12 +520,6 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     // Schedule Section
                     _buildScheduleSection(),
                     const SizedBox(height: 28),
-
-                    // Package Section (if available)
-                    if (widget.userPackage != null) ...[
-                      _buildPackageSection(),
-                      const SizedBox(height: 28),
-                    ],
 
                     // Order Summary
                     OrderSummaryCard(
@@ -2825,49 +2801,6 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     _showSuccessAnimation(slot['label'] as String);
   }
 
-  Widget _buildPackageSection() {
-    return Card(
-      color: Colors.grey.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.card_giftcard, color: Colors.black),
-                const SizedBox(width: 8),
-                Text(
-                  'Your Current Package',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${widget.userPackage!['package']['name']} - ${widget.userPackage!['remaining_points']} points remaining',
-              style: const TextStyle(fontSize: 14, color: Colors.black),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Switch(
-                  value: usePackage,
-                  onChanged: _togglePackageUsage,
-                  activeColor: Colors.black,
-                ),
-                const Text('Use Package', style: TextStyle(color: Colors.black)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildFixedPaymentButton() {
     final bool isReadyToProceed = selectedCarId != null &&

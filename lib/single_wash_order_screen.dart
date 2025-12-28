@@ -21,8 +21,15 @@ import 'widgets/animated_loading_indicator.dart';
 
 class SingleWashOrderScreen extends StatefulWidget {
   final String token;
+  final bool? initialUsePackage;
+  final int? preselectedServiceId;
 
-  const SingleWashOrderScreen({super.key, required this.token});
+  const SingleWashOrderScreen({
+    super.key,
+    required this.token,
+    this.initialUsePackage,
+    this.preselectedServiceId,
+  });
 
   @override
   State<SingleWashOrderScreen> createState() => _SingleWashOrderScreenState();
@@ -120,6 +127,19 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
 
       // Load configuration first
       packagesEnabled = await ConfigService.fetchPackagesEnabled();
+
+      // If initialUsePackage is true, prioritize loading package and available services
+      if (widget.initialUsePackage == true && packagesEnabled) {
+        // Load services first (needed for preselected service)
+        await _fetchServices();
+        
+        // Load package and available services
+        await _checkUserPackage();
+        // _checkUserPackage will call _fetchAvailableServices which will set isLoading = false
+        // Load other data in background
+        _loadOtherDataInBackground();
+        return; // Exit early, _fetchAvailableServices will handle isLoading
+      }
 
       // Try to load from cache first for instant display (synchronous, no API call)
       final cacheService = CacheService();
@@ -232,6 +252,65 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
         isLoading = false;
         errorMessage = 'Failed to load data. Please try again.';
       });
+    }
+  }
+
+  // Helper method to load other data in background when package is prioritized
+  Future<void> _loadOtherDataInBackground() async {
+    try {
+      final cacheService = CacheService();
+      final cachedServices = cacheService.getCachedServices(widget.token);
+      final cachedCars = cacheService.getCachedCars(widget.token);
+      final cachedAddresses = cacheService.getCachedAddresses(widget.token);
+      final cachedTimeSlots =
+          cacheService.getCachedTimeSlots(widget.token, selectedDate);
+
+      // Load cached data if available
+      if (cachedServices != null && cachedServices.isNotEmpty) {
+        setState(() {
+          services = cachedServices;
+        });
+      }
+      if (cachedCars != null && cachedCars.isNotEmpty) {
+        setState(() {
+          cars = cachedCars;
+        });
+      }
+      if (cachedAddresses != null && cachedAddresses.isNotEmpty) {
+        setState(() {
+          savedAddresses = cachedAddresses;
+          isLoadingAddresses = false;
+        });
+      }
+      if (cachedTimeSlots != null) {
+        setState(() {
+          bookedHours = List<int>.from(cachedTimeSlots['booked_hours'] ?? []);
+          unavailableHours =
+              List<int>.from(cachedTimeSlots['unavailable_hours'] ?? []);
+          isLoadingTimeSlots = false;
+        });
+      }
+
+      // Auto-select most recent car and address
+      await _autoSelectRecentData();
+
+      // Refresh other data in background
+      List<Future> refreshTasks = [];
+      if (cachedServices == null) refreshTasks.add(_fetchServices());
+      if (cachedCars == null) refreshTasks.add(_fetchUserCars());
+      if (cachedAddresses == null) refreshTasks.add(_fetchSavedAddresses());
+      if (cachedTimeSlots == null) refreshTasks.add(_fetchBookedTimeSlots());
+      refreshTasks.add(_determineCurrentPosition());
+
+      if (refreshTasks.isNotEmpty) {
+        Future.wait(refreshTasks).then((_) {
+          _autoSelectRecentData();
+        }).catchError((e) {
+          print('⚠️ Error refreshing data in background: $e');
+        });
+      }
+    } catch (e) {
+      print('⚠️ Error loading other data in background: $e');
     }
   }
 
@@ -476,11 +555,29 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
         setState(() {
           userPackage = data['data'];
         });
-        _fetchAvailableServices();
+        
+        // If initialUsePackage is true, wait for available services to load
+        if (widget.initialUsePackage == true) {
+          await _fetchAvailableServices();
+        } else {
+          _fetchAvailableServices();
+        }
+      } else {
+        // If no package found and initialUsePackage is true, set loading to false
+        if (widget.initialUsePackage == true) {
+          setState(() {
+            isLoading = false;
+          });
+        }
       }
     } catch (e) {
       print('Error checking user package: $e');
-      // Handle error silently
+      // If initialUsePackage is true and error occurred, set loading to false
+      if (widget.initialUsePackage == true) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -504,10 +601,66 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
           availableServices = data['data']['available_services'] ?? [];
         });
         DebugHelper.logAvailableServices(availableServices);
+        
+        // Auto-enable package usage if requested
+        if (widget.initialUsePackage == true && userPackage != null) {
+          setState(() {
+            usePackage = true;
+            totalPrice = 0;
+          });
+          
+          // Auto-select preselected service if provided
+          if (widget.preselectedServiceId != null) {
+            final serviceId = widget.preselectedServiceId!;
+            // Check if service is available in package
+            // availableServices uses 'id' field (which is service_id)
+            final isAvailable = availableServices.any((s) => 
+              s['id'] == serviceId && 
+              (s['remaining_quantity'] ?? 0) > 0
+            );
+            
+            if (isAvailable && !selectedServices.contains(serviceId)) {
+              // Find service price - need to load services first if not loaded
+              try {
+                // Try to find service in current services list
+                final service = services.firstWhere(
+                  (s) => s['id'] == serviceId,
+                  orElse: () => {},
+                );
+                if (service.isNotEmpty) {
+                  final price = double.tryParse(service['price'].toString()) ?? 0.0;
+                  _toggleService(serviceId, price, true);
+                }
+              } catch (e) {
+                print('Error selecting preselected service: $e');
+              }
+            }
+          }
+          
+          // Set isLoading to false after loading available services
+          setState(() {
+            isLoading = false;
+          });
+          
+          // Load other data in background
+          _loadOtherDataInBackground();
+        }
+      } else {
+        // If failed to fetch and initialUsePackage is true, set loading to false
+        if (widget.initialUsePackage == true) {
+          setState(() {
+            isLoading = false;
+          });
+        }
       }
     } catch (e) {
       print('Error fetching available services: $e');
-      // Handle error silently
+      // If error occurred and initialUsePackage is true, set loading to false
+      if (widget.initialUsePackage == true) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -529,6 +682,19 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
         totalPrice = 0;
       }
     });
+  }
+
+  String _getPackageServicesText(Map<String, dynamic> userPackage) {
+    final services = userPackage['services'] as List? ?? [];
+    int totalRemaining = 0;
+    
+    for (var service in services) {
+      final remaining = service['remaining_quantity'] ?? 0;
+      totalRemaining += remaining is int ? remaining : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
+    }
+    
+    final packageName = userPackage['package']['name'] ?? 'Package';
+    return '$packageName - $totalRemaining services remaining';
   }
 
   void _togglePackageUsage(bool value) {
@@ -1458,7 +1624,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
     );
   }
 
-  // Calculate total points used for selected services
+  // Calculate total services used for selected services
   int _calculateTotalPointsUsed() {
     if (!usePackage || userPackage == null || availableServices.isEmpty)
       return 0;
@@ -1475,11 +1641,13 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
         continue; // Skip invalid service
       }
 
-      final pointsRequired = PackageService.getPointsRequiredForService(
+      final remaining = PackageService.getRemainingQuantityForService(
         availableServices,
         serviceId,
       );
-      totalPoints += pointsRequired;
+      if (remaining > 0) {
+        totalPoints += 1; // Each service uses 1 quantity
+      }
     }
     return totalPoints;
   }
@@ -1929,16 +2097,52 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
   }
 
   Widget _buildServicesSection() {
+    // Filter services based on package availability
+    List<dynamic> servicesToShow = services;
+    if (usePackage && availableServices.isNotEmpty) {
+      // Only show services that are available in the package
+      final availableServiceIds = availableServices
+          .where((s) => (s['remaining_quantity'] ?? 0) > 0)
+          .map((s) => s['id'])
+          .toSet();
+      servicesToShow = services
+          .where((s) => availableServiceIds.contains(s['id']))
+          .toList();
+    }
+
+    if (servicesToShow.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle('Services'),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Center(
+              child: Text(
+                usePackage && availableServices.isEmpty
+                    ? 'No services available in your package'
+                    : 'No services available',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('Services'),
-        ...services.map((s) {
+        ...servicesToShow.map((s) {
           final price = double.tryParse(s['price'].toString()) ?? 0.0;
           final isAvailableInPackage = usePackage &&
               availableServices.any((service) => service['id'] == s['id']);
-          final pointsRequired = usePackage && isAvailableInPackage
-              ? PackageService.getPointsRequiredForService(
+          final remainingQuantity = usePackage && isAvailableInPackage
+              ? PackageService.getRemainingQuantityForService(
                   availableServices, s['id'])
               : null;
 
@@ -2082,7 +2286,9 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                                 ),
                                 child: Text(
                                   usePackage && isAvailableInPackage
-                                      ? '${pointsRequired ?? 0} P'
+                                      ? remainingQuantity != null && remainingQuantity > 0
+                                          ? '$remainingQuantity remaining'
+                                          : 'Not available'
                                       : '${price.toStringAsFixed(0)} AED',
                                   style: GoogleFonts.poppins(
                                     color: usePackage && isAvailableInPackage
@@ -3754,7 +3960,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
             ),
             SizedBox(height: 8),
             Text(
-              '${userPackage!['package']['name']} - ${userPackage!['remaining_points']} points remaining',
+              _getPackageServicesText(userPackage!),
               style: TextStyle(fontSize: 14, color: Colors.black),
             ),
             SizedBox(height: 8),

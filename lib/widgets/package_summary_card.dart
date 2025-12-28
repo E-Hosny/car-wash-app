@@ -19,12 +19,21 @@ class PackageSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final package = userPackage['package'];
-    final remainingPoints =
-        PackageService.validatePoints(userPackage['remaining_points']);
-    final totalPoints =
-        PackageService.validatePoints(userPackage['total_points']);
-    final usedPoints = totalPoints - remainingPoints;
-    final progressPercentage = totalPoints > 0 ? usedPoints / totalPoints : 0.0;
+    final services = userPackage['services'] as List? ?? [];
+    
+    // Calculate total and remaining quantities
+    int totalQuantity = 0;
+    int remainingQuantity = 0;
+    
+    for (var service in services) {
+      final total = service['total_quantity'] ?? 0;
+      final remaining = service['remaining_quantity'] ?? 0;
+      totalQuantity += total is int ? total : (total is String ? int.tryParse(total) ?? 0 : 0);
+      remainingQuantity += remaining is int ? remaining : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
+    }
+    
+    final usedQuantity = totalQuantity - remainingQuantity;
+    final progressPercentage = totalQuantity > 0 ? usedQuantity / totalQuantity : 0.0;
 
     return Container(
       decoration: AppTheme.cardDecoration,
@@ -80,24 +89,24 @@ class PackageSummaryCard extends StatelessWidget {
 
             const SizedBox(height: AppTheme.spacingL),
 
-            // Points Information
+            // Services Information
             Row(
               children: [
                 Expanded(
                   child: _buildPointsCard(
                     'Remaining',
-                    remainingPoints,
+                    remainingQuantity,
                     AppTheme.primaryColor,
-                    Icons.star,
+                    Icons.check_circle,
                   ),
                 ),
                 const SizedBox(width: AppTheme.spacingM),
                 Expanded(
                   child: _buildPointsCard(
                     'Total',
-                    totalPoints,
+                    totalQuantity,
                     AppTheme.textSecondaryColor,
-                    Icons.star_border,
+                    Icons.inventory,
                   ),
                 ),
               ],
@@ -182,9 +191,9 @@ class PackageSummaryCard extends StatelessWidget {
                         : AppTheme.textPrimaryColor,
                   ),
                 ),
-                subtitle: Text(
+                  subtitle: Text(
                   usePackage
-                      ? 'Services will be charged using package points'
+                      ? 'Services will be used from package'
                       : 'Services will be charged normally',
                   style: AppTheme.bodySmall.copyWith(
                     color: AppTheme.textSecondaryColor,

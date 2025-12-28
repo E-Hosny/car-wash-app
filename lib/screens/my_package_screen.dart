@@ -290,75 +290,89 @@ class _MyPackageScreenState extends State<MyPackageScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 24),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.all(16),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade50,
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                            border: Border.all(
-                                                color: Colors.grey.shade200),
-                                          ),
-                                          child: Column(
-                                            children: [
-                                              Text(
-                                                '${userPackage!['remaining_points'] ?? 0}',
-                                                style: GoogleFonts.poppins(
-                                                  fontSize: 28,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.black,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Remaining Points',
-                                                style: GoogleFonts.poppins(
-                                                  fontSize: 12,
-                                                  color: Colors.grey.shade600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
+                                  // Services with quantities
+                                  if (userPackage!['services'] != null && (userPackage!['services'] as List).isNotEmpty) ...[
+                                    const Text(
+                                      'الخدمات المتاحة:',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
                                       ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.all(16),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade50,
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                            border: Border.all(
-                                                color: Colors.grey.shade200),
-                                          ),
-                                          child: Column(
-                                            children: [
-                                              Text(
-                                                '${userPackage!['total_points'] ?? 0}',
-                                                style: GoogleFonts.poppins(
-                                                  fontSize: 28,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.black,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Total Points',
-                                                style: GoogleFonts.poppins(
-                                                  fontSize: 12,
-                                                  color: Colors.grey.shade600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    ...(userPackage!['services'] as List).map((service) {
+                                      final remaining = service['remaining_quantity'] ?? 0;
+                                      final total = service['total_quantity'] ?? 0;
+                                      final percentage = total > 0 ? (remaining / total) : 0.0;
+                                      
+                                      return Container(
+                                        margin: const EdgeInsets.only(bottom: 12),
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: Colors.grey.shade200),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.05),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ],
-                                  ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    service['name'] ?? 'Service',
+                                                    style: GoogleFonts.poppins(
+                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 16,
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 6,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: remaining > 0 ? Colors.green : Colors.red,
+                                                    borderRadius: BorderRadius.circular(20),
+                                                  ),
+                                                  child: Text(
+                                                    '$remaining / $total',
+                                                    style: GoogleFonts.poppins(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            ClipRRect(
+                                              borderRadius: BorderRadius.circular(4),
+                                              child: LinearProgressIndicator(
+                                                value: percentage,
+                                                minHeight: 6,
+                                                backgroundColor: Colors.grey.shade200,
+                                                valueColor: AlwaysStoppedAnimation<Color>(
+                                                  remaining > 0 ? Colors.green : Colors.red,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ],
                                   if (userPackage!['expires_at'] != null) ...[
                                     const SizedBox(height: 16),
                                     Row(
@@ -489,12 +503,14 @@ class _MyPackageScreenState extends State<MyPackageScreen> {
                                             vertical: 6,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.black,
+                                            color: (service['remaining_quantity'] ?? 0) > 0 
+                                                ? Colors.green 
+                                                : Colors.red,
                                             borderRadius:
                                                 BorderRadius.circular(20),
                                           ),
                                           child: Text(
-                                            '${service['points_required'] ?? 0} Points',
+                                            '${service['remaining_quantity'] ?? 0} / ${service['total_quantity'] ?? 0}',
                                             style: GoogleFonts.poppins(
                                               color: Colors.white,
                                               fontWeight: FontWeight.bold,

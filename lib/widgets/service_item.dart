@@ -26,8 +26,8 @@ class ServiceItem extends StatelessWidget {
     final isAvailableInPackage = usePackage &&
         PackageService.isServiceAvailableInPackage(
             availableServices, service['id']);
-    final pointsRequired = usePackage && isAvailableInPackage
-        ? PackageService.getPointsRequiredForService(
+    final remainingQuantity = usePackage && isAvailableInPackage
+        ? PackageService.getRemainingQuantityForService(
             availableServices, service['id'])
         : null;
 
@@ -72,7 +72,7 @@ class ServiceItem extends StatelessWidget {
                 ),
               ),
             ),
-            _buildPriceOrPoints(pointsRequired, price, isAvailableInPackage),
+            _buildPriceOrPoints(remainingQuantity, price, isAvailableInPackage),
           ],
         ),
         subtitle: service['description'] != null
@@ -97,7 +97,7 @@ class ServiceItem extends StatelessWidget {
   }
 
   Widget _buildPriceOrPoints(
-      int? pointsRequired, double price, bool isAvailableInPackage) {
+      int? remainingQuantity, double price, bool isAvailableInPackage) {
     if (usePackage && isAvailableInPackage) {
       return Container(
         padding: const EdgeInsets.symmetric(
@@ -109,7 +109,9 @@ class ServiceItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppTheme.radiusM),
         ),
         child: Text(
-          '${pointsRequired ?? 0} Points',
+          remainingQuantity != null && remainingQuantity > 0
+              ? '$remainingQuantity remaining'
+              : 'Not available',
           style: AppTheme.bodySmall.copyWith(
             color: AppTheme.secondaryColor,
             fontWeight: FontWeight.bold,

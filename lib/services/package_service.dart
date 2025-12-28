@@ -176,41 +176,59 @@ class PackageService {
     }
   }
 
-  // Validate package points
-  static int validatePoints(dynamic points) {
-    if (points == null) return 0;
-    if (points is int) return points;
-    if (points is String) {
-      final parsed = int.tryParse(points);
-      return parsed ?? 0;
-    }
-    if (points is double) return points.toInt();
-    return 0;
-  }
-
-  // Format points display
-  static String formatPoints(dynamic points) {
-    final validatedPoints = validatePoints(points);
-    return '$validatedPoints Points';
-  }
-
   // Check if service is available in package
   static bool isServiceAvailableInPackage(
     List<dynamic> availableServices,
     int serviceId,
   ) {
-    return availableServices.any((service) => service['id'] == serviceId);
+    return availableServices.any((service) => 
+      service['id'] == serviceId && 
+      (service['remaining_quantity'] ?? 0) > 0
+    );
   }
 
-  // Get points required for service
-  static int getPointsRequiredForService(
+  // Get remaining quantity for service
+  static int getRemainingQuantityForService(
     List<dynamic> availableServices,
     int serviceId,
   ) {
     final service = availableServices.firstWhere(
       (service) => service['id'] == serviceId,
-      orElse: () => {'points_required': 0},
+      orElse: () => {'remaining_quantity': 0},
     );
-    return validatePoints(service['points_required']);
+    final quantity = service['remaining_quantity'];
+    if (quantity == null) return 0;
+    if (quantity is int) return quantity;
+    if (quantity is String) {
+      final parsed = int.tryParse(quantity);
+      return parsed ?? 0;
+    }
+    if (quantity is double) return quantity.toInt();
+    return 0;
+  }
+
+  // Get total quantity for service
+  static int getTotalQuantityForService(
+    List<dynamic> availableServices,
+    int serviceId,
+  ) {
+    final service = availableServices.firstWhere(
+      (service) => service['id'] == serviceId,
+      orElse: () => {'total_quantity': 0},
+    );
+    final quantity = service['total_quantity'];
+    if (quantity == null) return 0;
+    if (quantity is int) return quantity;
+    if (quantity is String) {
+      final parsed = int.tryParse(quantity);
+      return parsed ?? 0;
+    }
+    if (quantity is double) return quantity.toInt();
+    return 0;
+  }
+
+  // Format service quantity display
+  static String formatServiceQuantity(int remaining, int total) {
+    return '$remaining / $total';
   }
 }

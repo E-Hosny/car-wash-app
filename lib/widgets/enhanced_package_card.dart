@@ -168,7 +168,7 @@ class EnhancedPackageCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            PackageService.formatPoints(package['points']),
+                            _formatServices(package['services']),
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -203,7 +203,7 @@ class EnhancedPackageCard extends StatelessWidget {
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              '${userPackage!['remaining_points']} points remaining',
+                              _getPackageServicesText(userPackage!),
                               style: GoogleFonts.poppins(
                                 fontSize: 11,
                                 color: AppTheme.primaryColor,
@@ -381,5 +381,32 @@ class EnhancedPackageCard extends StatelessWidget {
         ),
       );
     }
+  }
+
+  String _formatServices(dynamic services) {
+    if (services == null || services is! List || services.isEmpty) {
+      return '0 Services';
+    }
+    final servicesList = services as List;
+    int totalQuantity = 0;
+    for (var service in servicesList) {
+      final qty = service['quantity'];
+      if (qty != null) {
+        totalQuantity += qty is int ? qty : (qty is num ? qty.toInt() : 0);
+      }
+    }
+    return '$totalQuantity Services';
+  }
+
+  String _getPackageServicesText(Map<String, dynamic> userPackage) {
+    final services = userPackage['services'] as List? ?? [];
+    int totalRemaining = 0;
+    
+    for (var service in services) {
+      final remaining = service['remaining_quantity'] ?? 0;
+      totalRemaining += remaining is int ? remaining : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
+    }
+    
+    return '$totalRemaining services remaining';
   }
 }

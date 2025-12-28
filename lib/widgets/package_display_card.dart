@@ -151,7 +151,7 @@ class PackageDisplayCard extends StatelessWidget {
                             style: AppTheme.caption.copyWith(fontSize: 9),
                           ),
                           Text(
-                            PackageService.formatPoints(package['points']),
+                            _formatServices(package['services']),
                             style: AppTheme.bodyMedium.copyWith(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
@@ -185,7 +185,7 @@ class PackageDisplayCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              '${userPackage!['remaining_points']} points remaining',
+                              _getPackageServicesText(userPackage!),
                               style: AppTheme.bodySmall.copyWith(
                                 color: AppTheme.primaryColor,
                                 fontWeight: FontWeight.w600,
@@ -288,5 +288,32 @@ class PackageDisplayCard extends StatelessWidget {
         ),
       );
     }
+  }
+
+  String _formatServices(dynamic services) {
+    if (services == null || services is! List || services.isEmpty) {
+      return '0 Services';
+    }
+    final servicesList = services as List;
+    int totalQuantity = 0;
+    for (var service in servicesList) {
+      final qty = service['quantity'];
+      if (qty != null) {
+        totalQuantity += qty is int ? qty : (qty is num ? qty.toInt() : 0);
+      }
+    }
+    return '$totalQuantity Services';
+  }
+
+  String _getPackageServicesText(Map<String, dynamic> userPackage) {
+    final services = userPackage['services'] as List? ?? [];
+    int totalRemaining = 0;
+    
+    for (var service in services) {
+      final remaining = service['remaining_quantity'] ?? 0;
+      totalRemaining += remaining is int ? remaining : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
+    }
+    
+    return '$totalRemaining services remaining';
   }
 }

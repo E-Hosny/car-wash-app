@@ -550,25 +550,55 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
     }
   }
 
-  // Calculate points used for a specific car based on its services
+  // Calculate services count used for a specific car based on its services
+  String _getPackageServicesText(Map<String, dynamic> userPackage) {
+    final services = userPackage['services'] as List? ?? [];
+    int totalRemaining = 0;
+    
+    for (var service in services) {
+      final remaining = service['remaining_quantity'] ?? 0;
+      totalRemaining += remaining is int ? remaining : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
+    }
+    
+    final packageName = userPackage['package']['name'] ?? 'Package';
+    return '$packageName - $totalRemaining services remaining';
+  }
+
+  int _calculateRemainingServices(Map<String, dynamic>? userPackage, int usedServices) {
+    if (userPackage == null) return 0;
+    final services = userPackage['services'] as List? ?? [];
+    int totalRemaining = 0;
+    
+    for (var service in services) {
+      final remaining = service['remaining_quantity'] ?? 0;
+      totalRemaining += remaining is int ? remaining : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
+    }
+    
+    return totalRemaining - usedServices;
+  }
+
   int calculateCarPoints(Map<String, dynamic> carData) {
     if (!usePackage || carData['services'] == null) return 0;
 
     final services = carData['services'] as List;
-    int totalPoints = 0;
+    int servicesCount = 0;
 
-    debugPrint('Calculating points for car: ${carData['car_id']}');
+    debugPrint('Calculating services for car: ${carData['car_id']}');
     debugPrint('Services for this car: $services');
 
     for (var serviceId in services) {
-      final points = PackageService.getPointsRequiredForService(
+      final remaining = PackageService.getRemainingQuantityForService(
           availableServices, serviceId);
-      totalPoints += points;
-      debugPrint('Service $serviceId contributes $points points');
+      if (remaining > 0) {
+        servicesCount += 1; // Each service uses 1 quantity
+        debugPrint('Service $serviceId is available (remaining: $remaining)');
+      } else {
+        debugPrint('Service $serviceId is not available');
+      }
     }
 
-    debugPrint('Total points for car: $totalPoints');
-    return totalPoints;
+    debugPrint('Total services count for car: $servicesCount');
+    return servicesCount;
   }
 
   void togglePackageUsage(bool value) {
@@ -577,19 +607,22 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
       usePackage = value;
       calculateTotalPrice();
 
-      // Recalculate points for existing selected cars
+      // Recalculate services count for existing selected cars
       for (var car in selectedCars) {
         if (car['services'] != null) {
           final services = car['services'] as List;
-          int carPoints = 0;
+          int carServicesCount = 0;
           for (var serviceId in services) {
-            carPoints += PackageService.getPointsRequiredForService(
+            final remaining = PackageService.getRemainingQuantityForService(
                 availableServices, serviceId);
+            if (remaining > 0) {
+              carServicesCount += 1; // Each service uses 1 quantity
+            }
           }
-          final oldPoints = car['points_used'];
-          car['points_used'] = carPoints;
+          final oldCount = car['points_used'] ?? 0;
+          car['points_used'] = carServicesCount; // Keep field name for compatibility
           debugPrint(
-              'Car ${car['car_id']} points updated: $oldPoints -> $carPoints');
+              'Car ${car['car_id']} services count updated: $oldCount -> $carServicesCount');
         }
       }
     });
@@ -1463,7 +1496,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '${userPackage!['package']['name']} - ${userPackage!['remaining_points']} points remaining',
+              _getPackageServicesText(userPackage!),
               style: const TextStyle(fontSize: 14, color: Colors.black),
             ),
             const SizedBox(height: 8),
@@ -1625,7 +1658,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  usePackage ? 'Points Used:' : 'Total:',
+                  usePackage ? 'Services Used:' : 'Total:',
                   style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                 ),
                 Builder(
@@ -2650,7 +2683,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
         totalPointsUsed += carPoints;
         debugPrint('Car ${car['car_id']} points: $carPoints');
       }
-      debugPrint('Total points used: $totalPointsUsed');
+      debugPrint('Total services used: $totalPointsUsed');
     }
 
     return Card(
@@ -2680,16 +2713,16 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Points Used:'),
-                  Text('$totalPointsUsed Points'),
+                  const Text('Services Used:'),
+                  Text('$totalPointsUsed services'),
                 ],
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Points Remaining:'),
+                  const Text('Services Remaining:'),
                   Text(
-                      '${(userPackage?['remaining_points'] ?? 0) - totalPointsUsed} Points'),
+                      '${_calculateRemainingServices(userPackage, totalPointsUsed)} services'),
                 ],
               ),
             ] else ...[
@@ -2925,13 +2958,15 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
             List<int>.from(widget.initialCarData!['services'] ?? []);
         subtotal = (widget.initialCarData!['subtotal'] as double?) ?? 0.0;
 
-        // Recalculate points based on current available services
+        // Recalculate services count based on current available services
         pointsUsed = 0;
         if (widget.usePackage) {
           for (var serviceId in selectedServices) {
-            final points = PackageService.getPointsRequiredForService(
+            final remaining = PackageService.getRemainingQuantityForService(
                 widget.availableServices, serviceId);
-            pointsUsed += points;
+            if (remaining > 0) {
+              pointsUsed += 1; // Each service uses 1 quantity
+            }
           }
         } else {
           pointsUsed = (widget.initialCarData!['points_used'] as int?) ?? 0;
@@ -2944,24 +2979,24 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
     }
   }
 
-  void toggleService(int serviceId, double price, int points) {
+  void toggleService(int serviceId, double price, int remainingQuantity) {
     debugPrint(
-        'Toggling service $serviceId with $points points (usePackage: ${widget.usePackage})');
+        'Toggling service $serviceId with remaining quantity: $remainingQuantity (usePackage: ${widget.usePackage})');
     setState(() {
       if (selectedServices.contains(serviceId)) {
         selectedServices.remove(serviceId);
         if (!widget.usePackage) {
           subtotal -= price;
         } else {
-          pointsUsed -= points;
+          pointsUsed -= 1; // Each service uses 1 quantity
         }
-        debugPrint('Removed service $serviceId - pointsUsed: $pointsUsed');
+        debugPrint('Removed service $serviceId - servicesUsed: $pointsUsed');
       } else {
         selectedServices.add(serviceId);
         if (!widget.usePackage) {
           subtotal += price;
         } else {
-          pointsUsed += points;
+          pointsUsed += 1; // Each service uses 1 quantity
         }
         debugPrint('Added service $serviceId - pointsUsed: $pointsUsed');
       }
@@ -3107,14 +3142,13 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                         final isAvailableInPackage = widget.usePackage &&
                             PackageService.isServiceAvailableInPackage(
                                 widget.availableServices, service['id']);
-                        final pointsRequired =
-                            widget.usePackage && isAvailableInPackage
-                                ? PackageService.getPointsRequiredForService(
-                                    widget.availableServices, service['id'])
-                                : 0;
+                        final remainingQuantity = widget.usePackage && isAvailableInPackage
+                            ? PackageService.getRemainingQuantityForService(
+                                widget.availableServices, service['id'])
+                            : 0;
 
                         debugPrint(
-                            'Service ${'${service['name']}'}: available=$isAvailableInPackage, points=$pointsRequired');
+                            'Service ${'${service['name']}'}: available=$isAvailableInPackage, remaining=$remainingQuantity');
 
                         return Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
@@ -3134,7 +3168,7 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                             value: selectedServices.contains(service['id']),
                             onChanged: (val) {
                               toggleService(
-                                  service['id'], price, pointsRequired);
+                                  service['id'], price, remainingQuantity ?? 0);
                             },
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 8),
@@ -3166,7 +3200,9 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      '${pointsRequired} Points',
+                                      remainingQuantity > 0
+                                          ? '$remainingQuantity remaining'
+                                          : 'Not available',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -3201,7 +3237,7 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          widget.usePackage ? 'Points Used:' : 'Total:',
+                          widget.usePackage ? 'Services Used:' : 'Total:',
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
