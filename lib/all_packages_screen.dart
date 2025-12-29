@@ -657,6 +657,26 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
   Widget _buildCurrentPackageServicesSection() {
     final services = userPackage!['services'] as List;
     
+    // Parse expiration date
+    DateTime? expiresDate;
+    String? expiresAtString;
+    if (userPackage!['expires_at'] != null) {
+      try {
+        expiresAtString = userPackage!['expires_at'].toString();
+        expiresDate = DateTime.parse(expiresAtString);
+      } catch (e) {
+        print('Error parsing expiration date: $e');
+      }
+    }
+    
+    // Calculate days remaining
+    int? daysRemaining;
+    if (expiresDate != null) {
+      final now = DateTime.now();
+      final difference = expiresDate.difference(now);
+      daysRemaining = difference.inDays;
+    }
+    
     return Container(
       margin: const EdgeInsets.only(top: 8, left: 16, right: 16, bottom: 16),
       decoration: BoxDecoration(
@@ -688,31 +708,114 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                 topRight: Radius.circular(20),
               ),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.card_giftcard,
-                    color: Colors.white,
-                    size: 24,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.card_giftcard,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Current Package Services',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Current Package Services',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                // Expiration Date Info
+                if (expiresDate != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Expiration Date',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Text(
+                                    _formatExpirationDate(expiresDate),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  if (daysRemaining != null) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: daysRemaining <= 7
+                                            ? Colors.orange.shade700
+                                            : Colors.white.withOpacity(0.3),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        daysRemaining > 0
+                                            ? '$daysRemaining ${daysRemaining == 1 ? 'day' : 'days'} left'
+                                            : 'Expired',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -956,5 +1059,13 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
         ),
       ),
     );
+  }
+
+  String _formatExpirationDate(DateTime date) {
+    final months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }

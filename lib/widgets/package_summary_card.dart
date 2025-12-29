@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
-import '../services/package_service.dart';
 
 class PackageSummaryCard extends StatelessWidget {
   final Map<String, dynamic> userPackage;
@@ -148,21 +147,66 @@ class PackageSummaryCard extends StatelessWidget {
 
             if (userPackage['expires_at'] != null) ...[
               const SizedBox(height: AppTheme.spacingL),
-              Row(
-                children: [
-                  Icon(
-                    Icons.calendar_today,
-                    color: AppTheme.textSecondaryColor,
-                    size: 16,
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacingM),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withOpacity(0.3),
                   ),
-                  const SizedBox(width: AppTheme.spacingS),
-                  Text(
-                    'Expires: ${userPackage['expires_at']}',
-                    style: AppTheme.bodySmall.copyWith(
-                      color: AppTheme.textSecondaryColor,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      color: AppTheme.primaryColor,
+                      size: 20,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: AppTheme.spacingS),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Package Expiration Date',
+                            style: AppTheme.bodySmall.copyWith(
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _formatExpirationDate(userPackage['expires_at']),
+                            style: AppTheme.bodyMedium.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_getDaysRemaining(userPackage['expires_at']) != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getDaysRemaining(userPackage['expires_at'])! <= 7
+                              ? Colors.orange
+                              : AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _getDaysRemainingText(userPackage['expires_at']),
+                          style: AppTheme.caption.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ],
 
@@ -248,6 +292,39 @@ class PackageSummaryCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatExpirationDate(dynamic expiresAt) {
+    try {
+      final date = DateTime.parse(expiresAt.toString());
+      final months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return '${months[date.month - 1]} ${date.day}, ${date.year}';
+    } catch (e) {
+      return expiresAt.toString();
+    }
+  }
+
+  int? _getDaysRemaining(dynamic expiresAt) {
+    try {
+      final date = DateTime.parse(expiresAt.toString());
+      final now = DateTime.now();
+      final difference = date.difference(now);
+      return difference.inDays;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  String _getDaysRemainingText(dynamic expiresAt) {
+    final days = _getDaysRemaining(expiresAt);
+    if (days == null) return '';
+    if (days < 0) return 'Expired';
+    if (days == 0) return 'Expires Today';
+    if (days == 1) return '1 day left';
+    return '$days days left';
   }
 }
 

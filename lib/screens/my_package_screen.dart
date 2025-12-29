@@ -3,8 +3,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../all_packages_screen.dart';
-import '../order_request_screen.dart';
 import '../main_navigation_screen.dart';
 
 class MyPackageScreen extends StatefulWidget {
@@ -375,22 +373,81 @@ class _MyPackageScreenState extends State<MyPackageScreen> {
                                   ],
                                   if (userPackage!['expires_at'] != null) ...[
                                     const SizedBox(height: 16),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.calendar_today,
-                                          color: Colors.grey.shade600,
-                                          size: 16,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Expires: ${userPackage!['expires_at']}',
-                                          style: GoogleFonts.poppins(
-                                            color: Colors.grey.shade600,
-                                            fontSize: 14,
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.shade50,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.blue.shade200),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue.shade600,
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Icon(
+                                              Icons.calendar_today,
+                                              color: Colors.white,
+                                              size: 20,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Package Expiration Date',
+                                                  style: GoogleFonts.poppins(
+                                                    fontSize: 12,
+                                                    color: Colors.grey.shade600,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Row(
+                                                  children: [
+                                                    Text(
+                                                      _formatExpirationDate(userPackage!['expires_at']),
+                                                      style: GoogleFonts.poppins(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Colors.black,
+                                                      ),
+                                                    ),
+                                                    if (_getDaysRemaining(userPackage!['expires_at']) != null) ...[
+                                                      const SizedBox(width: 8),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(
+                                                          horizontal: 10,
+                                                          vertical: 4,
+                                                        ),
+                                                        decoration: BoxDecoration(
+                                                          color: _getDaysRemaining(userPackage!['expires_at'])! <= 7
+                                                              ? Colors.orange
+                                                              : Colors.green,
+                                                          borderRadius: BorderRadius.circular(8),
+                                                        ),
+                                                        child: Text(
+                                                          _getDaysRemainingText(userPackage!['expires_at']),
+                                                          style: GoogleFonts.poppins(
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.bold,
+                                                            color: Colors.white,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ],
@@ -579,5 +636,38 @@ class _MyPackageScreenState extends State<MyPackageScreen> {
                       ),
                     ),
     );
+  }
+
+  String _formatExpirationDate(dynamic expiresAt) {
+    try {
+      final date = DateTime.parse(expiresAt.toString());
+      final months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return '${months[date.month - 1]} ${date.day}, ${date.year}';
+    } catch (e) {
+      return expiresAt.toString();
+    }
+  }
+
+  int? _getDaysRemaining(dynamic expiresAt) {
+    try {
+      final date = DateTime.parse(expiresAt.toString());
+      final now = DateTime.now();
+      final difference = date.difference(now);
+      return difference.inDays;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  String _getDaysRemainingText(dynamic expiresAt) {
+    final days = _getDaysRemaining(expiresAt);
+    if (days == null) return '';
+    if (days < 0) return 'Expired';
+    if (days == 0) return 'Expires Today';
+    if (days == 1) return '1 day left';
+    return '$days days left';
   }
 }
