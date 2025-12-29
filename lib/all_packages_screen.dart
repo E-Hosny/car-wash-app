@@ -312,6 +312,38 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 4),
+                    // Duration badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: Colors.blue.shade200,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 10,
+                            color: Colors.blue.shade700,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Valid for 1 month',
+                            style: GoogleFonts.poppins(
+                              fontSize: 8,
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     SizedBox(
                       width: double.infinity,
