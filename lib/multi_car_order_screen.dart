@@ -2345,7 +2345,13 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
   // Confirm time slot selection with animation
   void _confirmTimeSlotSelection(
       Map<String, dynamic> slot, StateSetter setDialogState) {
+    // Update dialog state for immediate UI feedback
     setDialogState(() {
+      selectedDateTime = slot['datetime'];
+    });
+
+    // Update main widget state so the button outside dialog shows the selected time
+    setState(() {
       selectedDateTime = slot['datetime'];
     });
 
@@ -2424,9 +2430,12 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
       ),
     );
 
-    // Auto close after 1.5 seconds
+    // Auto close success dialog and main time slot dialog after 1.5 seconds
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) {
+        // Close success animation dialog
+        Navigator.pop(context);
+        // Close main time slot selection dialog
         Navigator.pop(context);
       }
     });
