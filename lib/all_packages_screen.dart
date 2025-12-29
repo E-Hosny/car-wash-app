@@ -21,6 +21,8 @@ class AllPackagesScreen extends StatefulWidget {
 class _AllPackagesScreenState extends State<AllPackagesScreen> {
   List<dynamic> packages = [];
   Map<String, dynamic>? userPackage;
+  Map<String, dynamic>? currentPackage;
+  bool canUpgrade = false;
   bool isLoading = true;
   String? error;
 
@@ -55,6 +57,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final packagesList = data['data'] ?? [];
+        final currentPackageData = data['current_package'];
         
         // Log package data for debugging
         print('📦 Fetched ${packagesList.length} packages');
@@ -67,6 +70,10 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
         
         setState(() {
           packages = packagesList;
+          currentPackage = currentPackageData != null 
+              ? Map<String, dynamic>.from(currentPackageData) 
+              : null;
+          canUpgrade = currentPackageData?['can_upgrade'] ?? false;
           isLoading = false;
         });
       } else {
@@ -104,6 +111,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
         if (mounted) {
           setState(() {
             userPackage = data['data'];
+            canUpgrade = data['data']?['can_upgrade'] ?? false;
           });
         }
       }
@@ -229,7 +237,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
   Widget _buildPackageCard(Map<String, dynamic> package) {
     // Check if this is the user's current package
     final isCurrentPackage =
-        userPackage != null && userPackage!['package']['id'] == package['id'];
+        (userPackage != null && userPackage!['package']['id'] == package['id']) ||
+        (currentPackage != null && currentPackage!['id'] == package['id']);
 
     return Container(
       decoration: BoxDecoration(
@@ -348,14 +357,17 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: isCurrentPackage
+                        onPressed: isCurrentPackage && !canUpgrade
                             ? null
                             : widget.isGuest
                                 ? () => _showLoginPrompt()
                                 : () => _showPurchaseDialog(package),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              isCurrentPackage ? Colors.green : Colors.black,
+                          backgroundColor: isCurrentPackage && !canUpgrade
+                              ? Colors.green
+                              : isCurrentPackage && canUpgrade
+                                  ? Colors.orange
+                                  : Colors.black,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -363,7 +375,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           elevation: 0,
                         ),
-                        child: isCurrentPackage
+                        child: isCurrentPackage && !canUpgrade
                             ? Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -380,14 +392,31 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                                   ),
                                 ],
                               )
-                            : Text(
-                                'Buy',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
+                            : isCurrentPackage && canUpgrade
+                                ? Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.upgrade,
+                                          color: Colors.white, size: 16),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'Upgrade',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 1.1,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Text(
+                                    'Buy',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 1.1,
+                                    ),
+                                  ),
                       ),
                     ),
                   ],
@@ -990,6 +1019,45 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
               ),
             );
           }).toList(),
+                // Upgrade Button
+                if (canUpgrade) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        // Scroll to packages section
+                        // The upgrade button on package card will handle the purchase
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Please select a package to upgrade',
+                              style: GoogleFonts.poppins(),
+                            ),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                      },
+                      icon: Icon(Icons.upgrade, size: 20),
+                      label: Text(
+                        'Upgrade Package',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

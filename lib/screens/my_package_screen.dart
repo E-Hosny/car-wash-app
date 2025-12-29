@@ -17,6 +17,7 @@ class MyPackageScreen extends StatefulWidget {
 class _MyPackageScreenState extends State<MyPackageScreen> {
   Map<String, dynamic>? userPackage;
   List<dynamic> availableServices = [];
+  bool canUpgrade = false;
   bool isLoading = true;
   String? error;
 
@@ -49,6 +50,7 @@ class _MyPackageScreenState extends State<MyPackageScreen> {
         final data = json.decode(response.body);
         setState(() {
           userPackage = data['data'];
+          canUpgrade = data['data']?['can_upgrade'] ?? false;
           isLoading = false;
         });
         fetchAvailableServices();
@@ -595,6 +597,47 @@ class _MyPackageScreenState extends State<MyPackageScreen> {
                                 .toList(),
 
                           const SizedBox(height: 24),
+
+                          // Upgrade Package Button
+                          if (canUpgrade)
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  // Navigate to packages screen
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => MainNavigationScreen(
+                                        token: widget.token,
+                                        initialIndex: 1, // Packages tab
+                                      ),
+                                    ),
+                                    (route) => false,
+                                  );
+                                },
+                                icon: Icon(Icons.upgrade, size: 20),
+                                label: Text(
+                                  'Upgrade Package',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
+                                  elevation: 0,
+                                ),
+                              ),
+                            ),
+
+                          if (canUpgrade) const SizedBox(height: 12),
 
                           // Create New Order Button
                           SizedBox(
