@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'services/config_service.dart';
 import 'services/data_preloader_service.dart';
+import 'screens/support_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final String? token; // Made nullable to support guest mode
@@ -337,6 +338,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         elevation: 10,
         items: items,
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SupportScreen(token: widget.token),
+            ),
+          );
+        },
+        backgroundColor: Colors.green,
+        child: const Icon(Icons.support_agent, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
