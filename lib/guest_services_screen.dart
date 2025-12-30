@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'login_screen.dart';
 
 class GuestServicesScreen extends StatefulWidget {
@@ -16,6 +18,8 @@ class _GuestServicesScreenState extends State<GuestServicesScreen> {
   List services = [];
   bool isLoading = true;
   String? error;
+  // Track expanded descriptions for each service
+  Map<int, bool> expandedServices = {};
 
   @override
   void initState() {
@@ -41,8 +45,19 @@ class _GuestServicesScreenState extends State<GuestServicesScreen> {
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
+        // Handle both old format (List) and new format (Object with services and cache_version)
+        List<dynamic> servicesList;
+        if (data is Map && data.containsKey('services')) {
+          // New format - object with services and cache_version
+          servicesList = List<dynamic>.from(data['services'] ?? []);
+        } else if (data is List) {
+          // Old format - direct list
+          servicesList = data;
+        } else {
+          servicesList = [];
+        }
         setState(() {
-          services = data is List ? data : [];
+          services = servicesList;
           isLoading = false;
         });
       } else {
@@ -189,115 +204,186 @@ class _GuestServicesScreenState extends State<GuestServicesScreen> {
                         itemCount: services.length,
                         itemBuilder: (context, index) {
                           final service = services[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey.withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Icon(
-                                          Icons.local_car_wash,
-                                          color: Colors.black,
-                                          size: 24,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              service['name'] ?? 'Service',
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.black87,
-                                              ),
-                                            ),
-                                            if (service['description'] !=
-                                                null) ...[
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                service['description'],
-                                                style: GoogleFonts.poppins(
-                                                  fontSize: 12,
-                                                  color: Colors.grey[600],
-                                                ),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Price',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 12,
-                                              color: Colors.grey[600],
-                                            ),
-                                          ),
-                                          Text(
-                                            '${service['price'] ?? 0} AED',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: _showLoginPrompt,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.black,
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                            vertical: 8,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          'Request Service',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                          final price = double.tryParse(service['price'].toString()) ?? 0.0;
+                          
+                          return GestureDetector(
+                            onTap: () {
+                              // Add haptic feedback
+                              HapticFeedback.selectionClick();
+                              _showLoginPrompt();
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                              margin: const EdgeInsets.symmetric(vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.grey.shade200,
+                                  width: 1.0,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.shade100,
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 4),
+                                    spreadRadius: 0,
                                   ),
                                 ],
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Service Image - takes 25% of card width
+                                    Container(
+                                      width: 90,
+                                      height: 90,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: Colors.grey.shade300,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(15),
+                                        child: Builder(
+                                          builder: (context) {
+                                            final imageUrl = service['image_url'];
+                                            if (imageUrl != null && imageUrl.toString().isNotEmpty) {
+                                              return CachedNetworkImage(
+                                                imageUrl: imageUrl.toString(),
+                                                fit: BoxFit.cover,
+                                                placeholder: (context, url) => Container(
+                                                  color: Colors.grey.shade200,
+                                                  child: Center(
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                                        Colors.blue.shade300,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                errorWidget: (context, url, error) {
+                                                  return Container(
+                                                    color: Colors.grey.shade200,
+                                                    child: Icon(
+                                                      Icons.image_not_supported,
+                                                      color: Colors.grey.shade400,
+                                                      size: 32,
+                                                    ),
+                                                  );
+                                                },
+                                              );
+                                            } else {
+                                              return Container(
+                                                color: Colors.grey.shade100,
+                                                child: Icon(
+                                                  Icons.directions_car,
+                                                  color: Colors.grey.shade400,
+                                                  size: 40,
+                                                ),
+                                              );
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    // Service content - takes 75% of card width
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Service name and price
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  service['name'] ?? 'Service',
+                                                  style: GoogleFonts.poppins(
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 16,
+                                                    color: Colors.grey.shade800,
+                                                  ),
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              // Price badge
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 12, vertical: 6),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.green.shade100,
+                                                  borderRadius: BorderRadius.circular(20),
+                                                  border: Border.all(
+                                                      color: Colors.green.shade300),
+                                                ),
+                                                child: Text(
+                                                  '${price.toStringAsFixed(0)} AED',
+                                                  style: GoogleFonts.poppins(
+                                                    color: Colors.green.shade700,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+
+                                          // Service description with Read more/Show less
+                                          if (service['description'] != null &&
+                                              service['description'].toString().isNotEmpty) ...[
+                                            const SizedBox(height: 6),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  service['description'],
+                                                  style: GoogleFonts.poppins(
+                                                    color: Colors.grey.shade600,
+                                                    fontSize: 13,
+                                                    height: 1.3,
+                                                  ),
+                                                  maxLines: expandedServices[service['id']] == true ? null : 2,
+                                                  overflow: expandedServices[service['id']] == true ? null : TextOverflow.ellipsis,
+                                                ),
+                                                // Show Read more/Show less button if description is long
+                                                if (service['description'].toString().length > 100)
+                                                  GestureDetector(
+                                                    onTap: () {
+                                                      setState(() {
+                                                        expandedServices[service['id']] = !(expandedServices[service['id']] ?? false);
+                                                      });
+                                                    },
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.only(top: 4),
+                                                      child: Text(
+                                                        expandedServices[service['id']] == true ? 'Show less' : 'Read more',
+                                                        style: GoogleFonts.poppins(
+                                                          color: Colors.blue.shade600,
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           );
