@@ -1212,6 +1212,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               false, // Don't force - allow normal navigation
                           showPaymentSuccess:
                               false, // Don't show success message - already shown in dialog
+                          forceRefreshOrders:
+                              true, // Force refresh orders to show the new order immediately
                         ),
                       ),
                       (route) => false, // Remove all previous routes

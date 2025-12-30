@@ -6,11 +6,13 @@ import 'widgets/animated_loading_indicator.dart';
 class MyOrdersScreen extends StatefulWidget {
   final String token;
   final bool showSuccessMessage;
+  final bool forceRefresh; // Force refresh orders when navigating from payment
 
   const MyOrdersScreen({
     super.key, 
     required this.token,
     this.showSuccessMessage = false,
+    this.forceRefresh = false,
   });
 
   @override
@@ -55,7 +57,17 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         }
       }
     });
-    _loadOrders();
+    
+    // If forceRefresh is true, fetch orders directly with forceRefresh flag
+    if (widget.forceRefresh) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          fetchOrders(forceRefresh: true);
+        }
+      });
+    } else {
+      _loadOrders();
+    }
   }
 
   Future<void> _loadOrders() async {

@@ -15,6 +15,7 @@ class MainNavigationScreen extends StatefulWidget {
   final bool isGuest;
   final bool forceOrdersTab; // New parameter to force orders tab
   final bool showPaymentSuccess; // New parameter to show payment success message
+  final bool forceRefreshOrders; // New parameter to force refresh orders when navigating
 
   const MainNavigationScreen({
     super.key,
@@ -23,6 +24,7 @@ class MainNavigationScreen extends StatefulWidget {
     this.isGuest = false,
     this.forceOrdersTab = false,
     this.showPaymentSuccess = false,
+    this.forceRefreshOrders = false,
   });
 
   @override
@@ -64,11 +66,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             ? [
                 HomeScreen(token: widget.token!),
                 AllPackagesScreen(token: widget.token, isGuest: false),
-                MyOrdersScreen(token: widget.token!, showSuccessMessage: widget.showPaymentSuccess),
+                MyOrdersScreen(
+                  token: widget.token!, 
+                  showSuccessMessage: widget.showPaymentSuccess,
+                  forceRefresh: widget.forceRefreshOrders,
+                ),
               ]
             : [
                 HomeScreen(token: widget.token!),
-                MyOrdersScreen(token: widget.token!, showSuccessMessage: widget.showPaymentSuccess),
+                MyOrdersScreen(
+                  token: widget.token!, 
+                  showSuccessMessage: widget.showPaymentSuccess,
+                  forceRefresh: widget.forceRefreshOrders,
+                ),
               ]);
   }
 
