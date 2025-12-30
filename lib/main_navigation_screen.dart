@@ -348,7 +348,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           );
         },
         backgroundColor: Colors.green,
-        child: const Icon(Icons.support_agent, color: Colors.white),
+        child: const Icon(Icons.help, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
