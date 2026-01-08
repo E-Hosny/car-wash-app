@@ -11,6 +11,7 @@ class StripeService {
     required String token,
     double? latitude,
     double? longitude,
+    bool isPackagePurchase = false,
   }) async {
     try {
       final baseUrl = dotenv.env['BASE_URL']!;
@@ -22,13 +23,19 @@ class StripeService {
         'order_id': orderId,
       };
       
+      // إضافة is_package_purchase إذا كان شراء باقة
+      if (isPackagePurchase) {
+        bodyData['is_package_purchase'] = true;
+        print('📦 Package purchase detected - location not required');
+      }
+      
       // إضافة الموقع إذا كان متوفراً (للطلبات العادية)
       if (latitude != null && longitude != null) {
         bodyData['latitude'] = latitude;
         bodyData['longitude'] = longitude;
         print('📍 Sending location to API: latitude=$latitude, longitude=$longitude');
         print('📍 Location type: lat=${latitude.runtimeType}, lng=${longitude.runtimeType}');
-      } else {
+      } else if (!isPackagePurchase) {
         print('⚠️ WARNING: Location not provided (latitude=$latitude, longitude=$longitude)');
         print('⚠️ This will cause API validation to fail for regular orders!');
       }

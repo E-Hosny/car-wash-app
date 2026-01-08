@@ -328,6 +328,7 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
         orderId:
             'package_${widget.package['id']}_${DateTime.now().millisecondsSinceEpoch}',
         token: await getToken() ?? '',
+        isPackagePurchase: true, // تحديد أن هذا شراء باقة
       );
 
       if (paymentData['success'] == true) {

@@ -659,7 +659,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
       }
 
       // إنشاء معرف فريد للطلب
-      final orderId = DateTime.now().millisecondsSinceEpoch.toString();
+      final orderId = 'package_${package['id']}_${DateTime.now().millisecondsSinceEpoch}';
 
       // إنشاء payment intent أولاً
       final paymentResponse = await http.post(
@@ -669,10 +669,10 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'amount': (priceValue * 100).round(), // تحويل إلى سنتات
+          'amount': priceValue, // لا تحويل إلى سنتات، API يتعامل مع المبلغ مباشرة
           'currency': 'aed',
           'order_id': orderId,
-          'description': 'Package: ${package['name']}',
+          'is_package_purchase': true, // إضافة هذا لتحديد أن هذا شراء باقة
         }),
       );
 
