@@ -292,6 +292,48 @@ class CacheService {
     }
   }
 
+  /// Get booked time slots directly from API without checking cache
+  /// This is used in order_confirmation_screen to always get fresh data
+  Future<Map<String, dynamic>> getBookedTimeSlotsFromAPI(String token, DateTime date) async {
+    final dateString = date.toIso8601String().split('T')[0]; // YYYY-MM-DD format
+    final cacheKey = '${_timeSlotsKey}_${dateString}_$token';
+    
+    // Fetch from API directly (no cache check)
+    print('🌐 Fetching time slots from API (no cache) for date: $dateString');
+    try {
+      final baseUrl = dotenv.env['BASE_URL'];
+      if (baseUrl == null || baseUrl.isEmpty) {
+        throw Exception('BASE_URL not configured');
+      }
+
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/orders/booked-time-slots?date=$dateString'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final timeSlotsData = {
+          'booked_hours': List<int>.from(data['booked_hours'] ?? []),
+          'unavailable_hours': List<int>.from(data['unavailable_hours'] ?? []),
+        };
+        
+        // Update cache (for use in other screens)
+        _cache[cacheKey] = _CachedData(timeSlotsData, DateTime.now().millisecondsSinceEpoch);
+        
+        return timeSlotsData;
+      } else {
+        throw Exception('Failed to fetch time slots: ${res.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error fetching time slots from API: $e');
+      rethrow;
+    }
+  }
+
   /// Get booked time slots from cache only (no API call) - checks TTL
   Map<String, dynamic>? getCachedTimeSlots(String token, DateTime date) {
     final dateString = date.toIso8601String().split('T')[0]; // YYYY-MM-DD format

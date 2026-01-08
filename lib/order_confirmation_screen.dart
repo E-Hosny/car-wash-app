@@ -90,22 +90,11 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   Future<void> _fetchBookedTimeSlots([DateTime? date]) async {
     final targetDate = date ?? selectedDate;
     
-    final cacheService = CacheService();
-    final cachedTimeSlots = cacheService.getCachedTimeSlots(widget.token, targetDate);
-    
-    if (cachedTimeSlots != null) {
-      setState(() {
-        bookedHours = List<int>.from(cachedTimeSlots['booked_hours'] ?? []);
-        unavailableHours = List<int>.from(cachedTimeSlots['unavailable_hours'] ?? []);
-        isLoadingTimeSlots = false;
-      });
-      _refreshTimeSlotsInBackground(targetDate);
-      return;
-    }
-
     setState(() => isLoadingTimeSlots = true);
     try {
-      final timeSlotsData = await cacheService.getBookedTimeSlots(widget.token, targetDate);
+      final cacheService = CacheService();
+      // Always fetch from API without checking cache
+      final timeSlotsData = await cacheService.getBookedTimeSlotsFromAPI(widget.token, targetDate);
       
       if (!mounted) return;
       setState(() {
@@ -121,21 +110,6 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         unavailableHours = [];
         isLoadingTimeSlots = false;
       });
-    }
-  }
-
-  Future<void> _refreshTimeSlotsInBackground(DateTime date) async {
-    try {
-      final cacheService = CacheService();
-      final timeSlotsData = await cacheService.getBookedTimeSlots(widget.token, date);
-      
-      if (!mounted) return;
-      setState(() {
-        bookedHours = List<int>.from(timeSlotsData['booked_hours'] ?? []);
-        unavailableHours = List<int>.from(timeSlotsData['unavailable_hours'] ?? []);
-      });
-    } catch (e) {
-      print('⚠️ Error refreshing time slots in background: $e');
     }
   }
 
