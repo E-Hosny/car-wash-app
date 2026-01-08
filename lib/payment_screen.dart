@@ -82,11 +82,86 @@ class _PaymentScreenState extends State<PaymentScreen> {
       print('Amount: ${widget.amount} AED');
       print('Order ID: ${widget.orderId}');
 
+      // إرسال الموقع إذا كان متوفراً في orderData (للطلبات العادية)
+      print('🔍 Checking orderData for location:');
+      print('  - orderData keys: ${widget.orderData.keys.toList()}');
+      print('  - Full orderData: ${widget.orderData}');
+      print('  - latitude in orderData: ${widget.orderData['latitude']} (type: ${widget.orderData['latitude']?.runtimeType})');
+      print('  - longitude in orderData: ${widget.orderData['longitude']} (type: ${widget.orderData['longitude']?.runtimeType})');
+      
+      // محاولة استخراج الموقع بطرق مختلفة
+      dynamic latValue = widget.orderData['latitude'];
+      dynamic lngValue = widget.orderData['longitude'];
+      
+      // إذا كان الموقع في nested object
+      if (latValue == null && widget.orderData['selectedLocation'] != null) {
+        final selectedLocation = widget.orderData['selectedLocation'];
+        if (selectedLocation is Map) {
+          latValue = selectedLocation['latitude'];
+          lngValue = selectedLocation['longitude'];
+          print('📍 Found location in selectedLocation: lat=$latValue, lng=$lngValue');
+        }
+      }
+      
+      double? latitude;
+      double? longitude;
+      
+      if (latValue != null) {
+        if (latValue is num) {
+          latitude = latValue.toDouble();
+        } else if (latValue is String) {
+          latitude = double.tryParse(latValue);
+        } else {
+          latitude = double.tryParse(latValue.toString());
+        }
+      }
+      
+      if (lngValue != null) {
+        if (lngValue is num) {
+          longitude = lngValue.toDouble();
+        } else if (lngValue is String) {
+          longitude = double.tryParse(lngValue);
+        } else {
+          longitude = double.tryParse(lngValue.toString());
+        }
+      }
+      
+      print('📍 Extracted location: latitude=$latitude, longitude=$longitude');
+      
+      if (latitude == null || longitude == null) {
+        print('❌ ERROR: Location is missing from orderData!');
+        print('   orderData contents: ${widget.orderData}');
+        print('   orderData type: ${widget.orderData.runtimeType}');
+        print('   This will cause payment intent creation to fail.');
+        
+        // إظهار رسالة خطأ واضحة للمستخدم
+        setState(() {
+          _errorMessage = 'Location information is missing. Please go back and select a location.';
+          _isLoading = false;
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location information is missing. Please go back and select a location.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+
+      print('✅ Location extracted successfully: lat=$latitude, lng=$longitude');
+      print('📤 About to call StripeService.createPaymentIntent with location');
+
       final paymentData = await StripeService.createPaymentIntent(
         amount: widget.amount,
         currency: 'aed',
         orderId: widget.orderId,
         token: widget.token,
+        latitude: latitude,
+        longitude: longitude,
       );
 
       print('📦 Payment data received: ${paymentData.keys.toList()}');
@@ -107,10 +182,48 @@ class _PaymentScreenState extends State<PaymentScreen> {
       print('Payment Intent ID: $_paymentIntentId');
     } catch (e) {
       print('❌ Failed to create payment intent: $e');
+      
+      // استخراج رسالة الخطأ الواضحة
+      String errorMessage = 'Failed to create payment';
+      String errorString = e.toString();
+      
+      // التحقق من رسائل الخطأ الجغرافية
+      if (errorString.contains('Service is only available within Dubai') ||
+          errorString.contains('Location out of service area') ||
+          errorString.contains('Location information is required')) {
+        errorMessage = 'Service is only available within Dubai. Please select a location within Dubai boundaries.';
+      } else if (errorString.contains('Location information')) {
+        errorMessage = 'Location information is required. Please select a location and try again.';
+      } else {
+        // استخراج الرسالة من Exception إذا كانت موجودة
+        final match = RegExp(r'Exception: (.+)').firstMatch(errorString);
+        if (match != null) {
+          errorMessage = match.group(1) ?? 'Failed to create payment. Please try again.';
+        } else {
+          errorMessage = 'Failed to create payment. Please try again.';
+        }
+      }
+      
       setState(() {
-        _errorMessage = 'Failed to create payment: $e';
+        _errorMessage = errorMessage;
         _isLoading = false;
       });
+      
+      // عرض رسالة خطأ واضحة للمستخدم
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -168,12 +281,64 @@ class _PaymentScreenState extends State<PaymentScreen> {
         print('🔄 Creating payment intent automatically...');
         print('Amount: ${widget.amount} AED');
         print('Order ID: ${widget.orderId}');
+        
+        // إرسال الموقع إذا كان متوفراً في orderData (للطلبات العادية)
+        print('🔍 Checking orderData for location in _processPayment:');
+        print('  - orderData keys: ${widget.orderData.keys.toList()}');
+        print('  - latitude in orderData: ${widget.orderData['latitude']} (type: ${widget.orderData['latitude']?.runtimeType})');
+        print('  - longitude in orderData: ${widget.orderData['longitude']} (type: ${widget.orderData['longitude']?.runtimeType})');
+        
+        // محاولة استخراج الموقع بطرق مختلفة
+        dynamic latValue = widget.orderData['latitude'];
+        dynamic lngValue = widget.orderData['longitude'];
+        
+        // إذا كان الموقع في nested object
+        if (latValue == null && widget.orderData['selectedLocation'] != null) {
+          final selectedLocation = widget.orderData['selectedLocation'];
+          if (selectedLocation is Map) {
+            latValue = selectedLocation['latitude'];
+            lngValue = selectedLocation['longitude'];
+            print('📍 Found location in selectedLocation: lat=$latValue, lng=$lngValue');
+          }
+        }
+        
+        double? latitude;
+        double? longitude;
+        
+        if (latValue != null) {
+          if (latValue is num) {
+            latitude = latValue.toDouble();
+          } else if (latValue is String) {
+            latitude = double.tryParse(latValue);
+          } else {
+            latitude = double.tryParse(latValue.toString());
+          }
+        }
+        
+        if (lngValue != null) {
+          if (lngValue is num) {
+            longitude = lngValue.toDouble();
+          } else if (lngValue is String) {
+            longitude = double.tryParse(lngValue);
+          } else {
+            longitude = double.tryParse(lngValue.toString());
+          }
+        }
+        
+        print('📍 Extracted location: latitude=$latitude, longitude=$longitude');
+        
+        if (latitude == null || longitude == null) {
+          print('❌ ERROR: Location is missing from orderData in _processPayment!');
+          print('   orderData contents: ${widget.orderData}');
+        }
 
         final paymentData = await StripeService.createPaymentIntent(
           amount: widget.amount,
           currency: 'aed',
           orderId: widget.orderId,
           token: widget.token,
+          latitude: latitude,
+          longitude: longitude,
         );
 
         print('📦 Payment data received: ${paymentData.keys.toList()}');
@@ -194,11 +359,48 @@ class _PaymentScreenState extends State<PaymentScreen> {
         print('Payment Intent ID: $_paymentIntentId');
       } catch (e) {
         print('❌ Failed to create payment intent: $e');
+        
+        // استخراج رسالة الخطأ الواضحة
+        String errorMessage = 'Failed to create payment';
+        String errorString = e.toString();
+        
+        // التحقق من رسائل الخطأ الجغرافية
+        if (errorString.contains('Service is only available within Dubai') ||
+            errorString.contains('Location out of service area') ||
+            errorString.contains('Location information is required')) {
+          errorMessage = 'Service is only available within Dubai. Please select a location within Dubai boundaries.';
+        } else if (errorString.contains('Location information')) {
+          errorMessage = 'Location information is required. Please select a location and try again.';
+        } else {
+          final match = RegExp(r'Exception: (.+)').firstMatch(errorString);
+          if (match != null) {
+            errorMessage = match.group(1) ?? 'Failed to create payment. Please try again.';
+          } else {
+            errorMessage = 'Failed to create payment. Please try again.';
+          }
+        }
+        
         setState(() {
-          _errorMessage = 'Failed to create payment: $e';
+          _errorMessage = errorMessage;
           _isLoading = false;
           _isProcessing = false;
         });
+        
+        // عرض رسالة خطأ واضحة للمستخدم
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () {},
+              ),
+            ),
+          );
+        }
         return;
       }
     }

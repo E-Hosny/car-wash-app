@@ -9,9 +9,35 @@ class StripeService {
     required String currency,
     required String orderId,
     required String token,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       final baseUrl = dotenv.env['BASE_URL']!;
+      
+      // بناء body مع إضافة الموقع إذا كان متوفراً
+      final bodyData = {
+        'amount': amount,
+        'currency': currency,
+        'order_id': orderId,
+      };
+      
+      // إضافة الموقع إذا كان متوفراً (للطلبات العادية)
+      if (latitude != null && longitude != null) {
+        bodyData['latitude'] = latitude;
+        bodyData['longitude'] = longitude;
+        print('📍 Sending location to API: latitude=$latitude, longitude=$longitude');
+        print('📍 Location type: lat=${latitude.runtimeType}, lng=${longitude.runtimeType}');
+      } else {
+        print('⚠️ WARNING: Location not provided (latitude=$latitude, longitude=$longitude)');
+        print('⚠️ This will cause API validation to fail for regular orders!');
+      }
+      
+      print('📤 Payment Intent Request Body: ${jsonEncode(bodyData)}');
+      print('📤 Request body keys: ${bodyData.keys.toList()}');
+      print('📤 Has latitude in body: ${bodyData.containsKey('latitude')}');
+      print('📤 Has longitude in body: ${bodyData.containsKey('longitude')}');
+      
       final response = await http.post(
         Uri.parse('$baseUrl/api/payments/create-intent'),
         headers: {
@@ -19,11 +45,7 @@ class StripeService {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({
-          'amount': amount,
-          'currency': currency,
-          'order_id': orderId,
-        }),
+        body: jsonEncode(bodyData),
       );
 
       if (response.statusCode == 200) {
@@ -37,7 +59,16 @@ class StripeService {
           throw Exception('Missing required payment data');
         }
       } else {
-        throw Exception('Failed to create payment intent: ${response.body}');
+        // محاولة استخراج رسالة الخطأ من الاستجابة
+        try {
+          final errorData = jsonDecode(response.body);
+          final errorMessage = errorData['message'] ?? 
+                              errorData['error'] ?? 
+                              'Failed to create payment intent';
+          throw Exception(errorMessage);
+        } catch (parseError) {
+          throw Exception('Failed to create payment intent: ${response.body}');
+        }
       }
     } catch (e) {
       throw Exception('Error creating payment intent: $e');
