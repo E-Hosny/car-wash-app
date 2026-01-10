@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:upgrader/upgrader.dart';
+import 'package:logrocket_flutter/logrocket_flutter.dart';
 import 'services/force_update_messages.dart';
 import 'splash_screen.dart'; // أو login_screen.dart
 
@@ -35,7 +36,12 @@ void main() async {
     // Continue without .env file
   }
 
-  runApp(const MyApp());
+  // تهيئة LogRocket مع تفعيل Session Replay
+  LogRocket.wrapAndInitialize(
+    LogRocketWrapConfiguration(),
+    LogRocketInitConfiguration(appID: 'ejxk6d/luxuria-car-wash'),
+    () => runApp(const MyApp()),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -43,18 +49,20 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: UpgradeAlert(
-        upgrader: Upgrader(
-          // Country code for App Store/Play Store
-          countryCode: 'us',
-          // Check immediately
-          durationUntilAlertAgain: const Duration(days: 0),
-          // Custom messages for force update
-          messages: ForceUpdateMessages(),
+    return LogRocketWidget(
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: UpgradeAlert(
+          upgrader: Upgrader(
+            // Country code for App Store/Play Store
+            countryCode: 'us',
+            // Check immediately
+            durationUntilAlertAgain: const Duration(days: 0),
+            // Custom messages for force update
+            messages: ForceUpdateMessages(),
+          ),
+          child: const SplashScreen(),
         ),
-        child: const SplashScreen(),
       ),
     );
   }

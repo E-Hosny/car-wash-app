@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:logrocket_flutter/logrocket_flutter.dart';
 import 'otp_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_screen.dart';
@@ -193,6 +194,26 @@ class _LoginScreenState extends State<LoginScreen> {
         // Save token for persistent login
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('auth_token', token);
+
+        // تحديد المستخدم في LogRocket
+        // استخدام user_id الحقيقي من API response أو phoneNumber مؤقتاً
+        final userId = data['user_id'] ?? data['user']?['id'] ?? phoneNumber;
+        final userName = data['user']?['name'] ?? data['name'] ?? phoneNumber;
+        final userEmail = data['user']?['email'] ?? data['email'] ?? '';
+
+        try {
+          LogRocket.identify(
+            userId,
+            {
+              'name': userName,
+              'email': userEmail,
+            },
+          );
+          print("✅ LogRocket user identified: $userId");
+        } catch (e) {
+          print("⚠️ Warning: LogRocket identify failed: $e");
+          // Continue without LogRocket identification
+        }
 
         if (!mounted) return;
 
