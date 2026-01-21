@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logrocket_flutter/logrocket_flutter.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'main_navigation_screen.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -191,6 +192,15 @@ class _OtpScreenState extends State<OtpScreen> {
         } catch (e) {
           print("⚠️ Warning: LogRocket identify failed: $e");
           // Continue without LogRocket identification
+        }
+
+        // ربط المستخدم بـ OneSignal
+        try {
+          await OneSignal.login(userId.toString());
+          print("✅ OneSignal user linked: $userId");
+        } catch (e) {
+          print("⚠️ Warning: OneSignal login failed: $e");
+          // Continue without OneSignal user linking
         }
 
         if (!mounted) return;

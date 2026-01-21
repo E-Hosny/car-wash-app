@@ -57,6 +57,9 @@ dependencies:
   # LogRocket integration
   logrocket_flutter: ^1.0.0
   
+  # OneSignal Push Notifications
+  onesignal_flutter: ^5.0.0
+  
   # Google Places API for location search - using custom implementation
 
 dev_dependencies:

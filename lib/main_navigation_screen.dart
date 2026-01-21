@@ -4,6 +4,7 @@ import 'my_orders_screen.dart';
 import 'all_packages_screen.dart';
 import 'guest_services_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'login_screen.dart';
 import 'services/config_service.dart';
 import 'services/data_preloader_service.dart';
@@ -308,6 +309,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               icon: const Icon(Icons.logout),
               tooltip: 'Logout',
               onPressed: () async {
+                // تسجيل الخروج من OneSignal
+                try {
+                  await OneSignal.logout();
+                  print("✅ OneSignal user logged out");
+                } catch (e) {
+                  print("⚠️ Warning: OneSignal logout failed: $e");
+                }
+                
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.remove('auth_token');
                 if (!mounted) return;

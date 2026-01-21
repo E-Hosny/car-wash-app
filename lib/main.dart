@@ -3,8 +3,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:upgrader/upgrader.dart';
 import 'package:logrocket_flutter/logrocket_flutter.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'services/force_update_messages.dart';
 import 'splash_screen.dart'; // أو login_screen.dart
+import 'screens/order_details_screen.dart';
+
+// Global navigator key for navigation from OneSignal handlers
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +41,44 @@ void main() async {
     // Continue without .env file
   }
 
+  // تهيئة OneSignal Push Notifications
+  try {
+    OneSignal.initialize("d0faba84-d731-4666-a1a8-e0672654e3a9");
+    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    OneSignal.Notifications.requestPermission(true);
+    print("✅ OneSignal initialized successfully");
+
+    // Foreground notification handler
+    OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+      print("📱 OneSignal Foreground Notification:");
+      print("   Title: ${event.notification.title}");
+      print("   Body: ${event.notification.body}");
+      print("   Data: ${event.notification.additionalData}");
+    });
+
+    // Click handler for notifications
+    OneSignal.Notifications.addClickListener((event) {
+      print("👆 OneSignal Notification Clicked:");
+      print("   Full Payload: ${event.notification.additionalData}");
+      
+      final data = event.notification.additionalData;
+      if (data != null && data['order_id'] != null) {
+        final orderId = data['order_id'].toString();
+        print("   Navigating to OrderDetails with order_id: $orderId");
+        
+        // Navigate to OrderDetailsScreen using navigatorKey
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (context) => OrderDetailsScreen(orderId: orderId),
+          ),
+        );
+      }
+    });
+  } catch (e) {
+    print("⚠️ Warning: OneSignal initialization failed: $e");
+    // Continue without OneSignal
+  }
+
   // تهيئة LogRocket مع تفعيل Session Replay
   LogRocket.wrapAndInitialize(
     LogRocketWrapConfiguration(),
@@ -51,6 +94,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return LogRocketWidget(
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
         home: UpgradeAlert(
           upgrader: Upgrader(

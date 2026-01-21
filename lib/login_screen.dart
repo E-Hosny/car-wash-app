@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logrocket_flutter/logrocket_flutter.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'otp_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_screen.dart';
@@ -213,6 +214,15 @@ class _LoginScreenState extends State<LoginScreen> {
         } catch (e) {
           print("⚠️ Warning: LogRocket identify failed: $e");
           // Continue without LogRocket identification
+        }
+
+        // ربط المستخدم بـ OneSignal
+        try {
+          await OneSignal.login(userId.toString());
+          print("✅ OneSignal user linked: $userId");
+        } catch (e) {
+          print("⚠️ Warning: OneSignal login failed: $e");
+          // Continue without OneSignal user linking
         }
 
         if (!mounted) return;
