@@ -202,21 +202,17 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                     )
                   : CustomScrollView(
                       slivers: [
-                        // Packages Grid
+                        // Packages List
                         SliverPadding(
                           padding: const EdgeInsets.all(16),
-                          sliver:                           SliverGrid(
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 0.75,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                            ),
+                          sliver: SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
                                 final package = packages[index];
-                                return _buildPackageCard(package);
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: _buildPackageCard(package),
+                                );
                               },
                               childCount: packages.length,
                             ),
@@ -258,61 +254,70 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
       ),
       child: Stack(
         children: [
-          Column(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // صورة الباقة
               ClipRRect(
                 borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(18)),
+                    const BorderRadius.horizontal(left: Radius.circular(18)),
                 child: Container(
-                  height: 130,
-                  width: double.infinity,
+                  width: 140,
+                  height: 140,
                   color: Colors.grey.shade100,
                   child: _buildPackageImage(package),
                 ),
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                    Text(
-                      package['name'] ?? 'Premium Package',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 1),
-                    // Price only
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            '${package['price']} AED',
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            package['name'] ?? 'Premium Package',
                             style: GoogleFonts.poppins(
-                              fontSize: 10,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.black,
                             ),
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
                           ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
+                          if (package['description'] != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              package['description'],
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.grey.shade700,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 8),
+                          Text(
+                            '${package['price']} AED',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
                         onPressed: isCurrentPackage && !canUpgrade
                             ? null
                             : widget.isGuest
@@ -384,9 +389,11 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                                       letterSpacing: 1.1,
                                     ),
                                   ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                    ],
                   ),
                 ),
               ),
