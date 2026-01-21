@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'main_navigation_screen.dart';
 import 'services/cache_service.dart';
 import 'widgets/animated_loading_indicator.dart';
+import 'screens/rate_app_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   final String token;
@@ -297,43 +298,54 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Order #${order['id']} - ${order['status']}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      if (isMultiCar) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
                           child: Text(
-                            'Multi',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.blue.shade800,
+                            'Order #${order['id']} - ${order['status']}',
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.black87,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        if (isMultiCar) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Multi',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.blue.shade800,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                  Text(
-                    '💰 ${order['total']} AED',
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      '💰 ${order['total']} AED',
+                      style: const TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                 ],
@@ -692,6 +704,35 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                             'assets/logo.png',
                             height: 120,
                             fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                      // Rate the app button
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RateAppScreen(
+                                    token: widget.token,
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.star_rate),
+                            label: const Text('Rate the service'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.amber,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
                         ),
                       ),

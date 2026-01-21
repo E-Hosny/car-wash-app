@@ -205,11 +205,11 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                         // Packages Grid
                         SliverPadding(
                           padding: const EdgeInsets.all(16),
-                          sliver: SliverGrid(
+                          sliver:                           SliverGrid(
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              childAspectRatio: 0.48,
+                              childAspectRatio: 0.75,
                               crossAxisSpacing: 16,
                               mainAxisSpacing: 16,
                             ),
@@ -259,7 +259,6 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
       child: Stack(
         children: [
           Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // صورة الباقة
@@ -267,93 +266,50 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(18)),
                 child: Container(
-                  height: 180,
+                  height: 130,
                   width: double.infinity,
                   color: Colors.grey.shade100,
                   child: _buildPackageImage(package),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
                     Text(
                       package['name'] ?? 'Premium Package',
                       style: GoogleFonts.poppins(
-                        fontSize: 14,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    if (package['description'] != null)
-                      Text(
-                        package['description'],
-                        style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          color: Colors.grey.shade700,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 1),
                     // Price only
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'Price: ',
-                          style: GoogleFonts.poppins(
-                            fontSize: 9,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        Text(
-                          '${package['price']} AED',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                        Flexible(
+                          child: Text(
+                            '${package['price']} AED',
+                            style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    // Duration badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: Colors.blue.shade200,
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.calendar_today,
-                            size: 10,
-                            color: Colors.blue.shade700,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            'Valid for 1 month',
-                            style: GoogleFonts.poppins(
-                              fontSize: 8,
-                              color: Colors.blue.shade700,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 6),
+                    const Spacer(),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -372,22 +328,28 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          minimumSize: const Size(0, 28),
                           elevation: 0,
                         ),
                         child: isCurrentPackage && !canUpgrade
                             ? Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(Icons.check_circle,
                                       color: Colors.white, size: 16),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'Your Package',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 1.1,
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      'Your Package',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 1.1,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
                                     ),
                                   ),
                                 ],
@@ -395,16 +357,21 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                             : isCurrentPackage && canUpgrade
                                 ? Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(Icons.upgrade,
                                           color: Colors.white, size: 16),
-                                      SizedBox(width: 6),
-                                      Text(
-                                        'Upgrade',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 1.1,
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          'Upgrade',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 1.1,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
                                         ),
                                       ),
                                     ],
@@ -420,6 +387,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                       ),
                     ),
                   ],
+                  ),
                 ),
               ),
             ],
@@ -446,13 +414,17 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.check, color: Colors.white, size: 14),
-                    SizedBox(width: 4),
-                    Text(
-                      'Current Package',
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        'Current Package',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                     ),
                   ],
@@ -469,6 +441,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
         title: Text(
           'Purchase Package',
           style: GoogleFonts.poppins(
@@ -477,97 +450,111 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
           ),
           textAlign: TextAlign.center,
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (package['image'] != null || package['image_url'] != null)
-              Container(
-                height: 180,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: _buildPackageImage(package),
-                ),
-              ),
-            const SizedBox(height: 16),
-            Text(
-              package['name'] ?? 'Premium Package',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            if (package['description'] != null)
-              Text(
-                package['description'],
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.grey.shade700,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            const SizedBox(height: 16),
-            // Price only
-            Column(
-              children: [
-                Text(
-                  'Price',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (package['image'] != null || package['image_url'] != null)
+                Container(
+                  height: 180,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: _buildPackageImage(package),
                   ),
                 ),
-                const SizedBox(height: 4),
+              const SizedBox(height: 16),
+              Text(
+                package['name'] ?? 'Premium Package',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              if (package['description'] != null)
                 Text(
-                  '${package['price']} AED',
+                  package['description'],
                   style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.grey.shade700,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              const SizedBox(height: 16),
+              // Price only
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Price',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Flexible(
+                    child: Text(
+                      '${package['price']} AED',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
+              ),
+              // Services list if available
+              if (package['services'] != null && (package['services'] as List).isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                Text(
+                  'Services Included:',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                     color: Colors.black,
                   ),
                 ),
-              ],
-            ),
-            // Services list if available
-            if (package['services'] != null && (package['services'] as List).isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 8),
-              Text(
-                'Services Included:',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...(package['services'] as List).map((service) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, size: 16, color: Colors.green),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${service['name'] ?? ''} × ${service['quantity'] ?? 0}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: Colors.black87,
+                const SizedBox(height: 8),
+                ...(package['services'] as List).map((service) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.check_circle, size: 16, color: Colors.green),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${service['name'] ?? ''} × ${service['quantity'] ?? 0}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: Colors.black87,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              )).toList(),
+                    ],
+                  ),
+                )).toList(),
+              ],
             ],
-          ],
+          ),
         ),
         actions: [
           TextButton(
