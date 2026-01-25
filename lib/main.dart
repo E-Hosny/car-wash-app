@@ -4,9 +4,11 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:upgrader/upgrader.dart';
 import 'package:logrocket_flutter/logrocket_flutter.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/force_update_messages.dart';
 import 'splash_screen.dart'; // أو login_screen.dart
 import 'screens/order_details_screen.dart';
+import 'screens/rate_app_screen.dart';
 
 // Global navigator key for navigation from OneSignal handlers
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -62,16 +64,45 @@ void main() async {
       print("   Full Payload: ${event.notification.additionalData}");
       
       final data = event.notification.additionalData;
-      if (data != null && data['order_id'] != null) {
-        final orderId = data['order_id'].toString();
-        print("   Navigating to OrderDetails with order_id: $orderId");
+      if (data != null) {
+        final type = data['type']?.toString();
+        final screen = data['screen']?.toString();
         
-        // Navigate to OrderDetailsScreen using navigatorKey
-        navigatorKey.currentState?.push(
-          MaterialPageRoute(
-            builder: (context) => OrderDetailsScreen(orderId: orderId),
-          ),
-        );
+        // Handle rating notification - navigate to RateAppScreen
+        if (type == 'ORDER_COMPLETED_RATING' && screen == 'rate_app') {
+          print("   Rating notification detected, navigating to RateAppScreen");
+          
+          // Get token from SharedPreferences
+          SharedPreferences.getInstance().then((prefs) {
+            final token = prefs.getString('auth_token');
+            
+            if (token != null && token.isNotEmpty) {
+              // Navigate to RateAppScreen
+              navigatorKey.currentState?.push(
+                MaterialPageRoute(
+                  builder: (context) => RateAppScreen(token: token),
+                ),
+              );
+            } else {
+              print("⚠️ No auth token found, cannot navigate to rating screen");
+            }
+          });
+          
+          return; // Exit early, don't navigate to order details
+        }
+        
+        // Handle other notifications with order_id - navigate to OrderDetailsScreen
+        if (data['order_id'] != null) {
+          final orderId = data['order_id'].toString();
+          print("   Navigating to OrderDetails with order_id: $orderId");
+          
+          // Navigate to OrderDetailsScreen using navigatorKey
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (context) => OrderDetailsScreen(orderId: orderId),
+            ),
+          );
+        }
       }
     });
   } catch (e) {
