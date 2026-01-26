@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'onesignal_debug_screen.dart';
 
 class SupportScreen extends StatefulWidget {
   final String? token;
@@ -346,22 +345,6 @@ class _SupportScreenState extends State<SupportScreen> {
                           ),
                         const SizedBox(height: 24),
                       ],
-                      // Debug Section (Development only)
-                      _buildContactCard(
-                        icon: Icons.bug_report,
-                        title: 'OneSignal Debug',
-                        subtitle: 'Check OneSignal notification status',
-                        color: Colors.purple,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const OneSignalDebugScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 24),
                       // FAQ Section
                       if (faqs.isNotEmpty) ...[
                         Text(
