@@ -442,11 +442,11 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   }
 
   Widget _sectionTitle(String title) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(bottom: 8),
         child: Text(
           title,
           style: GoogleFonts.poppins(
-              fontSize: 22, fontWeight: FontWeight.w700, color: Colors.black),
+              fontSize: 18, fontWeight: FontWeight.w700, color: Colors.black),
         ),
       );
 
@@ -475,42 +475,53 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
             colors: [Colors.white, Color(0xFFF5F5F7)],
           ),
         ),
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Selected Car Section
-                    _buildSelectedCarSection(),
-                    const SizedBox(height: 28),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              // Scrollable content
+              SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: 80 + MediaQuery.of(context).padding.bottom,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Selected Car Section
+                      _buildSelectedCarSection(),
+                      const SizedBox(height: 16),
 
-                    // Selected Address Section
-                    _buildSelectedAddressSection(),
-                    const SizedBox(height: 28),
+                      // Selected Address Section
+                      _buildSelectedAddressSection(),
+                      const SizedBox(height: 16),
 
-                    // Schedule Section
-                    _buildScheduleSection(),
-                    const SizedBox(height: 28),
+                      // Schedule Section
+                      _buildScheduleSection(),
+                      const SizedBox(height: 16),
 
-                    // Order Summary
-                    OrderSummaryCard(
-                      totalPrice: totalPrice,
-                      usePackage: usePackage,
-                      selectedServicesCount: widget.selectedServices.length,
-                      remainingPoints: widget.userPackage?['remaining_points'],
-                      totalPointsUsed: _calculateTotalPointsUsed(),
-                    ),
-                  ],
+                      // Order Summary
+                      OrderSummaryCard(
+                        totalPrice: totalPrice,
+                        usePackage: usePackage,
+                        selectedServicesCount: widget.selectedServices.length,
+                        remainingPoints: widget.userPackage?['remaining_points'],
+                        totalPointsUsed: _calculateTotalPointsUsed(),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-
-            // Fixed Pay Now Button at bottom
-            _buildFixedPaymentButton(),
-          ],
+              
+              // Fixed Pay Now Button at bottom
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _buildFixedPaymentButton(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -542,28 +553,28 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         if (selectedCarId == null) ...[
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 children: [
-                  Icon(Icons.directions_car, size: 48, color: Colors.grey[400]),
-                  const SizedBox(height: 12),
+                  Icon(Icons.directions_car, size: 36, color: Colors.grey[400]),
+                  const SizedBox(height: 8),
                   Text(
                     'No cars available',
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: Colors.grey[600],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Text(
                     'Add a car to continue',
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
+                      fontSize: 12,
                       color: Colors.grey[500],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   ElevatedButton.icon(
                     onPressed: () async {
                       final added = await Navigator.push(
@@ -603,19 +614,20 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
               return Card(
                 color: Colors.green[50],
                 child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   leading: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: Colors.green,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(Icons.check, color: Colors.white, size: 20),
+                    child: const Icon(Icons.check, color: Colors.white, size: 16),
                   ),
                   title: Text(
                     '${car['brand']['name']} ${car['model']['name']}',
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 14,
                     ),
                   ),
                   subtitle: Column(
@@ -623,17 +635,17 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     children: [
                       Text(
                         'Year: ${car['year']['year']} • Color: ${car['color']}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 14),
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                       if (car['license_plate'] != null &&
                           car['license_plate'].toString().isNotEmpty)
                         Text(
                           'License Plate: ${car['license_plate']}',
-                          style: const TextStyle(color: Colors.grey, fontSize: 14),
+                          style: const TextStyle(color: Colors.grey, fontSize: 12),
                         ),
                     ],
                   ),
-                  trailing: const Icon(Icons.check_circle, color: Colors.green),
+                  trailing: const Icon(Icons.check_circle, color: Colors.green, size: 20),
                 ),
               );
             },
@@ -947,24 +959,24 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
               },
               borderRadius: BorderRadius.circular(12),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   children: [
-                    Icon(Icons.location_off, size: 48, color: Colors.grey[400]),
-                    const SizedBox(height: 12),
+                    Icon(Icons.location_off, size: 36, color: Colors.grey[400]),
+                    const SizedBox(height: 8),
                     Text(
                       'No address selected',
                       style: GoogleFonts.poppins(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[600],
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
                       'Tap here to select or add an address',
                       style: GoogleFonts.poppins(
-                        fontSize: 14,
+                        fontSize: 12,
                         color: Colors.blue[600],
                         fontWeight: FontWeight.w500,
                       ),
@@ -979,16 +991,17 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
           Card(
             color: Colors.green[50],
             child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               onTap: () {
                 _showAddressSelectionDialog();
               },
               leading: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: Colors.green,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Icon(Icons.check, color: Colors.white, size: 20),
+                child: const Icon(Icons.check, color: Colors.white, size: 16),
               ),
               title: Text(
                 selectedSavedAddress!['label'] ??
@@ -996,14 +1009,16 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     'Address',
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 14,
                 ),
               ),
               subtitle: Text(
                 '${selectedSavedAddress!['street'] ?? ''} ${selectedSavedAddress!['building'] ?? ''} ${selectedSavedAddress!['floor'] ?? ''} ${selectedSavedAddress!['apartment'] ?? ''}\n${selectedSavedAddress!['address'] ?? ''}',
-                style: const TextStyle(fontSize: 13),
+                style: const TextStyle(fontSize: 12),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
-              trailing: const Icon(Icons.edit, color: Colors.green),
+              trailing: const Icon(Icons.edit, color: Colors.green, size: 20),
             ),
           ),
         ],
@@ -1543,13 +1558,13 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('Schedule'),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         // Date Selection
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.blue.shade100),
           ),
           child: Column(
@@ -1558,32 +1573,32 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
               Row(
                 children: [
                   Icon(Icons.calendar_today,
-                      color: Colors.blue.shade700, size: 20),
-                  const SizedBox(width: 8),
+                      color: Colors.blue.shade700, size: 18),
+                  const SizedBox(width: 6),
                   Text(
                     'Select Date',
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w600,
-                      fontSize: 16,
+                      fontSize: 14,
                       color: Colors.blue.shade700,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Column(
                 children: [
                   _buildModernDateOptionInline(
                       'Today',
                       DateTime.now(),
                       Icons.today),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   _buildModernDateOptionInline(
                       'Tomorrow',
                       DateTime.now()
                           .add(const Duration(days: 1)),
                       Icons.event_available),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   _buildModernDateOptionInline(
                       'Day After',
                       DateTime.now()
@@ -1594,7 +1609,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         // Time Slots
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1602,19 +1617,19 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
             Row(
               children: [
                 Icon(Icons.access_time,
-                    color: Colors.green.shade700, size: 20),
-                const SizedBox(width: 8),
+                    color: Colors.green.shade700, size: 18),
+                const SizedBox(width: 6),
                 Text(
                   'Select Time',
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
-                    fontSize: 16,
+                    fontSize: 14,
                     color: Colors.green.shade700,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -1622,9 +1637,9 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
               gridDelegate:
                   const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
-                childAspectRatio: 2.8,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
+                childAspectRatio: 3.2,
+                crossAxisSpacing: 6,
+                mainAxisSpacing: 6,
               ),
               itemCount: _generateTimeSlots().length,
               itemBuilder: (context, index) {
@@ -2685,10 +2700,10 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
         decoration: BoxDecoration(
           color: cardColor,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? Colors.blue.shade600 : Colors.grey.shade200,
             width: isSelected ? 2 : 1,
@@ -2698,29 +2713,29 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
               color: isSelected
                   ? Colors.blue.shade200.withOpacity(0.5)
                   : Colors.grey.shade200,
-              blurRadius: isSelected ? 12 : 6,
-              offset: const Offset(0, 4),
-              spreadRadius: isSelected ? 2 : 0,
+              blurRadius: isSelected ? 8 : 4,
+              offset: const Offset(0, 2),
+              spreadRadius: isSelected ? 1 : 0,
             ),
           ],
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
                 color: isSelected
                     ? Colors.white.withOpacity(0.2)
                     : iconColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: Icon(
                 icon,
                 color: iconColor,
-                size: 16,
+                size: 14,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2730,7 +2745,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     style: GoogleFonts.poppins(
                       color: textColor,
                       fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                      fontSize: 12,
                     ),
                   ),
                   const SizedBox(height: 1),
@@ -2738,7 +2753,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     '${date.day}/${date.month}',
                     style: GoogleFonts.poppins(
                       color: textColor.withOpacity(0.8),
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
@@ -2755,7 +2770,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 child: const Icon(
                   Icons.check,
                   color: Colors.white,
-                  size: 14,
+                  size: 12,
                 ),
               ),
           ],
@@ -2800,7 +2815,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: Row(
             children: [
               Expanded(
@@ -2811,36 +2826,39 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     Text(
                       'Total Amount',
                       style: GoogleFonts.poppins(
-                        fontSize: 14,
+                        fontSize: 12,
                         color: Colors.grey.shade600,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.baseline,
                       textBaseline: TextBaseline.alphabetic,
                       children: [
-                        Text(
-                          'AED ${totalPrice.toStringAsFixed(2)}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: usePackage ? Colors.green.shade700 : Colors.black,
+                        Flexible(
+                          child: Text(
+                            'AED ${totalPrice.toStringAsFixed(2)}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: usePackage ? Colors.green.shade700 : Colors.black,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (usePackage) ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                             decoration: BoxDecoration(
                               color: Colors.green.shade100,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               'Package',
                               style: GoogleFonts.poppins(
-                                fontSize: 12,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.green.shade700,
                               ),
@@ -2852,16 +2870,16 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: isReadyToProceed
                       ? [
                           BoxShadow(
                             color: (usePackage ? Colors.green : Colors.black).withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
                             spreadRadius: 0,
                           ),
                         ]
@@ -2879,30 +2897,30 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                         ? (usePackage ? Colors.green.shade600 : Colors.black)
                         : Colors.grey.shade300,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 0,
-                    minimumSize: const Size(140, 56),
+                    minimumSize: const Size(120, 48),
                   ),
                   child: isSubmittingOrder
                       ? Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const SizedBox(
-                              width: 20,
-                              height: 20,
+                              width: 16,
+                              height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             Text(
                               'Processing...',
                               style: GoogleFonts.poppins(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -2911,12 +2929,12 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                       : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(usePackage ? Icons.card_giftcard : Icons.payment, size: 20),
-                            const SizedBox(width: 8),
+                            Icon(usePackage ? Icons.card_giftcard : Icons.payment, size: 18),
+                            const SizedBox(width: 6),
                             Text(
                               usePackage ? 'Use Package' : 'Pay Now',
                               style: GoogleFonts.poppins(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),

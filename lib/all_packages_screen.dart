@@ -269,126 +269,174 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                   ),
                 ),
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            package['name'] ?? 'Premium Package',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (package['description'] != null) ...[
-                            const SizedBox(height: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              package['description'],
+                              package['name'] ?? 'Premium Package',
                               style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                color: Colors.grey.shade700,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            // Display headers only
+                            if (_hasDescriptionHeaders(package)) ...[
+                              const SizedBox(height: 6),
+                              ..._buildDescriptionHeaders(package),
+                              const SizedBox(height: 0),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton.icon(
+                                  onPressed: () => _showPackageDetailsDialog(package),
+                                  icon: Icon(Icons.info_outline, size: 14, color: Colors.blue.shade600),
+                                  label: Text(
+                                    'See Details',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      color: Colors.blue.shade600,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+                                    minimumSize: const Size(0, 20),
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 0),
+                            ] else if (package['description'] != null && package['description'].toString().isNotEmpty) ...[
+                              // Fallback for old string format
+                              const SizedBox(height: 4),
+                              Text(
+                                package['description'].toString(),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 8),
-                          Text(
-                            '${package['price']} AED',
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${package['price']} AED',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 0),
+                                Text(
+                                  'Valid for 1 month',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 0),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                        onPressed: isCurrentPackage && !canUpgrade
-                            ? null
-                            : widget.isGuest
-                                ? () => _showLoginPrompt()
-                                : () => _showPurchaseDialog(package),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isCurrentPackage && !canUpgrade
-                              ? Colors.green
-                              : isCurrentPackage && canUpgrade
-                                  ? Colors.orange
-                                  : Colors.black,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          minimumSize: const Size(0, 28),
-                          elevation: 0,
-                        ),
-                        child: isCurrentPackage && !canUpgrade
-                            ? Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.check_circle,
-                                      color: Colors.white, size: 16),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      'Your Package',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 1.1,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : isCurrentPackage && canUpgrade
-                                ? Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.upgrade,
-                                          color: Colors.white, size: 16),
-                                      const SizedBox(width: 6),
-                                      Flexible(
-                                        child: Text(
-                                          'Upgrade',
+                          const SizedBox(height: 0),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                              onPressed: isCurrentPackage && !canUpgrade
+                                  ? null
+                                  : widget.isGuest
+                                      ? () => _showLoginPrompt()
+                                      : () => _showPurchaseDialog(package),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isCurrentPackage && !canUpgrade
+                                    ? Colors.green
+                                    : isCurrentPackage && canUpgrade
+                                        ? Colors.orange
+                                        : Colors.black,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 3),
+                                minimumSize: const Size(0, 28),
+                                elevation: 0,
+                              ),
+                              child: isCurrentPackage && !canUpgrade
+                                  ? Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check_circle,
+                                            color: Colors.white, size: 16),
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            'Your Package',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: 1.1,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : isCurrentPackage && canUpgrade
+                                      ? Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.upgrade,
+                                                color: Colors.white, size: 16),
+                                            const SizedBox(width: 6),
+                                            Flexible(
+                                              child: Text(
+                                                'Upgrade',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  letterSpacing: 1.1,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Text(
+                                          'Buy',
                                           style: GoogleFonts.poppins(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                             letterSpacing: 1.1,
                                           ),
-                                          overflow: TextOverflow.ellipsis,
-                                          maxLines: 1,
                                         ),
-                                      ),
-                                    ],
-                                  )
-                                : Text(
-                                    'Buy',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 1.1,
-                                    ),
-                                  ),
+                              ),
                             ),
                           ),
                         ],
@@ -396,8 +444,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                     ],
                   ),
                 ),
-              ),
-            ],
+              ],
             ),
           ),
           if (isCurrentPackage)
@@ -487,17 +534,55 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 8),
-              if (package['description'] != null)
-                Text(
-                  package['description'],
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: Colors.grey.shade700,
+              if (package['description'] != null) ...[
+                if (package['description'] is List)
+                  // New format: List of description items
+                  ...((package['description'] as List).map((item) {
+                    if (item is Map) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item['header']?.toString() ?? '',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              item['description']?.toString() ?? '',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: Colors.grey.shade700,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }).toList())
+                else
+                  // Old format: String
+                  Text(
+                    package['description'].toString(),
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
+              ],
               const SizedBox(height: 16),
               // Price only
               Column(
@@ -1165,5 +1250,248 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  // Check if package has description headers
+  bool _hasDescriptionHeaders(Map<String, dynamic> package) {
+    if (package['description_headers'] != null) {
+      final headers = package['description_headers'];
+      if (headers is List && headers.isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Build description headers widgets
+  List<Widget> _buildDescriptionHeaders(Map<String, dynamic> package) {
+    final headers = package['description_headers'];
+    if (headers == null || headers is! List || headers.isEmpty) {
+      return [];
+    }
+
+    return headers.map<Widget>((header) {
+      if (header == null || header.toString().isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(
+          header.toString(),
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            color: Colors.grey.shade700,
+            fontWeight: FontWeight.w500,
+          ),
+          softWrap: true,
+        ),
+      );
+    }).toList();
+  }
+
+  // Show package details dialog
+  void _showPackageDetailsDialog(Map<String, dynamic> package) {
+    final isCurrentPackage =
+        (userPackage != null && userPackage!['package']['id'] == package['id']) ||
+        (currentPackage != null && currentPackage!['id'] == package['id']);
+    final description = package['description'];
+    final descriptionHeaders = package['description_headers'];
+    
+    // Parse description
+    List<Map<String, String>> descriptionItems = [];
+    
+    if (descriptionHeaders != null && descriptionHeaders is List && descriptionHeaders.isNotEmpty) {
+      // New format: has headers, get full description
+      if (description != null) {
+        if (description is List) {
+          // It's already a list
+          for (var item in description) {
+            if (item is Map) {
+              descriptionItems.add({
+                'header': item['header']?.toString() ?? '',
+                'description': item['description']?.toString() ?? '',
+              });
+            }
+          }
+        } else if (description is String) {
+          // Try to parse as JSON
+          try {
+            final decoded = jsonDecode(description);
+            if (decoded is List) {
+              for (var item in decoded) {
+                if (item is Map) {
+                  descriptionItems.add({
+                    'header': item['header']?.toString() ?? '',
+                    'description': item['description']?.toString() ?? '',
+                  });
+                }
+              }
+            }
+          } catch (e) {
+            // Not JSON, treat as plain string
+            descriptionItems.add({
+              'header': 'Description',
+              'description': description,
+            });
+          }
+        }
+      }
+    } else if (description != null && description.toString().isNotEmpty) {
+      // Old format: plain string
+      descriptionItems.add({
+        'header': 'Description',
+        'description': description.toString(),
+      });
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue.shade700),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        package['name'] ?? 'Package Details',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                      color: Colors.grey.shade600,
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Flexible(
+                child: descriptionItems.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text(
+                          'No description available',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: descriptionItems.map((item) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item['header'] ?? '',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    item['description'] ?? '',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+              ),
+              // Buy Now button
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Colors.grey.shade200),
+                  ),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Close details dialog first
+                      if (widget.isGuest) {
+                        _showLoginPrompt();
+                      } else if (isCurrentPackage && !canUpgrade) {
+                        // Already has this package, do nothing or show message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'You already have this package',
+                              style: GoogleFonts.poppins(),
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } else {
+                        _showPurchaseDialog(package);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isCurrentPackage && !canUpgrade
+                          ? Colors.green
+                          : isCurrentPackage && canUpgrade
+                              ? Colors.orange
+                              : Colors.black,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text(
+                      isCurrentPackage && !canUpgrade
+                          ? 'Your Package'
+                          : isCurrentPackage && canUpgrade
+                              ? 'Upgrade'
+                              : 'Buy Now',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

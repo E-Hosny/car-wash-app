@@ -9,6 +9,7 @@ import 'services/force_update_messages.dart';
 import 'splash_screen.dart'; // أو login_screen.dart
 import 'screens/order_details_screen.dart';
 import 'screens/rate_app_screen.dart';
+import 'my_orders_screen.dart';
 
 // Global navigator key for navigation from OneSignal handlers
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -85,6 +86,32 @@ void main() async {
               );
             } else {
               print("⚠️ No auth token found, cannot navigate to rating screen");
+            }
+          });
+          
+          return; // Exit early, don't navigate to order details
+        }
+        
+        // Handle order payment notification - navigate to MyOrdersScreen
+        if (type == 'ORDER_PAYMENT' && screen == 'my_orders') {
+          print("   Order payment notification detected, navigating to MyOrdersScreen");
+          
+          // Get token from SharedPreferences
+          SharedPreferences.getInstance().then((prefs) {
+            final token = prefs.getString('auth_token');
+            
+            if (token != null && token.isNotEmpty) {
+              // Navigate to MyOrdersScreen
+              navigatorKey.currentState?.push(
+                MaterialPageRoute(
+                  builder: (context) => MyOrdersScreen(
+                    token: token,
+                    forceRefresh: true, // Force refresh to show new order
+                  ),
+                ),
+              );
+            } else {
+              print("⚠️ No auth token found, cannot navigate to orders screen");
             }
           });
           
