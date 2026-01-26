@@ -237,6 +237,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
         (currentPackage != null && currentPackage!['id'] == package['id']);
 
     return Container(
+      constraints: const BoxConstraints(minHeight: 140),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -254,27 +255,26 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
       ),
       child: Stack(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // صورة الباقة
-              ClipRRect(
-                borderRadius:
-                    const BorderRadius.horizontal(left: Radius.circular(18)),
-                child: Container(
-                  width: 140,
-                  height: 140,
-                  color: Colors.grey.shade100,
-                  child: _buildPackageImage(package),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // صورة الباقة
+                ClipRRect(
+                  borderRadius:
+                      const BorderRadius.horizontal(left: Radius.circular(18)),
+                  child: SizedBox(
+                    width: 140,
+                    child: _buildPackageImage(package),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -398,6 +398,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                 ),
               ),
             ],
+            ),
           ),
           if (isCurrentPackage)
             Positioned(
@@ -1109,34 +1110,37 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
     }
 
     if (imageUrl != null && imageUrl.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: imageUrl,
-        fit: BoxFit.contain,
-        placeholder: (context, url) => Container(
-          color: Colors.grey.shade200,
-          child: Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade300),
-            ),
-          ),
-        ),
-        errorWidget: (context, url, error) {
-          print('❌ Error loading package image: $url');
-          print('❌ Error details: $error');
-          return Container(
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-            ),
+      return Container(
+        color: Colors.grey.shade100,
+        child: CachedNetworkImage(
+          imageUrl: imageUrl,
+          fit: BoxFit.contain,
+          placeholder: (context, url) => Container(
+            color: Colors.grey.shade200,
             child: Center(
-              child: Icon(
-                Icons.card_giftcard,
-                size: 50,
-                color: Colors.blue.shade400,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade300),
               ),
             ),
-          );
-        },
+          ),
+          errorWidget: (context, url, error) {
+            print('❌ Error loading package image: $url');
+            print('❌ Error details: $error');
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+              ),
+              child: Center(
+                child: Icon(
+                  Icons.card_giftcard,
+                  size: 50,
+                  color: Colors.blue.shade400,
+                ),
+              ),
+            );
+          },
+        ),
       );
     }
 
