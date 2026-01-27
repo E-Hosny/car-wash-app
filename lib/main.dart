@@ -73,15 +73,23 @@ void main() async {
         if (type == 'ORDER_COMPLETED_RATING' && screen == 'rate_app') {
           print("   Rating notification detected, navigating to RateAppScreen");
           
+          // Get order_id from data payload
+          final orderId = data['order_id'] != null 
+              ? int.tryParse(data['order_id'].toString()) 
+              : null;
+          
           // Get token from SharedPreferences
           SharedPreferences.getInstance().then((prefs) {
             final token = prefs.getString('auth_token');
             
             if (token != null && token.isNotEmpty) {
-              // Navigate to RateAppScreen
+              // Navigate to RateAppScreen with orderId
               navigatorKey.currentState?.push(
                 MaterialPageRoute(
-                  builder: (context) => RateAppScreen(token: token),
+                  builder: (context) => RateAppScreen(
+                    token: token,
+                    orderId: orderId,
+                  ),
                 ),
               );
             } else {

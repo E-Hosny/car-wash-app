@@ -5,10 +5,12 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class RateAppScreen extends StatefulWidget {
   final String token;
+  final int? orderId;
 
   const RateAppScreen({
     super.key,
     required this.token,
+    this.orderId,
   });
 
   @override
@@ -58,6 +60,18 @@ class _RateAppScreenState extends State<RateAppScreen> {
         throw Exception('BASE_URL not configured');
       }
 
+      final requestBody = {
+        'rating': selectedRating,
+        'comment': commentController.text.trim().isEmpty
+            ? null
+            : commentController.text.trim(),
+      };
+
+      // Add order_id if provided
+      if (widget.orderId != null) {
+        requestBody['order_id'] = widget.orderId;
+      }
+
       final response = await http.post(
         Uri.parse('$baseUrl/api/ratings'),
         headers: {
@@ -65,12 +79,7 @@ class _RateAppScreenState extends State<RateAppScreen> {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: jsonEncode({
-          'rating': selectedRating,
-          'comment': commentController.text.trim().isEmpty
-              ? null
-              : commentController.text.trim(),
-        }),
+        body: jsonEncode(requestBody),
       );
 
       if (!mounted) return;
@@ -88,12 +97,12 @@ class _RateAppScreenState extends State<RateAppScreen> {
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
-        );
+          );
 
         // Navigate back after short delay
         await Future.delayed(const Duration(milliseconds: 500));
         if (mounted) {
-          Navigator.pop(context);
+          Navigator.pop(context, true); // Return true to indicate success
         }
       } else {
         final errorData = jsonDecode(response.body);
@@ -144,7 +153,9 @@ class _RateAppScreenState extends State<RateAppScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rate your experience'),
+        title: Text(widget.orderId != null 
+            ? 'Rate Order #${widget.orderId}' 
+            : 'Rate your experience'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
@@ -160,17 +171,21 @@ class _RateAppScreenState extends State<RateAppScreen> {
               color: Colors.amber,
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Rate your experience',
-              style: TextStyle(
+            Text(
+              widget.orderId != null 
+                  ? 'Rate Order #${widget.orderId}' 
+                  : 'Rate your experience',
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'How would you rate your experience with our app?',
-              style: TextStyle(
+            Text(
+              widget.orderId != null
+                  ? 'How would you rate this order?'
+                  : 'How would you rate your experience with our app?',
+              style: const TextStyle(
                 fontSize: 16,
                 color: Colors.grey,
               ),
@@ -223,7 +238,9 @@ class _RateAppScreenState extends State<RateAppScreen> {
               maxLength: 1000,
               decoration: InputDecoration(
                 labelText: 'Tell us more (optional)',
-                hintText: 'Share your thoughts about the app...',
+                hintText: widget.orderId != null
+                    ? 'Share your thoughts about this order...'
+                    : 'Share your thoughts about the app...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

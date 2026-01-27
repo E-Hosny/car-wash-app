@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'main_navigation_screen.dart';
 import 'services/cache_service.dart';
 import 'widgets/animated_loading_indicator.dart';
@@ -26,6 +29,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   String? errorMessage;
   int retryCount = 0;
   static const int maxRetries = 3;
+  Map<int, Map<String, dynamic>> orderRatings = {}; // Store rating info for each order
 
   @override
   void initState() {
@@ -113,8 +117,36 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
       if (!mounted) return;
 
+      // Fetch rating info for each order
+      final Map<int, Map<String, dynamic>> ratingsMap = {};
+      for (var order in ordersData) {
+        final orderId = order['id'];
+        if (orderId != null) {
+          try {
+            final baseUrl = dotenv.env['BASE_URL'];
+            if (baseUrl != null && baseUrl.isNotEmpty) {
+              final ratingResponse = await http.get(
+                Uri.parse('$baseUrl/api/ratings/order/$orderId'),
+                headers: {
+                  'Authorization': 'Bearer ${widget.token}',
+                  'Accept': 'application/json',
+                },
+              );
+              if (ratingResponse.statusCode == 200) {
+                final ratingData = jsonDecode(ratingResponse.body);
+                ratingsMap[orderId] = ratingData;
+              }
+            }
+          } catch (e) {
+            // Silently fail - rating check is optional
+            print('Error checking rating for order $orderId: $e');
+          }
+        }
+      }
+
       setState(() {
         orders = ordersData;
+        orderRatings = ratingsMap;
         isLoading = false;
         errorMessage = null;
         retryCount = 0; // Reset retry count on success
@@ -469,6 +501,98 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   ),
                 ),
               ],
+              
+              // Rating section
+              const SizedBox(height: 16),
+              Builder(
+                builder: (context) {
+                  final orderId = order['id'];
+                  final ratingInfo = orderId != null ? orderRatings[orderId] : null;
+                  final hasRating = ratingInfo != null && ratingInfo['has_rating'] == true;
+                  final rating = ratingInfo != null && ratingInfo['rating'] != null 
+                      ? ratingInfo['rating'] as Map<String, dynamic>
+                      : null;
+                  
+                  if (hasRating && rating != null) {
+                    // Show rating indicator
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: Colors.green.shade700,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Rated: ',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.green.shade900,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                ...List.generate(5, (index) {
+                                  final starNumber = index + 1;
+                                  final ratingValue = rating['rating'] as int? ?? 0;
+                                  return Icon(
+                                    starNumber <= ratingValue 
+                                        ? Icons.star 
+                                        : Icons.star_border,
+                                    size: 16,
+                                    color: Colors.amber,
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  } else {
+                    // Show rating button
+                    return SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RateAppScreen(
+                                token: widget.token,
+                                orderId: orderId,
+                              ),
+                            ),
+                          );
+                          // Refresh orders to update rating status
+                          if (result == true || mounted) {
+                            await fetchOrders(forceRefresh: true);
+                          }
+                        },
+                        icon: const Icon(Icons.star_rate),
+                        label: const Text('Rate this order'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
             ],
           ),
         ),
@@ -704,35 +828,6 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                             'assets/logo.png',
                             height: 120,
                             fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                      // Rate the app button
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => RateAppScreen(
-                                    token: widget.token,
-                                  ),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.star_rate),
-                            label: const Text('Rate the service'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
                           ),
                         ),
                       ),
