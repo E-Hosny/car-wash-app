@@ -67,5 +67,11 @@
 	<!-- Microphone Permission for Maps -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs microphone access for map features.</string>
+	
+	<!-- Push Notifications Background Mode -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>
