@@ -534,54 +534,46 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 8),
-              if (package['description'] != null) ...[
-                if (package['description'] is List)
-                  // New format: List of description items
-                  ...((package['description'] as List).map((item) {
-                    if (item is Map) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item['header']?.toString() ?? '',
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              item['description']?.toString() ?? '',
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                color: Colors.grey.shade700,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      );
-                    }
+              // Show only description headers (not full description)
+              if (package['description_headers'] != null && 
+                  package['description_headers'] is List &&
+                  (package['description_headers'] as List).isNotEmpty) ...[
+                ...((package['description_headers'] as List).map((header) {
+                  if (header == null || header.toString().isEmpty) {
                     return const SizedBox.shrink();
-                  }).toList())
-                else
-                  // Old format: String
-                  Text(
-                    package['description'].toString(),
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: Colors.grey.shade700,
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(
+                      header.toString(),
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  );
+                }).toList()),
+              ] else if (package['description'] != null && package['description'] is List) ...[
+                // Fallback: Extract headers from description list if description_headers not available
+                ...((package['description'] as List).map((item) {
+                  if (item is Map && item['header'] != null) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        item['header']?.toString() ?? '',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                }).toList()),
               ],
               const SizedBox(height: 16),
               // Price only
