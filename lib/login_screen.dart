@@ -218,8 +218,37 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // ربط المستخدم بـ OneSignal
         try {
-          await OneSignal.login(userId.toString());
-          print("✅ OneSignal user linked: $userId");
+          // التحقق من حالة الاشتراك قبل ربط المستخدم (خاصة iOS)
+          final subscription = OneSignal.User.pushSubscription;
+          final isOptedIn = subscription.optedIn ?? false;
+          final subscriptionId = subscription.id;
+          
+          if (isOptedIn && subscriptionId != null && subscriptionId.isNotEmpty) {
+            await OneSignal.login(userId.toString());
+            print("✅ OneSignal user linked: $userId");
+            print("   Subscription ID: $subscriptionId");
+          } else {
+            print("⚠️ OneSignal subscription not ready yet");
+            print("   Opted In: $isOptedIn");
+            print("   Subscription ID: $subscriptionId");
+            
+            // محاولة طلب الصلاحيات مرة أخرى إذا لم تكن ممنوحة
+            if (!isOptedIn) {
+              final permission = await OneSignal.Notifications.requestPermission(true);
+              print("   Permission requested: $permission");
+              
+              // إعادة المحاولة بعد منح الصلاحيات
+              if (permission) {
+                // انتظار قليل حتى يتم إنشاء الاشتراك
+                await Future.delayed(const Duration(seconds: 1));
+                final newSubscription = OneSignal.User.pushSubscription;
+                if (newSubscription.optedIn == true && newSubscription.id != null) {
+                  await OneSignal.login(userId.toString());
+                  print("✅ OneSignal user linked after permission grant: $userId");
+                }
+              }
+            }
+          }
         } catch (e) {
           print("⚠️ Warning: OneSignal login failed: $e");
           // Continue without OneSignal user linking

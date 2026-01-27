@@ -48,7 +48,10 @@ void main() async {
   try {
     OneSignal.initialize("d0faba84-d731-4666-a1a8-e0672654e3a9");
     OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    
+    // طلب الصلاحيات (لكن لا نعتمد عليها فقط - سنتحقق لاحقاً)
     OneSignal.Notifications.requestPermission(true);
+    
     print("✅ OneSignal initialized successfully");
 
     // Foreground notification handler
