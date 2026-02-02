@@ -624,16 +624,74 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(120),
+        preferredSize: const Size.fromHeight(160),
         child: AppBar(
           backgroundColor: Colors.white,
           elevation: 1,
           iconTheme: const IconThemeData(color: Colors.black),
-          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
           title: null,
           flexibleSpace: SafeArea(
-            child: Center(
-              child: Image.asset('assets/logo.png', height: 100),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 50.0, left: 12.0, right: 12.0, bottom: 4.0),
+              child: Container(
+                constraints: const BoxConstraints(
+                  maxHeight: 100,
+                ),
+                padding: const EdgeInsets.all(10.0),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.orange.shade200,
+                    width: 1.5,
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.orange.shade700,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Important Notice',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange.shade900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Please ensure the car is parked in a safe and legal location, not in RTA parking. '
+                        'The parking area must allow the Luxuria Wash vehicle to park and safely use car wash resources. '
+                        'Thank you for your cooperation.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.black87,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.left,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ),
