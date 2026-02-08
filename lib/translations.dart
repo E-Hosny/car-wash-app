@@ -134,7 +134,7 @@ class AppTranslations {
       'language': 'اللغة',
       'browse_services': 'تصفح الخدمات',
       'login_required': 'تسجيل الدخول مطلوب',
-      'login_required_message': 'تحتاج إلى تسجيل الدخول للوصول إلى هذه الميزة. هل تريد تسجيل الدخول الآن؟',
+      'login_required_message': 'تحتاج إلى تسجيل الدخول لطلب الخدمات. هل تريد تسجيل الدخول الآن؟',
       'login_now': 'تسجيل الدخول الآن',
       
       // Login & Register

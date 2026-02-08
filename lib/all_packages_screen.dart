@@ -10,6 +10,7 @@ import 'single_wash_order_screen.dart';
 import 'services/language_service.dart';
 import 'translations.dart';
 import 'utils/currency_helper.dart';
+import 'dart:async';
 
 class AllPackagesScreen extends StatefulWidget {
   final String? token; // Made nullable for guest mode
@@ -30,6 +31,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
   String? error;
   String _currentLanguage = 'en';
   bool _isRTL = false;
+  late StreamSubscription _languageSubscription;
 
   @override
   void initState() {
@@ -37,6 +39,20 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
     _loadLanguage();
     fetchPackages();
     fetchUserPackage();
+    // Listen for language changes
+    _languageSubscription = LanguageService.languageStream.listen((languageCode) async {
+      await _loadLanguage(); // Update local language state first
+      if (mounted) {
+        fetchPackages(); // Re-fetch packages with new language
+        fetchUserPackage(); // Re-fetch user package with new language
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _languageSubscription.cancel();
+    super.dispose();
   }
 
   Future<void> _loadLanguage() async {
@@ -379,7 +395,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 package['description'].toString(),
-                                style: GoogleFonts.poppins(
+                                style: _getArabicTextStyle(
                                   fontSize: 12,
                                   color: Colors.grey.shade700,
                                 ),
@@ -611,7 +627,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Text(
                       header.toString(),
-                      style: GoogleFonts.poppins(
+                      style: _getArabicTextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Colors.black,
@@ -628,7 +644,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Text(
                         item['header']?.toString() ?? '',
-                        style: GoogleFonts.poppins(
+                        style: _getArabicTextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.black,
@@ -696,7 +712,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                       Expanded(
                         child: Text(
                           '${service['name'] ?? ''} × ${service['quantity'] ?? 0}',
-                          style: GoogleFonts.poppins(
+                          style: _getArabicTextStyle(
                             fontSize: 13,
                             color: Colors.black87,
                           ),
@@ -1345,7 +1361,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
         padding: const EdgeInsets.only(bottom: 4),
         child: Text(
           header.toString(),
-          style: GoogleFonts.poppins(
+          style: _getArabicTextStyle(
             fontSize: 12,
             color: Colors.grey.shade700,
             fontWeight: FontWeight.w500,
@@ -1397,7 +1413,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
           } catch (e) {
             // Not JSON, treat as plain string
             descriptionItems.add({
-              'header': 'Description',
+              'header': _currentLanguage == 'ar' ? 'الوصف' : 'Description',
               'description': description,
             });
           }
@@ -1406,104 +1422,106 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
     } else if (description != null && description.toString().isNotEmpty) {
       // Old format: plain string
       descriptionItems.add({
-        'header': 'Description',
+        'header': _currentLanguage == 'ar' ? 'الوصف' : 'Description',
         'description': description.toString(),
       });
     }
 
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
+      builder: (context) => Directionality(
+        textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+        child: Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.blue.shade700),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        package['name'] ?? _t('package_details'),
-                        style: _getArabicTextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                      color: Colors.grey.shade600,
-                    ),
-                  ],
-                ),
-              ),
-              // Content
-              Flexible(
-                child: descriptionItems.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue.shade700),
+                      const SizedBox(width: 12),
+                      Expanded(
                         child: Text(
-                          _t('no_description_available'),
+                          package['name'] ?? _t('package_details'),
                           style: _getArabicTextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
                           ),
                         ),
-                      )
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: descriptionItems.map((item) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 20),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item['header'] ?? '',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    item['description'] ?? '',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade700,
-                                      height: 1.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
                       ),
-              ),
-              // Buy Now button
-              Container(
-                padding: const EdgeInsets.all(16),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                        color: Colors.grey.shade600,
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Flexible(
+                  child: descriptionItems.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            _t('no_description_available'),
+                            style: _getArabicTextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        )
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: descriptionItems.map((item) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item['header'] ?? '',
+                                      style: _getArabicTextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      item['description'] ?? '',
+                                      style: _getArabicTextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey.shade700,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                ),
+                // Buy Now button
+                Container(
+                  padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(color: Colors.grey.shade200),
@@ -1557,7 +1575,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                   ),
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -98,7 +98,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         ? (packagesEnabled
             ? [
                 GuestServicesScreen(key: ValueKey('guest_services_$_currentLanguage')),
-                AllPackagesScreen(token: widget.token, isGuest: true),
+                AllPackagesScreen(key: ValueKey('all_packages_$_currentLanguage'), token: widget.token, isGuest: true),
                 const _LoginPromptScreen(),
               ]
             : [
@@ -108,7 +108,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         : (packagesEnabled
             ? [
                 HomeScreen(token: widget.token!),
-                AllPackagesScreen(token: widget.token, isGuest: false),
+                AllPackagesScreen(key: ValueKey('all_packages_$_currentLanguage'), token: widget.token, isGuest: false),
                 MyOrdersScreen(
                   token: widget.token!, 
                   showSuccessMessage: widget.showPaymentSuccess,

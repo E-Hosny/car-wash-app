@@ -132,28 +132,53 @@ class _GuestServicesScreenState extends State<GuestServicesScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Login Required'),
-          content: const Text(
-              'You need to login to request services. Would you like to login now?'),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+        return Directionality(
+          textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+          child: AlertDialog(
+            title: Text(
+              _t('login_required'),
+              style: _getArabicTextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
             ),
-            TextButton(
-              child: const Text('Login'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              },
+            content: Text(
+              _t('login_required_message'),
+              style: _getArabicTextStyle(
+                fontSize: 14,
+              ),
             ),
-          ],
+            actions: [
+              TextButton(
+                child: Text(
+                  _t('cancel'),
+                  style: _getArabicTextStyle(
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: Text(
+                  _t('login'),
+                  style: _getArabicTextStyle(
+                    color: Colors.blue.shade600,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  );
+                },
+              ),
+            ],
+          ),
         );
       },
     );
