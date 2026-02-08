@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'language_service.dart';
 
 class CacheService {
   static final CacheService _instance = CacheService._internal();
@@ -126,9 +127,15 @@ class CacheService {
         throw Exception('BASE_URL not configured');
       }
 
+      // Get current language
+      final currentLanguage = await LanguageService.getCurrentLanguage();
+      
       final res = await http.get(
         Uri.parse('$baseUrl/api/services'),
-        headers: {'Authorization': 'Bearer $token'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept-Language': currentLanguage,
+        },
       ).timeout(
         const Duration(seconds: 15),
         onTimeout: () {

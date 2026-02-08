@@ -6,6 +6,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'login_screen.dart';
+import 'services/language_service.dart';
+import 'translations.dart';
 
 class GuestServicesScreen extends StatefulWidget {
   const GuestServicesScreen({super.key});
@@ -20,11 +22,56 @@ class _GuestServicesScreenState extends State<GuestServicesScreen> {
   String? error;
   // Track expanded descriptions for each service
   Map<int, bool> expandedServices = {};
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
 
   @override
   void initState() {
     super.initState();
+    _loadLanguage();
     fetchServices();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  String _getCurrency() {
+    return AppTranslations.getCurrency(_currentLanguage);
+  }
+
+  TextStyle _getArabicTextStyle({
+    double fontSize = 16,
+    FontWeight fontWeight = FontWeight.normal,
+    Color? color,
+    double? height,
+  }) {
+    if (_currentLanguage == 'ar') {
+      return GoogleFonts.cairo(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        height: height,
+      );
+    } else {
+      return GoogleFonts.poppins(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        height: height,
+      );
+    }
   }
 
   Future<void> fetchServices() async {
@@ -39,8 +86,14 @@ class _GuestServicesScreenState extends State<GuestServicesScreen> {
         return;
       }
 
+      // Get current language
+      final currentLanguage = await LanguageService.getCurrentLanguage();
+      
       final res = await http.get(
         Uri.parse('$baseUrl/api/services'),
+        headers: {
+          'Accept-Language': currentLanguage,
+        },
       );
 
       if (res.statusCode == 200) {
@@ -108,22 +161,11 @@ class _GuestServicesScreenState extends State<GuestServicesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(
-          'Our Services',
-          style: GoogleFonts.poppins(
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: Colors.black),
-        centerTitle: true,
-      ),
-      body: isLoading
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: Colors.grey[50],
+        body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : error != null
               ? Center(
@@ -306,8 +348,8 @@ class _GuestServicesScreenState extends State<GuestServicesScreen> {
                                             children: [
                                               Expanded(
                                                 child: Text(
-                                                  service['name'] ?? 'Service',
-                                                  style: GoogleFonts.poppins(
+                                                  service['name'] ?? _t('services'),
+                                                  style: _getArabicTextStyle(
                                                     fontWeight: FontWeight.w700,
                                                     fontSize: 16,
                                                     color: Colors.grey.shade800,
@@ -328,8 +370,8 @@ class _GuestServicesScreenState extends State<GuestServicesScreen> {
                                                       color: Colors.green.shade300),
                                                 ),
                                                 child: Text(
-                                                  '${price.toStringAsFixed(0)} AED',
-                                                  style: GoogleFonts.poppins(
+                                                  '${price.toStringAsFixed(0)} ${_getCurrency()}',
+                                                  style: _getArabicTextStyle(
                                                     color: Colors.green.shade700,
                                                     fontWeight: FontWeight.w700,
                                                     fontSize: 12,
@@ -348,7 +390,7 @@ class _GuestServicesScreenState extends State<GuestServicesScreen> {
                                               children: [
                                                 Text(
                                                   service['description'],
-                                                  style: GoogleFonts.poppins(
+                                                  style: _getArabicTextStyle(
                                                     color: Colors.grey.shade600,
                                                     fontSize: 13,
                                                     height: 1.3,
@@ -367,8 +409,10 @@ class _GuestServicesScreenState extends State<GuestServicesScreen> {
                                                     child: Padding(
                                                       padding: const EdgeInsets.only(top: 4),
                                                       child: Text(
-                                                        expandedServices[service['id']] == true ? 'Show less' : 'Read more',
-                                                        style: GoogleFonts.poppins(
+                                                        expandedServices[service['id']] == true 
+                                                            ? (_currentLanguage == 'ar' ? 'عرض أقل' : 'Show less')
+                                                            : (_currentLanguage == 'ar' ? 'اقرأ المزيد' : 'Read more'),
+                                                        style: _getArabicTextStyle(
                                                           color: Colors.blue.shade600,
                                                           fontSize: 12,
                                                           fontWeight: FontWeight.w600,
@@ -390,6 +434,7 @@ class _GuestServicesScreenState extends State<GuestServicesScreen> {
                         },
                       ),
                     ),
+      ),
     );
   }
 }

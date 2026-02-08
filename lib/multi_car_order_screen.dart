@@ -15,6 +15,7 @@ import 'main_navigation_screen.dart';
 import 'add_car_screen.dart';
 import 'services/cache_service.dart';
 import 'widgets/animated_loading_indicator.dart';
+import 'utils/currency_helper.dart';
 
 class MultiCarOrderScreen extends StatefulWidget {
   final String token;
@@ -1715,15 +1716,26 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                     final pointsUsed = carData['points_used'] ?? 0;
                     debugPrint(
                         'Displaying car ${carData['car_id']} with $pointsUsed points (usePackage: $usePackage)');
-                    return Text(
-                      usePackage
-                          ? '$pointsUsed Points'
-                          : '${(carData['subtotal'] ?? 0).toStringAsFixed(2)} AED',
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    );
+                    return usePackage
+                        ? Text(
+                            '$pointsUsed Points',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          )
+                        : FutureBuilder<String>(
+                            future: CurrencyHelper.formatPrice((carData['subtotal'] ?? 0).toDouble()),
+                            builder: (context, snapshot) {
+                              return Text(
+                                snapshot.data ?? '${(carData['subtotal'] ?? 0).toStringAsFixed(2)} AED',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              );
+                            },
+                          );
                   },
                 ),
               ],
@@ -2758,13 +2770,18 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    '${totalPrice.toStringAsFixed(2)} AED',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
+                  FutureBuilder<String>(
+                    future: CurrencyHelper.formatPrice(totalPrice),
+                    builder: (context, snapshot) {
+                      return Text(
+                        snapshot.data ?? '${totalPrice.toStringAsFixed(2)} AED',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -2823,18 +2840,30 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                       crossAxisAlignment: CrossAxisAlignment.baseline,
                       textBaseline: TextBaseline.alphabetic,
                       children: [
-                        Text(
-                          usePackage
-                              ? 'FREE'
-                              : 'AED ${totalPrice.toStringAsFixed(2)}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: usePackage
-                                ? Colors.green.shade700
-                                : Colors.black,
-                          ),
-                        ),
+                        usePackage
+                            ? Text(
+                                'FREE',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : FutureBuilder<String>(
+                                future: CurrencyHelper.formatPrice(totalPrice),
+                                builder: (context, snapshot) {
+                                  final currency = snapshot.data?.split(' ').last ?? 'AED';
+                                  return Text(
+                                    '$currency ${totalPrice.toStringAsFixed(2)}',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: usePackage
+                                          ? Colors.green.shade700
+                                          : Colors.black,
+                                    ),
+                                  );
+                                },
+                              ),
                         if (usePackage) ...[
                           const SizedBox(width: 8),
                           Container(
@@ -3233,13 +3262,18 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                                       ),
                                     ),
                                   )
-                                : Text(
-                                    '${price.toStringAsFixed(0)} AED',
-                                    style: const TextStyle(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
-                                    ),
+                                : FutureBuilder<String>(
+                                    future: CurrencyHelper.formatPrice(price, decimals: 0),
+                                    builder: (context, snapshot) {
+                                      return Text(
+                                        snapshot.data ?? '${price.toStringAsFixed(0)} AED',
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                        ),
+                                      );
+                                    },
                                   ),
                             activeColor: Colors.black,
                             shape: RoundedRectangleBorder(
@@ -3266,16 +3300,27 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        Text(
-                          widget.usePackage
-                              ? '$pointsUsed Points'
-                              : '${subtotal.toStringAsFixed(2)} AED',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
+                        widget.usePackage
+                            ? Text(
+                                '$pointsUsed Points',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : FutureBuilder<String>(
+                                future: CurrencyHelper.formatPrice(subtotal),
+                                builder: (context, snapshot) {
+                                  return Text(
+                                    snapshot.data ?? '${subtotal.toStringAsFixed(2)} AED',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                  );
+                                },
+                              ),
                       ],
                     ),
                     const SizedBox(height: 16),

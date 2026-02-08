@@ -10,6 +10,7 @@ import 'login_screen.dart';
 import 'services/config_service.dart';
 import 'services/data_preloader_service.dart';
 import 'services/language_service.dart';
+import 'services/cache_service.dart';
 import 'screens/support_screen.dart';
 import 'translations.dart';
 
@@ -96,12 +97,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     screens = widget.isGuest
         ? (packagesEnabled
             ? [
-                const GuestServicesScreen(),
+                GuestServicesScreen(key: ValueKey('guest_services_$_currentLanguage')),
                 AllPackagesScreen(token: widget.token, isGuest: true),
                 const _LoginPromptScreen(),
               ]
             : [
-                const GuestServicesScreen(),
+                GuestServicesScreen(key: ValueKey('guest_services_$_currentLanguage')),
                 const _LoginPromptScreen(),
               ])
         : (packagesEnabled
@@ -353,7 +354,37 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 )
               : null,
           actions: [
-            if (widget.isGuest)
+            if (widget.isGuest) ...[
+              // Language Toggle Button
+              IconButton(
+                icon: Icon(
+                  Icons.language,
+                  color: Colors.grey[700],
+                  size: 24,
+                ),
+                tooltip: _t('language'),
+                onPressed: () async {
+                  final newLang = _currentLanguage == 'ar' ? 'en' : 'ar';
+                  await LanguageService.setCurrentLanguage(newLang);
+                  
+                  // Invalidate services cache to force reload with new language
+                  final cacheService = CacheService();
+                  final token = widget.token ?? '';
+                  cacheService.invalidateServices(token);
+                  
+                  if (mounted) {
+                    setState(() {
+                      _currentLanguage = newLang;
+                      _isRTL = newLang == 'ar';
+                    });
+                    
+                    // Force rebuild of screens to reload services with new language
+                    _buildScreens();
+                    setState(() {}); // Trigger rebuild
+                  }
+                },
+              ),
+              // Login Button
               TextButton(
                 onPressed: () {
                   Navigator.pushReplacement(
@@ -368,7 +399,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              )
+              ),
+            ]
             else
               IconButton(
                 icon: const Icon(Icons.logout),

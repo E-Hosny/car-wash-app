@@ -323,4 +323,8 @@ class AppTranslations {
   static String getTextWithFallback(String key, String language) {
     return _translations[language]?[key] ?? _translations['en']?[key] ?? key;
   }
+
+  static String getCurrency(String language) {
+    return _translations[language]?['riyal'] ?? 'AED';
+  }
 }

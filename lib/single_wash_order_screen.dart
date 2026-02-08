@@ -16,8 +16,11 @@ import 'utils/debug_helper.dart';
 import 'main_navigation_screen.dart';
 import 'services/config_service.dart';
 import 'services/cache_service.dart';
+import 'services/language_service.dart';
 import 'order_confirmation_screen.dart';
 import 'widgets/animated_loading_indicator.dart';
+import 'translations.dart';
+import 'utils/currency_helper.dart';
 
 class SingleWashOrderScreen extends StatefulWidget {
   final String token;
@@ -78,6 +81,9 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
   
   // Track expanded descriptions for each service
   Map<int, bool> expandedServices = {};
+  
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
 
   // Loading animation controller
   late AnimationController _loadingAnimationController;
@@ -88,6 +94,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
   void initState() {
     super.initState();
     print('🚀 SingleWashOrderScreen initState started');
+    _loadLanguage();
     
     // Initialize loading animation
     _loadingAnimationController = AnimationController(
@@ -110,6 +117,17 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
     );
     
     _initializeData();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
   }
 
   @override
@@ -953,13 +971,18 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                                 color: Colors.grey.shade800,
                               ),
                             ),
-                            Text(
-                              'AED ${totalPrice.toStringAsFixed(2)}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green.shade600,
-                              ),
+                            FutureBuilder<String>(
+                              future: CurrencyHelper.formatPrice(totalPrice),
+                              builder: (context, snapshot) {
+                                return Text(
+                                  snapshot.data ?? '${totalPrice.toStringAsFixed(2)} AED',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green.shade600,
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -2306,20 +2329,30 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                                       : Border.all(
                                           color: Colors.green.shade300),
                                 ),
-                                child: Text(
-                                  usePackage && isAvailableInPackage
-                                      ? remainingQuantity != null && remainingQuantity > 0
-                                          ? '$remainingQuantity remaining'
-                                          : 'Not available'
-                                      : '${price.toStringAsFixed(0)} AED',
-                                  style: GoogleFonts.poppins(
-                                    color: usePackage && isAvailableInPackage
-                                        ? Colors.white
-                                        : Colors.green.shade700,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12,
-                                  ),
-                                ),
+                                child: usePackage && isAvailableInPackage
+                                    ? Text(
+                                        remainingQuantity != null && remainingQuantity > 0
+                                            ? '$remainingQuantity remaining'
+                                            : 'Not available',
+                                        style: GoogleFonts.poppins(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12,
+                                        ),
+                                      )
+                                    : FutureBuilder<String>(
+                                        future: CurrencyHelper.formatPrice(price, decimals: 0),
+                                        builder: (context, snapshot) {
+                                          return Text(
+                                            snapshot.data ?? '${price.toStringAsFixed(0)} AED',
+                                            style: GoogleFonts.poppins(
+                                              color: Colors.green.shade700,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 12,
+                                            ),
+                                          );
+                                        },
+                                      ),
                               ),
                             ],
                           ),

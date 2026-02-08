@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../services/package_service.dart';
+import '../services/language_service.dart';
+import '../translations.dart';
 
 class ServiceItem extends StatelessWidget {
   final Map<String, dynamic> service;
@@ -99,32 +101,46 @@ class ServiceItem extends StatelessWidget {
   Widget _buildPriceOrPoints(
       int? remainingQuantity, double price, bool isAvailableInPackage) {
     if (usePackage && isAvailableInPackage) {
-      return Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingM,
-          vertical: AppTheme.spacingS,
-        ),
-        decoration: BoxDecoration(
-          color: AppTheme.primaryColor,
-          borderRadius: BorderRadius.circular(AppTheme.radiusM),
-        ),
-        child: Text(
-          remainingQuantity != null && remainingQuantity > 0
-              ? '$remainingQuantity remaining'
-              : 'Not available',
-          style: AppTheme.bodySmall.copyWith(
-            color: AppTheme.secondaryColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+      return FutureBuilder<String>(
+        future: LanguageService.getCurrentLanguage(),
+        builder: (context, snapshot) {
+          final lang = snapshot.data ?? 'en';
+          final remainingText = remainingQuantity != null && remainingQuantity > 0
+              ? (lang == 'ar' ? '$remainingQuantity متبقي' : '$remainingQuantity remaining')
+              : (lang == 'ar' ? 'غير متاح' : 'Not available');
+          return Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacingM,
+              vertical: AppTheme.spacingS,
+            ),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(AppTheme.radiusM),
+            ),
+            child: Text(
+              remainingText,
+              style: AppTheme.bodySmall.copyWith(
+                color: AppTheme.secondaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          );
+        },
       );
     } else {
-      return Text(
-        '${price.toStringAsFixed(2)} AED',
-        style: AppTheme.bodyLarge.copyWith(
-          color: AppTheme.primaryColor,
-          fontWeight: FontWeight.w600,
-        ),
+      return FutureBuilder<String>(
+        future: LanguageService.getCurrentLanguage(),
+        builder: (context, snapshot) {
+          final lang = snapshot.data ?? 'en';
+          final currency = AppTranslations.getCurrency(lang);
+          return Text(
+            '${price.toStringAsFixed(2)} $currency',
+            style: AppTheme.bodyLarge.copyWith(
+              color: AppTheme.primaryColor,
+              fontWeight: FontWeight.w600,
+            ),
+          );
+        },
       );
     }
   }
