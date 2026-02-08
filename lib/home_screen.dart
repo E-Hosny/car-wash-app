@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
 import 'single_wash_order_screen.dart';
 import 'multi_car_order_screen.dart';
 import 'translations.dart';
@@ -17,11 +18,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String _currentLanguage = 'en';
   bool _isRTL = false;
+  late StreamSubscription _languageSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadLanguage();
+    // Listen for language changes
+    _languageSubscription = LanguageService.languageStream.listen((languageCode) async {
+      await _loadLanguage(); // Update local language state
+    });
+  }
+
+  @override
+  void dispose() {
+    _languageSubscription.cancel(); // Cancel subscription
+    super.dispose();
   }
 
   Future<void> _loadLanguage() async {
@@ -31,17 +43,6 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _currentLanguage = lang;
         _isRTL = isRTL;
-      });
-    }
-  }
-
-  Future<void> _toggleLanguage() async {
-    final newLang = _currentLanguage == 'ar' ? 'en' : 'ar';
-    await LanguageService.setCurrentLanguage(newLang);
-    if (mounted) {
-      setState(() {
-        _currentLanguage = newLang;
-        _isRTL = newLang == 'ar';
       });
     }
   }
@@ -89,21 +90,6 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Language Switcher Button
-                Align(
-                  alignment: _isRTL ? Alignment.topLeft : Alignment.topRight,
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.language,
-                      color: Colors.grey[700],
-                      size: 28,
-                    ),
-                    tooltip: _t('language'),
-                    onPressed: _toggleLanguage,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                
                 // Welcome Section
                 Container(
                   width: double.infinity,

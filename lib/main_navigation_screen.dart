@@ -401,7 +401,38 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 ),
               ),
             ]
-            else
+            else ...[
+              // Language Toggle Button
+              IconButton(
+                icon: Icon(
+                  Icons.language,
+                  color: Colors.grey[700],
+                  size: 24,
+                ),
+                tooltip: _t('language'),
+                onPressed: () async {
+                  final newLang = _currentLanguage == 'ar' ? 'en' : 'ar';
+                  await LanguageService.setCurrentLanguage(newLang);
+                  
+                  // Invalidate services cache to force reload with new language
+                  final cacheService = CacheService();
+                  if (widget.token != null && widget.token!.isNotEmpty) {
+                    cacheService.invalidateServices(widget.token!);
+                  }
+                  
+                  if (mounted) {
+                    setState(() {
+                      _currentLanguage = newLang;
+                      _isRTL = newLang == 'ar';
+                    });
+                    
+                    // Force rebuild of screens to reload services with new language
+                    _buildScreens();
+                    setState(() {}); // Trigger rebuild
+                  }
+                },
+              ),
+              // Logout Button
               IconButton(
                 icon: const Icon(Icons.logout),
                 tooltip: _t('logout'),
@@ -424,6 +455,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 );
               },
             ),
+            ],
         ],
       ),
       body: IndexedStack(
