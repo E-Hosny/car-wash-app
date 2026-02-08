@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'language_service.dart';
 
 class PackageService {
   static final String? _baseUrl = dotenv.env['BASE_URL'];
@@ -12,11 +13,15 @@ class PackageService {
         throw Exception('BASE_URL not configured');
       }
 
+      // Get current language
+      final currentLanguage = await LanguageService.getCurrentLanguage();
+      
       final response = await http.get(
         Uri.parse('$_baseUrl/api/packages'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
+          'Accept-Language': currentLanguage,
         },
       );
 
@@ -57,11 +62,15 @@ class PackageService {
         throw Exception('BASE_URL not configured');
       }
 
+      // Get current language
+      final currentLanguage = await LanguageService.getCurrentLanguage();
+      
       final response = await http.get(
         Uri.parse('$_baseUrl/api/packages/my/current'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
+          'Accept-Language': currentLanguage,
         },
       );
 
@@ -97,11 +106,15 @@ class PackageService {
         throw Exception('BASE_URL not configured');
       }
 
+      // Get current language
+      final currentLanguage = await LanguageService.getCurrentLanguage();
+      
       final response = await http.get(
         Uri.parse('$_baseUrl/api/packages/my/services'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
+          'Accept-Language': currentLanguage,
         },
       );
 

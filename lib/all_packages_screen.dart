@@ -7,6 +7,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'payment_screen.dart';
 import 'login_screen.dart';
 import 'single_wash_order_screen.dart';
+import 'services/language_service.dart';
+import 'translations.dart';
+import 'utils/currency_helper.dart';
 
 class AllPackagesScreen extends StatefulWidget {
   final String? token; // Made nullable for guest mode
@@ -25,12 +28,55 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
   bool canUpgrade = false;
   bool isLoading = true;
   String? error;
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
 
   @override
   void initState() {
     super.initState();
+    _loadLanguage();
     fetchPackages();
     fetchUserPackage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  TextStyle _getArabicTextStyle({
+    double fontSize = 16,
+    FontWeight fontWeight = FontWeight.normal,
+    Color? color,
+    double? height,
+    double? letterSpacing,
+  }) {
+    if (_currentLanguage == 'ar') {
+      return GoogleFonts.cairo(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        height: height,
+      );
+    } else {
+      return GoogleFonts.poppins(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        height: height,
+        letterSpacing: letterSpacing,
+      );
+    }
   }
 
   Future<void> fetchPackages() async {
@@ -45,9 +91,17 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
         return;
       }
 
+      // Get current language
+      final currentLanguage = await LanguageService.getCurrentLanguage();
+      
       final headers = widget.isGuest
-          ? <String, String>{}
-          : {'Authorization': 'Bearer ${widget.token}'};
+          ? <String, String>{
+              'Accept-Language': currentLanguage,
+            }
+          : {
+              'Authorization': 'Bearer ${widget.token}',
+              'Accept-Language': currentLanguage,
+            };
 
       final res = await http.get(
         Uri.parse('$baseUrl/api/packages'),
@@ -98,11 +152,15 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
       final baseUrl = dotenv.env['BASE_URL'];
       if (baseUrl == null || baseUrl.isEmpty) return;
 
+      // Get current language
+      final currentLanguage = await LanguageService.getCurrentLanguage();
+      
       final response = await http.get(
         Uri.parse('$baseUrl/api/packages/my/current'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${widget.token}',
+          'Accept-Language': currentLanguage,
         },
       );
 
@@ -123,83 +181,84 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(
-          'Available Packages',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        error!,
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
+        appBar: AppBar(
+          title: Text(
+            _t('available_packages'),
+            style: _getArabicTextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          centerTitle: true,
+        ),
+        body: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.grey.shade400,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: fetchPackages,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade600,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                        const SizedBox(height: 16),
+                        Text(
+                          error!,
+                          style: _getArabicTextStyle(
+                            fontSize: 16,
+                            color: Colors.grey.shade600,
                           ),
+                          textAlign: TextAlign.center,
                         ),
-                        child: Text(
-                          'Retry',
-                          style:
-                              GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : packages.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.card_giftcard_outlined,
-                            size: 64,
-                            color: Colors.grey.shade400,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No packages available',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              color: Colors.grey.shade600,
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: fetchPackages,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue.shade600,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            textAlign: TextAlign.center,
                           ),
-                        ],
-                      ),
-                    )
+                          child: Text(
+                            _t('retry'),
+                            style: _getArabicTextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : packages.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.card_giftcard_outlined,
+                              size: 64,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _t('no_packages_available'),
+                              style: _getArabicTextStyle(
+                                fontSize: 16,
+                                color: Colors.grey.shade600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      )
                   : CustomScrollView(
                       slivers: [
                         // Packages List
@@ -227,6 +286,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                           ),
                       ],
                     ),
+      ),
     );
   }
 
@@ -295,17 +355,17 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                               const SizedBox(height: 0),
                               Align(
                                 alignment: Alignment.centerLeft,
-                                child: TextButton.icon(
-                                  onPressed: () => _showPackageDetailsDialog(package),
-                                  icon: Icon(Icons.info_outline, size: 14, color: Colors.blue.shade600),
-                                  label: Text(
-                                    'See Details',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 11,
-                                      color: Colors.blue.shade600,
-                                      fontWeight: FontWeight.w600,
+                                  child: TextButton.icon(
+                                    onPressed: () => _showPackageDetailsDialog(package),
+                                    icon: Icon(Icons.info_outline, size: 14, color: Colors.blue.shade600),
+                                    label: Text(
+                                      _t('see_details'),
+                                      style: _getArabicTextStyle(
+                                        fontSize: 11,
+                                        color: Colors.blue.shade600,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                  ),
                                   style: TextButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
                                     minimumSize: const Size(0, 20),
@@ -339,18 +399,23 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: 4),
-                                Text(
-                                  '${package['price']} AED',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black,
-                                  ),
+                                FutureBuilder<String>(
+                                  future: CurrencyHelper.formatPrice(double.tryParse(package['price'].toString()) ?? 0.0, decimals: 0),
+                                  builder: (context, snapshot) {
+                                    return Text(
+                                      snapshot.data ?? '${package['price']} ${_t('riyal')}',
+                                      style: _getArabicTextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    );
+                                  },
                                 ),
                                 const SizedBox(height: 0),
                                 Text(
-                                  'Valid for 1 month',
-                                  style: GoogleFonts.poppins(
+                                  _t('valid_for_1_month'),
+                                  style: _getArabicTextStyle(
                                     fontSize: 11,
                                     color: Colors.grey.shade600,
                                   ),
@@ -394,8 +459,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                                         const SizedBox(width: 6),
                                         Flexible(
                                           child: Text(
-                                            'Your Package',
-                                            style: GoogleFonts.poppins(
+                                            _t('your_package'),
+                                            style: _getArabicTextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w600,
                                               letterSpacing: 1.1,
@@ -416,8 +481,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                                             const SizedBox(width: 6),
                                             Flexible(
                                               child: Text(
-                                                'Upgrade',
-                                                style: GoogleFonts.poppins(
+                                                _t('upgrade'),
+                                                style: _getArabicTextStyle(
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w600,
                                                   letterSpacing: 1.1,
@@ -429,8 +494,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                                           ],
                                         )
                                       : Text(
-                                          'Buy',
-                                          style: GoogleFonts.poppins(
+                                          _t('buy'),
+                                          style: _getArabicTextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                             letterSpacing: 1.1,
@@ -472,8 +537,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
-                        'Current Package',
-                        style: GoogleFonts.poppins(
+                        _t('current_package'),
+                        style: _getArabicTextStyle(
                           color: Colors.white,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
@@ -498,8 +563,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
         title: Text(
-          'Purchase Package',
-          style: GoogleFonts.poppins(
+          _t('purchase_package'),
+          style: _getArabicTextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.black,
           ),
@@ -581,23 +646,28 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Price',
-                    style: GoogleFonts.poppins(
+                    _t('price'),
+                    style: _getArabicTextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade600,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Flexible(
-                    child: Text(
-                      '${package['price']} AED',
-                      style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
+                    child: FutureBuilder<String>(
+                      future: CurrencyHelper.formatPrice(double.tryParse(package['price'].toString()) ?? 0.0, decimals: 0),
+                      builder: (context, snapshot) {
+                        return Text(
+                          snapshot.data ?? '${package['price']} ${_t('riyal')}',
+                          style: _getArabicTextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -608,8 +678,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                 const Divider(),
                 const SizedBox(height: 8),
                 Text(
-                  'Services Included:',
-                  style: GoogleFonts.poppins(
+                  _t('services_included'),
+                  style: _getArabicTextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.black,
@@ -645,8 +715,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(color: Colors.grey.shade600),
+              _t('cancel'),
+              style: _getArabicTextStyle(color: Colors.grey.shade600),
             ),
           ),
           ElevatedButton(
@@ -663,8 +733,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
               elevation: 0,
             ),
             child: Text(
-              'Buy Now',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              _t('buy_now'),
+              style: _getArabicTextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -677,18 +747,17 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Login Required'),
-          content: const Text(
-              'You need to login to purchase packages. Would you like to login now?'),
+          title: Text(_t('login_required')),
+          content: Text(_t('login_required_message')),
           actions: [
             TextButton(
-              child: const Text('Cancel'),
+              child: Text(_t('cancel')),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: const Text('Login'),
+              child: Text(_t('login')),
               onPressed: () {
                 Navigator.of(context).pop();
                 Navigator.pushReplacement(
@@ -861,8 +930,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Current Package Services',
-                        style: GoogleFonts.poppins(
+                        _t('current_package_services'),
+                        style: _getArabicTextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -897,8 +966,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Expiration Date',
-                                style: GoogleFonts.poppins(
+                                _t('expiration_date'),
+                                style: _getArabicTextStyle(
                                   fontSize: 12,
                                   color: Colors.white.withOpacity(0.9),
                                   fontWeight: FontWeight.w500,
@@ -930,9 +999,9 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                                       ),
                                       child: Text(
                                         daysRemaining > 0
-                                            ? '$daysRemaining ${daysRemaining == 1 ? 'day' : 'days'} left'
-                                            : 'Expired',
-                                        style: GoogleFonts.poppins(
+                                            ? '$daysRemaining ${daysRemaining == 1 ? _t('day_left') : _t('days_left')}'
+                                            : _t('expired'),
+                                        style: _getArabicTextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.bold,
                                           color: Colors.white,
@@ -1053,9 +1122,9 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                   const SizedBox(height: 4),
                   Text(
                     isAvailable
-                        ? '$remaining remaining out of $total'
-                        : 'Quantity exhausted',
-                    style: GoogleFonts.poppins(
+                        ? '$remaining ${_t('remaining_out_of')} $total'
+                        : _t('quantity_exhausted'),
+                    style: _getArabicTextStyle(
                       fontSize: 12,
                       color: isAvailable ? Colors.green.shade700 : Colors.red.shade700,
                     ),
@@ -1069,8 +1138,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                         onPressed: () => _requestService(service),
                         icon: Icon(Icons.add_shopping_cart, size: 16),
                         label: Text(
-                          'Request Service',
-                          style: GoogleFonts.poppins(
+                          _t('request_service'),
+                          style: _getArabicTextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1103,8 +1172,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Please select a package to upgrade',
-                              style: GoogleFonts.poppins(),
+                              _t('please_select_package_to_upgrade'),
+                              style: _getArabicTextStyle(),
                             ),
                             backgroundColor: Colors.orange,
                           ),
@@ -1112,8 +1181,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                       },
                       icon: Icon(Icons.upgrade, size: 20),
                       label: Text(
-                        'Upgrade Package',
-                        style: GoogleFonts.poppins(
+                        _t('upgrade_package'),
+                        style: _getArabicTextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1237,11 +1306,19 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
   }
 
   String _formatExpirationDate(DateTime date) {
-    final months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+    if (_currentLanguage == 'ar') {
+      final months = [
+        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+      ];
+      return '${date.day} ${months[date.month - 1]} ${date.year}';
+    } else {
+      final months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return '${months[date.month - 1]} ${date.day}, ${date.year}';
+    }
   }
 
   // Check if package has description headers
@@ -1361,8 +1438,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        package['name'] ?? 'Package Details',
-                        style: GoogleFonts.poppins(
+                        package['name'] ?? _t('package_details'),
+                        style: _getArabicTextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.black,
@@ -1383,8 +1460,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                     ? Padding(
                         padding: const EdgeInsets.all(20),
                         child: Text(
-                          'No description available',
-                          style: GoogleFonts.poppins(
+                          _t('no_description_available'),
+                          style: _getArabicTextStyle(
                             fontSize: 14,
                             color: Colors.grey.shade600,
                           ),
@@ -1444,8 +1521,8 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'You already have this package',
-                              style: GoogleFonts.poppins(),
+                              _t('you_already_have_this_package'),
+                              style: _getArabicTextStyle(),
                             ),
                             backgroundColor: Colors.green,
                           ),
@@ -1468,11 +1545,11 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                     ),
                     child: Text(
                       isCurrentPackage && !canUpgrade
-                          ? 'Your Package'
+                          ? _t('your_package')
                           : isCurrentPackage && canUpgrade
-                              ? 'Upgrade'
-                              : 'Buy Now',
-                      style: GoogleFonts.poppins(
+                              ? _t('upgrade')
+                              : _t('buy_now'),
+                      style: _getArabicTextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
