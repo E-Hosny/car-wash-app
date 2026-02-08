@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logrocket_flutter/logrocket_flutter.dart';
@@ -8,6 +9,8 @@ import 'otp_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_screen.dart';
 import 'main_navigation_screen.dart'; // Added import for MainNavigationScreen
+import 'services/language_service.dart';
+import 'translations.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,6 +25,49 @@ class _LoginScreenState extends State<LoginScreen> {
   String? phoneError;
   String? generalError;
   bool isLoading = false;
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  TextStyle _getArabicTextStyle({
+    double fontSize = 16,
+    FontWeight fontWeight = FontWeight.normal,
+    Color? color,
+  }) {
+    if (_currentLanguage == 'ar') {
+      return GoogleFonts.cairo(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+    } else {
+      return GoogleFonts.poppins(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+    }
+  }
 
   String normalizePhone(String input) {
     String phone = input.replaceAll(RegExp(r'[^0-9]'), '');
@@ -83,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (rawPhone.isEmpty) {
       setState(() {
-        phoneError = 'Phone number is required';
+        phoneError = _t('phone_required');
         isLoading = false;
       });
       return;
@@ -91,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!isValidUAEPhone(rawPhone)) {
       setState(() {
-        phoneError = 'Please enter a valid UAE phone number (e.g., 5XXXXXXXX)';
+        phoneError = _t('invalid_phone');
         isLoading = false;
       });
       return;
@@ -154,19 +200,19 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         } else {
           setState(() {
-            generalError = 'Phone number is not registered';
+            generalError = _t('phone_not_registered');
             isLoading = false;
           });
         }
       } else {
         setState(() {
-          generalError = 'Connection error. Please try again.';
+          generalError = _t('connection_error');
           isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        generalError = 'Connection error. Please try again.';
+        generalError = _t('connection_error');
         isLoading = false;
       });
     }
@@ -257,7 +303,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login successful')),
+          SnackBar(content: Text(_t('login_successful'))),
         );
 
         // Navigate directly to main screen
@@ -269,13 +315,13 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } else {
         setState(() {
-          generalError = 'Login failed. Please try again.';
+          generalError = _t('login_failed');
           isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        generalError = 'Connection error. Please try again.';
+        generalError = _t('connection_error');
         isLoading = false;
       });
     }
@@ -283,52 +329,55 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                Image.asset('assets/logo.png', width: 250, height: 250),
-                const SizedBox(height: 30),
-                const Text(
-                  'Login',
-                  style: TextStyle(
-                    fontSize: 24,
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Enter your UAE phone number (e.g., 5XXXXXXXX)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black54,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 30),
-                TextField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    labelText: 'UAE Phone Number (+971)',
-                    hintText: '5XXXXXXXX',
-                    errorText: phoneError,
-                    filled: true,
-                    fillColor: Colors.grey[200],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Image.asset('assets/logo.png', width: 250, height: 250),
+                  const SizedBox(height: 30),
+                  Text(
+                    _t('login'),
+                    style: _getArabicTextStyle(
+                      fontSize: 24,
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
                     ),
-                    prefixIcon: const Icon(Icons.phone),
                   ),
-                ),
-                const SizedBox(height: 20),
-                if (generalError != null)
+                  const SizedBox(height: 10),
+                  Text(
+                    _t('enter_phone'),
+                    style: _getArabicTextStyle(
+                      fontSize: 16,
+                      color: Colors.black54,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 30),
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    textDirection: _isRTL ? TextDirection.ltr : TextDirection.ltr, // Keep phone numbers LTR
+                    decoration: InputDecoration(
+                      labelText: _t('uae_phone_number'),
+                      hintText: _t('phone_placeholder'),
+                      errorText: phoneError,
+                      filled: true,
+                      fillColor: Colors.grey[200],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      prefixIcon: const Icon(Icons.phone),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (generalError != null)
                   Column(
                     children: [
                       Padding(
@@ -339,7 +388,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      if (generalError == 'Phone number is not registered')
+                      if (generalError == _t('phone_not_registered'))
                         SizedBox(
                           width: double.infinity,
                           child: TextButton(
@@ -353,8 +402,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               );
                             },
-                            child: const Text('Register',
-                                style: TextStyle(color: Colors.blue)),
+                            child: Text(
+                              _t('register'),
+                              style: const TextStyle(color: Colors.blue),
+                            ),
                           ),
                         ),
                     ],
@@ -373,16 +424,22 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Send Verification Code'),
+                        : Text(
+                            _t('send_verification_code'),
+                            style: _getArabicTextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      "Don't have an account?",
-                      style: TextStyle(color: Colors.black54),
+                    Text(
+                      _t('dont_have_account'),
+                      style: _getArabicTextStyle(color: Colors.black54),
                     ),
                     TextButton(
                       onPressed: () {
@@ -395,9 +452,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       },
-                      child: const Text(
-                        "Register",
-                        style: TextStyle(
+                      child: Text(
+                        _t('register'),
+                        style: _getArabicTextStyle(
                           color: Colors.blue,
                           fontWeight: FontWeight.bold,
                         ),
@@ -428,9 +485,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      'Browse as Guest',
-                      style: TextStyle(
+                    child: Text(
+                      _t('browse_as_guest'),
+                      style: _getArabicTextStyle(
                         color: Colors.black54,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -442,6 +499,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

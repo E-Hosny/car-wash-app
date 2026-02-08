@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'login_screen.dart'; // تأكد إنه موجود بنفس المسار أو صحح المسار
 import 'main_navigation_screen.dart'; // Added import for MainNavigationScreen
+import 'services/language_service.dart';
+import 'translations.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String? initialPhone;
@@ -18,12 +21,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.initialPhone != null) {
       phoneController.text = widget.initialPhone!;
+    }
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  TextStyle _getArabicTextStyle({
+    double fontSize = 16,
+    FontWeight fontWeight = FontWeight.normal,
+    Color? color,
+  }) {
+    if (_currentLanguage == 'ar') {
+      return GoogleFonts.cairo(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+    } else {
+      return GoogleFonts.poppins(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
     }
   }
 
@@ -78,16 +119,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // Validate phone number
     if (phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Phone number is required')),
+        SnackBar(content: Text(_t('phone_required'))),
       );
       return;
     }
 
     if (!isValidUAEPhone(phoneController.text.trim())) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'Please enter a valid UAE phone number (e.g., 5XXXXXXXX)')),
+        SnackBar(content: Text(_t('invalid_phone'))),
       );
       return;
     }
@@ -136,137 +175,150 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                Image.asset('assets/logo.png', width: 250, height: 250),
-                const SizedBox(height: 30),
-                const Text(
-                  'Create a New Account',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Enter your UAE phone number (e.g., 5XXXXXXXX)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black54,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 30),
-                _buildTextField('Full Name', controller: nameController),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  style: const TextStyle(color: Colors.black),
-                  decoration: InputDecoration(
-                    labelText: 'UAE Phone Number (+971)',
-                    hintText: '5XXXXXXXX',
-                    filled: true,
-                    fillColor: Colors.grey[200],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Image.asset('assets/logo.png', width: 250, height: 250),
+                  const SizedBox(height: 30),
+                  Text(
+                    _t('create_account'),
+                    style: _getArabicTextStyle(
+                      color: Colors.black,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
                     ),
-                    prefixIcon: const Icon(Icons.phone),
                   ),
-                ),
-                const SizedBox(height: 15),
-                _buildTextField('Email Address', controller: emailController),
-                const SizedBox(height: 15),
-                _buildTextField('Password',
-                    controller: passwordController, obscure: true),
-                const SizedBox(height: 30),
-
-                // زر التسجيل
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: register,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
+                  const SizedBox(height: 10),
+                  Text(
+                    _t('enter_phone'),
+                    style: _getArabicTextStyle(
+                      fontSize: 16,
+                      color: Colors.black54,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 30),
+                  _buildTextField(_t('full_name'), controller: nameController),
+                  const SizedBox(height: 15),
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    textDirection: _isRTL ? TextDirection.ltr : TextDirection.ltr, // Keep phone numbers LTR
+                    style: const TextStyle(color: Colors.black),
+                    decoration: InputDecoration(
+                      labelText: _t('uae_phone_number'),
+                      hintText: _t('phone_placeholder'),
+                      filled: true,
+                      fillColor: Colors.grey[200],
+                      border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
+                      prefixIcon: const Icon(Icons.phone),
                     ),
-                    child: const Text('Register'),
                   ),
-                ),
+                  const SizedBox(height: 15),
+                  _buildTextField(_t('email_address'), controller: emailController),
+                  const SizedBox(height: 15),
+                  _buildTextField(_t('password'),
+                      controller: passwordController, obscure: true),
+                  const SizedBox(height: 30),
 
-                const SizedBox(height: 20),
-
-                // Browse as Guest button
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MainNavigationScreen(
-                            isGuest: true,
-                            initialIndex: 0, // Start with services tab
-                          ),
+                  // زر التسجيل
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: register,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.black54, width: 1),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                    child: const Text(
-                      'Browse as Guest',
-                      style: TextStyle(
-                        color: Colors.black54,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                      child: Text(
+                        _t('register'),
+                        style: _getArabicTextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // النص التحويلي لتسجيل الدخول
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      "Already have an account?",
-                      style: TextStyle(color: Colors.black),
-                    ),
-                    TextButton(
+                  // Browse as Guest button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton(
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const LoginScreen()),
+                            builder: (context) => const MainNavigationScreen(
+                              isGuest: true,
+                              initialIndex: 0, // Start with services tab
+                            ),
+                          ),
                         );
                       },
-                      child: const Text(
-                        "Login",
-                        style: TextStyle(color: Colors.blue),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.black54, width: 1),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        _t('browse_as_guest'),
+                        style: _getArabicTextStyle(
+                          color: Colors.black54,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // النص التحويلي لتسجيل الدخول
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _t('already_have_account'),
+                        style: _getArabicTextStyle(color: Colors.black),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const LoginScreen()),
+                          );
+                        },
+                        child: Text(
+                          _t('login'),
+                          style: _getArabicTextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -281,10 +333,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return TextField(
       controller: controller,
       obscureText: obscure,
+      textDirection: obscure || hint.contains('Password') || hint.contains('كلمة المرور')
+          ? (_isRTL ? TextDirection.rtl : TextDirection.ltr)
+          : (_isRTL && !hint.contains('Email') && !hint.contains('البريد') ? TextDirection.rtl : TextDirection.ltr),
       style: const TextStyle(color: Colors.black),
       decoration: InputDecoration(
         hintText: hintText ?? hint,
-        hintStyle: const TextStyle(color: Colors.black54),
+        hintStyle: TextStyle(
+          color: Colors.black54,
+          fontFamily: _currentLanguage == 'ar' ? 'Cairo' : 'Poppins',
+        ),
         filled: true,
         fillColor: Colors.grey[200],
         border: OutlineInputBorder(

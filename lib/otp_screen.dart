@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logrocket_flutter/logrocket_flutter.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'main_navigation_screen.dart';
+import 'services/language_service.dart';
+import 'translations.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -23,6 +26,49 @@ class _OtpScreenState extends State<OtpScreen> {
 
   String? errorMessage;
   bool isLoading = false;
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  TextStyle _getArabicTextStyle({
+    double fontSize = 16,
+    FontWeight fontWeight = FontWeight.normal,
+    Color? color,
+  }) {
+    if (_currentLanguage == 'ar') {
+      return GoogleFonts.cairo(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+    } else {
+      return GoogleFonts.poppins(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -106,7 +152,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
     if (enteredOtp.length != 4) {
       setState(() {
-        errorMessage = 'Please enter the 4-digit verification code';
+        errorMessage = _t('please_enter_code');
         isLoading = false;
       });
       return;
@@ -119,7 +165,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
       if (storedOtp == null) {
         setState(() {
-          errorMessage = 'Invalid verification code, please try again';
+          errorMessage = _t('invalid_code');
           isLoading = false;
         });
         return;
@@ -139,13 +185,13 @@ class _OtpScreenState extends State<OtpScreen> {
         await _completeLogin();
       } else {
         setState(() {
-          errorMessage = 'Incorrect verification code';
+          errorMessage = _t('incorrect_code');
           isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        errorMessage = 'An error occurred while verifying the code';
+        errorMessage = _t('error_verifying');
         isLoading = false;
       });
     }
@@ -237,7 +283,7 @@ class _OtpScreenState extends State<OtpScreen> {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login successful')),
+          SnackBar(content: Text(_t('login_successful'))),
         );
 
         Navigator.pushReplacement(
@@ -249,13 +295,13 @@ class _OtpScreenState extends State<OtpScreen> {
       } else {
         final error = jsonDecode(response.body);
         setState(() {
-          errorMessage = error['message'] ?? 'Login failed';
+          errorMessage = error['message'] ?? _t('login_failed');
           isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        errorMessage = 'Connection error';
+        errorMessage = _t('connection_error');
         isLoading = false;
       });
     }
@@ -293,11 +339,11 @@ class _OtpScreenState extends State<OtpScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Verification code resent')),
+        SnackBar(content: Text(_t('code_resent'))),
       );
     } catch (e) {
       setState(() {
-        errorMessage = 'Failed to resend verification code';
+        errorMessage = _t('failed_to_resend');
         isLoading = false;
       });
     }
@@ -305,124 +351,140 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text(
-          'Verification Code',
-          style: TextStyle(color: Colors.black),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.black),
+          title: Text(
+            _t('verification_code'),
+            style: _getArabicTextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.verified_user_outlined,
-                  size: 80,
-                  color: Colors.black87,
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Enter the verification code',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.verified_user_outlined,
+                    size: 80,
                     color: Colors.black87,
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'A verification code was sent to ${widget.phoneNumber}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.black54,
+                  const SizedBox(height: 20),
+                  Text(
+                    _t('enter_verification_code'),
+                    style: _getArabicTextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 30),
+                  const SizedBox(height: 10),
+                  Text(
+                    '${_t('verification_code_sent')} ${widget.phoneNumber}',
+                    style: _getArabicTextStyle(
+                      fontSize: 16,
+                      color: Colors.black54,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 30),
 
-                // OTP Input Fields
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(4, (index) {
-                    return SizedBox(
-                      width: 60,
-                      child: TextField(
-                        controller: otpControllers[index],
-                        focusNode: focusNodes[index],
-                        keyboardType: TextInputType.number,
+                  // OTP Input Fields - Always LTR (Left to Right)
+                  Directionality(
+                    textDirection: TextDirection.ltr, // Force LTR for OTP fields
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(4, (index) {
+                        return SizedBox(
+                          width: 60,
+                          child: TextField(
+                            controller: otpControllers[index],
+                            focusNode: focusNodes[index],
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            textDirection: TextDirection.ltr, // Force LTR
+                            maxLength: 1,
+                            decoration: InputDecoration(
+                              counterText: '',
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    const BorderSide(color: Colors.black, width: 2),
+                              ),
+                            ),
+                            onChanged: (value) => _onOtpChanged(value, index),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  if (errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        errorMessage!,
+                        style: const TextStyle(color: Colors.red),
                         textAlign: TextAlign.center,
-                        maxLength: 1,
-                        decoration: InputDecoration(
-                          counterText: '',
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: Colors.black, width: 2),
-                          ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : _verifyOtp,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        onChanged: (value) => _onOtpChanged(value, index),
                       ),
-                    );
-                  }),
-                ),
+                      child: isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : Text(
+                              _t('verify'),
+                              style: _getArabicTextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                if (errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                  TextButton(
+                    onPressed: isLoading ? null : _resendOtp,
                     child: Text(
-                      errorMessage!,
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
+                      _t('resend_code'),
+                      style: _getArabicTextStyle(color: Colors.black54),
                     ),
                   ),
-
-                const SizedBox(height: 20),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: isLoading ? null : _verifyOtp,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Verify'),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                TextButton(
-                  onPressed: isLoading ? null : _resendOtp,
-                  child: const Text(
-                    'Resend Code',
-                    style: TextStyle(color: Colors.black54),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
