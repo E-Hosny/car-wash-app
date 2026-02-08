@@ -6,6 +6,7 @@ import 'package:logrocket_flutter/logrocket_flutter.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/force_update_messages.dart';
+import 'services/language_service.dart';
 import 'splash_screen.dart'; // أو login_screen.dart
 import 'screens/order_details_screen.dart';
 import 'screens/rate_app_screen.dart';
@@ -156,8 +157,30 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _isRTL = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _isRTL = isRTL;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -165,6 +188,12 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
+        builder: (context, child) {
+          return Directionality(
+            textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+            child: child!,
+          );
+        },
         home: UpgradeAlert(
           upgrader: Upgrader(
             // Country code for App Store/Play Store

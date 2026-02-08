@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'home_screen.dart';
 import 'my_orders_screen.dart';
 import 'all_packages_screen.dart';
@@ -8,7 +9,9 @@ import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'login_screen.dart';
 import 'services/config_service.dart';
 import 'services/data_preloader_service.dart';
+import 'services/language_service.dart';
 import 'screens/support_screen.dart';
+import 'translations.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final String? token; // Made nullable to support guest mode
@@ -37,6 +40,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   bool packagesEnabled = true;
   bool loadingConfig = true;
   List<Widget>? screens; // Store screens to prevent recreation
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
 
   @override
   void initState() {
@@ -48,7 +53,43 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         ScaffoldMessenger.of(context).clearSnackBars();
       }
     });
+    _loadLanguage();
     _loadConfig();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  TextStyle _getArabicTextStyle({
+    double fontSize = 16,
+    FontWeight fontWeight = FontWeight.normal,
+    Color? color,
+  }) {
+    if (_currentLanguage == 'ar') {
+      return GoogleFonts.cairo(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+    } else {
+      return GoogleFonts.poppins(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+    }
   }
 
   void _buildScreens() {
@@ -147,28 +188,45 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Login Required'),
-          content: const Text(
-              'You need to login to access this feature. Would you like to login now?'),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+        return Directionality(
+          textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+          child: AlertDialog(
+            title: Text(
+              _t('login_required'),
+              style: _getArabicTextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            TextButton(
-              child: const Text('Login'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              },
+            content: Text(
+              _t('login_required_message'),
+              style: _getArabicTextStyle(fontSize: 16),
             ),
-          ],
+            actions: [
+              TextButton(
+                child: Text(
+                  _t('cancel'),
+                  style: _getArabicTextStyle(),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: Text(
+                  _t('login'),
+                  style: _getArabicTextStyle(),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  );
+                },
+              ),
+            ],
+          ),
         );
       },
     );
@@ -192,12 +250,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   activeIcon: Icon(
                     Icons.design_services,
                   ),
-                  label: 'Services',
+                  label: _t('services'),
                 ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.card_giftcard_outlined),
-                  activeIcon: Icon(Icons.card_giftcard),
-                  label: 'Packages',
+                BottomNavigationBarItem(
+                  icon: const Icon(Icons.card_giftcard_outlined),
+                  activeIcon: const Icon(Icons.card_giftcard),
+                  label: _t('packages'),
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(
@@ -208,7 +266,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     Icons.receipt_long,
                     color: Colors.grey[400],
                   ),
-                  label: 'Orders',
+                  label: _t('orders'),
                 ),
               ]
             : [
@@ -219,7 +277,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   activeIcon: Icon(
                     Icons.design_services,
                   ),
-                  label: 'Services',
+                  label: _t('services'),
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(
@@ -230,7 +288,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     Icons.receipt_long,
                     color: Colors.grey[400],
                   ),
-                  label: 'Orders',
+                  label: _t('orders'),
                 ),
               ])
         : (packagesEnabled
@@ -242,17 +300,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   activeIcon: Icon(
                     Icons.home,
                   ),
-                  label: 'Home',
+                  label: _t('home'),
                 ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.card_giftcard_outlined),
-                  activeIcon: Icon(Icons.card_giftcard),
-                  label: 'Packages',
+                BottomNavigationBarItem(
+                  icon: const Icon(Icons.card_giftcard_outlined),
+                  activeIcon: const Icon(Icons.card_giftcard),
+                  label: _t('packages'),
                 ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.receipt_long_outlined),
-                  activeIcon: Icon(Icons.receipt_long),
-                  label: 'Orders',
+                BottomNavigationBarItem(
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  activeIcon: const Icon(Icons.receipt_long),
+                  label: _t('orders'),
                 ),
               ]
             : [
@@ -263,12 +321,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   activeIcon: Icon(
                     Icons.home,
                   ),
-                  label: 'Home',
+                  label: _t('home'),
                 ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.receipt_long_outlined),
-                  activeIcon: Icon(Icons.receipt_long),
-                  label: 'Orders',
+                BottomNavigationBarItem(
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  activeIcon: const Icon(Icons.receipt_long),
+                  label: _t('orders'),
                 ),
               ]);
 
@@ -277,38 +335,45 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       currentIndex = 0;
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: Colors.black),
-        centerTitle: true,
-        title: widget.isGuest
-            ? const Text(
-                'Browse Services',
-                style: TextStyle(color: Colors.black, fontSize: 18),
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 1,
+          iconTheme: const IconThemeData(color: Colors.black),
+          centerTitle: true,
+          title: widget.isGuest
+              ? Text(
+                  _t('browse_services'),
+                  style: _getArabicTextStyle(
+                    fontSize: 18,
+                    color: Colors.black,
+                  ),
+                )
+              : null,
+          actions: [
+            if (widget.isGuest)
+              TextButton(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  );
+                },
+                child: Text(
+                  _t('login'),
+                  style: _getArabicTextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               )
-            : null,
-        actions: [
-          if (widget.isGuest)
-            TextButton(
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              },
-              child: const Text(
-                'Login',
-                style:
-                    TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: 'Logout',
-              onPressed: () async {
+            else
+              IconButton(
+                icon: const Icon(Icons.logout),
+                tooltip: _t('logout'),
+                onPressed: () async {
                 // تسجيل الخروج من OneSignal
                 try {
                   await OneSignal.logout();
@@ -352,7 +417,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         },
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.grey[600],
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+        selectedLabelStyle: _getArabicTextStyle(fontWeight: FontWeight.bold),
         type: BottomNavigationBarType.fixed,
         elevation: 10,
         items: items,
@@ -369,68 +434,127 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         backgroundColor: Colors.green,
         child: const Icon(Icons.help, color: Colors.white),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButtonLocation: _isRTL 
+          ? FloatingActionButtonLocation.startFloat 
+          : FloatingActionButtonLocation.endFloat,
+      ),
     );
   }
 }
 
-class _LoginPromptScreen extends StatelessWidget {
+class _LoginPromptScreen extends StatefulWidget {
   const _LoginPromptScreen();
 
   @override
+  State<_LoginPromptScreen> createState() => _LoginPromptScreenState();
+}
+
+class _LoginPromptScreenState extends State<_LoginPromptScreen> {
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  TextStyle _getArabicTextStyle({
+    double fontSize = 16,
+    FontWeight fontWeight = FontWeight.normal,
+    Color? color,
+  }) {
+    if (_currentLanguage == 'ar') {
+      return GoogleFonts.cairo(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+    } else {
+      return GoogleFonts.poppins(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.login,
-              size: 80,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Login Required',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[700],
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.login,
+                size: 80,
+                color: Colors.grey[400],
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'You need to login to access this feature',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+              const SizedBox(height: 24),
+              Text(
+                _t('login_required'),
+                style: _getArabicTextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[700],
                 ),
               ),
-              child: const Text(
-                'Login Now',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              const SizedBox(height: 16),
+              Text(
+                _t('login_required_message'),
+                textAlign: TextAlign.center,
+                style: _getArabicTextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  _t('login_now'),
+                  style: _getArabicTextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

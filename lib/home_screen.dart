@@ -2,62 +2,141 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'single_wash_order_screen.dart';
 import 'multi_car_order_screen.dart';
+import 'translations.dart';
+import 'services/language_service.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final String token;
 
   const HomeScreen({super.key, required this.token});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
+  }
+
+  Future<void> _toggleLanguage() async {
+    final newLang = _currentLanguage == 'ar' ? 'en' : 'ar';
+    await LanguageService.setCurrentLanguage(newLang);
+    if (mounted) {
+      setState(() {
+        _currentLanguage = newLang;
+        _isRTL = newLang == 'ar';
+      });
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  TextStyle _getArabicTextStyle({
+    double fontSize = 16,
+    FontWeight fontWeight = FontWeight.normal,
+    Color? color,
+  }) {
+    if (_currentLanguage == 'ar') {
+      return GoogleFonts.cairo(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+    } else {
+      return GoogleFonts.poppins(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.white, Color(0xFFF5F5F7)],
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.white, Color(0xFFF5F5F7)],
+            ),
           ),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Welcome Section
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 40),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome to',
-                      style: GoogleFonts.poppins(
-                        fontSize: 24,
-                        color: Colors.grey[700],
-                      ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Language Switcher Button
+                Align(
+                  alignment: _isRTL ? Alignment.topLeft : Alignment.topRight,
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.language,
+                      color: Colors.grey[700],
+                      size: 28,
                     ),
-                    Text(
-                      'Luxuria Car Wash',
-                      style: GoogleFonts.poppins(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Choose your service type',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
+                    tooltip: _t('language'),
+                    onPressed: _toggleLanguage,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                
+                // Welcome Section
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _t('welcome_to'),
+                        style: _getArabicTextStyle(
+                          fontSize: 24,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      Text(
+                        _t('luxuria_car_wash'),
+                        style: _getArabicTextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _t('choose_service_type'),
+                        style: _getArabicTextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               // Banner Image
               Container(
@@ -109,8 +188,8 @@ class HomeScreen extends StatelessWidget {
                   // Single Car Wash Card
                   _buildServiceCard(
                     context: context,
-                    title: 'Single Car Wash',
-                    subtitle: 'Quick and easy wash for one car',
+                    title: _t('single_car_wash'),
+                    subtitle: _t('single_car_wash_subtitle'),
                     icon: Icons.local_car_wash,
                     gradient: const LinearGradient(
                       colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
@@ -122,7 +201,7 @@ class HomeScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
-                              SingleWashOrderScreen(token: token),
+                              SingleWashOrderScreen(token: widget.token),
                         ),
                       );
                     },
@@ -133,8 +212,8 @@ class HomeScreen extends StatelessWidget {
                   // Multi-Car Order Card
                   _buildServiceCard(
                     context: context,
-                    title: 'Multi-Car Order',
-                    subtitle: 'Wash multiple cars with different services',
+                    title: _t('multi_car_order'),
+                    subtitle: _t('multi_car_order_subtitle'),
                     icon: Icons.directions_car,
                     gradient: const LinearGradient(
                       colors: [Color(0xFF1565C0), Color(0xFF2196F3)],
@@ -146,7 +225,7 @@ class HomeScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
-                              MultiCarOrderScreen(token: token),
+                              MultiCarOrderScreen(token: widget.token),
                         ),
                       );
                     },
@@ -161,6 +240,7 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -191,6 +271,7 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
         child: Row(
+          textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
           children: [
             Container(
               padding: const EdgeInsets.all(16),
@@ -211,7 +292,7 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.poppins(
+                    style: _getArabicTextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -220,7 +301,7 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: GoogleFonts.poppins(
+                    style: _getArabicTextStyle(
                       fontSize: 14,
                       color: Colors.white.withOpacity(0.9),
                     ),
@@ -229,7 +310,7 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             Icon(
-              Icons.arrow_forward_ios,
+              _isRTL ? Icons.arrow_back_ios : Icons.arrow_forward_ios,
               color: Colors.white.withOpacity(0.8),
               size: 20,
             ),
@@ -244,8 +325,8 @@ class HomeScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'How It Works',
-          style: GoogleFonts.poppins(
+          _t('how_it_works'),
+          style: _getArabicTextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
             color: Colors.black,
@@ -254,26 +335,26 @@ class HomeScreen extends StatelessWidget {
         const SizedBox(height: 20),
         _buildStep(
           number: '1',
-          title: 'Choose Service',
-          description: 'Select single car wash or multi-car order',
+          title: _t('step_1_title'),
+          description: _t('step_1_description'),
           icon: Icons.touch_app,
         ),
         _buildStep(
           number: '2',
-          title: 'Select Services',
-          description: 'Pick the services you want for your car(s)',
+          title: _t('step_2_title'),
+          description: _t('step_2_description'),
           icon: Icons.checklist,
         ),
         _buildStep(
           number: '3',
-          title: 'Confirm & Pay',
-          description: 'Review your order and complete payment',
+          title: _t('step_3_title'),
+          description: _t('step_3_description'),
           icon: Icons.payment,
         ),
         _buildStep(
           number: '4',
-          title: 'We Come to You',
-          description: 'Our team arrives at your location',
+          title: _t('step_4_title'),
+          description: _t('step_4_description'),
           icon: Icons.location_on,
           isLast: true,
         ),
@@ -291,6 +372,7 @@ class HomeScreen extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Row(
+        textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Column(
@@ -305,7 +387,7 @@ class HomeScreen extends StatelessWidget {
                 child: Center(
                   child: Text(
                     number,
-                    style: GoogleFonts.poppins(
+                    style: _getArabicTextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -338,6 +420,7 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
               child: Row(
+                textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
                 children: [
                   Icon(
                     icon,
@@ -351,7 +434,7 @@ class HomeScreen extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: GoogleFonts.poppins(
+                          style: _getArabicTextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Colors.black,
@@ -360,7 +443,7 @@ class HomeScreen extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           description,
-                          style: GoogleFonts.poppins(
+                          style: _getArabicTextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
                           ),
