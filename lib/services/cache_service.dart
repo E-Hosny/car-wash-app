@@ -94,7 +94,7 @@ class CacheService {
   }
 
   /// Get orders from cache only (no API call) - checks TTL
-  List<dynamic>? getCachedOrders(String token) {
+  List<dynamic>? getCachedOrders(String token, {String? language}) {
     final cacheKey = '${_ordersKey}_$token';
     if (_isValid(cacheKey, _ordersTTL)) {
       return List<dynamic>.from(_cache[cacheKey]!.data);
@@ -436,6 +436,7 @@ class CacheService {
   }
 
   /// Get orders from cache or API
+  /// API returns services with both name and name_ar - app displays based on current language
   Future<List<dynamic>> getOrders(String token) async {
     final cacheKey = '${_ordersKey}_$token';
     
@@ -488,8 +489,7 @@ class CacheService {
 
   /// Invalidate orders cache (call after creating/updating an order)
   void invalidateOrders(String token) {
-    final cacheKey = '${_ordersKey}_$token';
-    _cache.remove(cacheKey);
+    _cache.remove('${_ordersKey}_$token');
     print('🗑️ Orders cache invalidated');
   }
 

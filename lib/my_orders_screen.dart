@@ -96,6 +96,15 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     return AppTranslations.getTextWithFallback(key, _currentLanguage);
   }
 
+  String _getStatusText(String? status) {
+    if (status == null) return '';
+    final s = status.toString().toLowerCase();
+    if (s == 'pending') return _t('status_pending');
+    if (s == 'completed') return _t('status_completed');
+    if (s == 'cancelled') return _t('status_cancelled');
+    return status;
+  }
+
   @override
   void dispose() {
     _languageSubscription.cancel();
@@ -208,7 +217,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    errorMessage ?? 'Failed to load orders. Please try again.',
+                    errorMessage ?? _t('failed_to_load_orders'),
                     style: TextStyle(fontSize: 14),
                   ),
                 ),
@@ -218,7 +227,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             duration: Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
             action: SnackBarAction(
-              label: 'Retry',
+              label: _t('retry'),
               textColor: Colors.white,
               onPressed: () {
                 retryCount = 0;
@@ -286,11 +295,22 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       final servicesList = services;
       if (servicesList.isEmpty) return 'No services';
 
+      final useArabic = _currentLanguage == 'ar';
+
       final serviceNames = servicesList
           .map((s) {
-            // Handle both old format (object with name) and new format (direct string)
-            if (s is Map && s['name'] != null) {
-              return s['name'].toString();
+            // Handle both old format (object with name/name_ar) and new format (direct string from API)
+            if (s is Map) {
+              // Prefer name_ar when Arabic and available
+              if (useArabic &&
+                  s['name_ar'] != null &&
+                  s['name_ar'].toString().trim().isNotEmpty) {
+                return s['name_ar'].toString().trim();
+              }
+              if (s['name'] != null) {
+                return s['name'].toString();
+              }
+              return 'Unknown Service';
             } else if (s is String) {
               return s;
             } else {
@@ -331,8 +351,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
       final bool isMultiCar = order['is_multi_car'] ?? false;
       final car = order['car'];
-      final services = order['services'] ?? [];
       final allCars = order['all_cars'] ?? [];
+      // Use all_cars[0]['services'] when available (API returns translated names); fallback to order['services'] for old format
+      final services = (allCars.isNotEmpty && allCars[0]['services'] != null)
+          ? allCars[0]['services']
+          : (order['services'] ?? []);
 
       return Container(
         margin: const EdgeInsets.only(bottom: 16),
@@ -362,7 +385,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       children: [
                         Flexible(
                           child: Text(
-                            'Order #${order['id']} - ${order['status']}',
+                            '${_t('order_label')} #${order['id']} - ${_getStatusText(order['status']?.toString())}',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 18,
@@ -382,7 +405,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              'Multi',
+                              _t('multi_car_badge'),
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.blue.shade800,
@@ -397,7 +420,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      '💰 ${order['total']} AED',
+                      '💰 ${order['total']} ${_t('riyal')}',
                       style: const TextStyle(
                         color: Colors.green,
                         fontWeight: FontWeight.bold,
@@ -418,7 +441,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      order['address'] ?? 'N/A',
+                      order['address'] ?? '-',
                       style: const TextStyle(fontSize: 15),
                     ),
                   ),
@@ -435,7 +458,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                         color: Colors.black54),
                     const SizedBox(width: 8),
                     Text(
-                      'Cars: ${order['cars_count'] ?? allCars.length} vehicles',
+                      '${_t('cars')}: ${order['cars_count'] ?? allCars.length} ${_t('cars_count_label')}',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.bold),
                     ),
@@ -456,7 +479,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Car: ${_getCarDisplayName(car)}',
+                        '${_t('car_label')}: ${_getCarDisplayName(car)}',
                         style: const TextStyle(fontSize: 15),
                       ),
                     ),
@@ -473,7 +496,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Services: ${_getServicesDisplayText(services)}',
+                        '${_t('services_label')}: ${_getServicesDisplayText(services)}',
                         style: const TextStyle(fontSize: 15),
                       ),
                     ),
@@ -516,7 +539,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Our service team will arrive at the scheduled time',
+                          _t('service_team_arrival'),
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.blue.shade900,
@@ -561,7 +584,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                             child: Row(
                               children: [
                                 Text(
-                                  'Rated: ',
+                                  _t('rated_label'),
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Colors.green.shade900,
@@ -606,7 +629,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                           }
                         },
                         icon: const Icon(Icons.star_rate),
-                        label: const Text('Rate this order'),
+                        label: Text(_t('rate_this_order')),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.amber,
                           foregroundColor: Colors.black,
@@ -635,7 +658,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '❌ Error displaying order #${index + 1}',
+                  '❌ ${_t('error_displaying_order')} #${index + 1}',
                   style: TextStyle(
                     color: Colors.red,
                     fontWeight: FontWeight.bold,
@@ -668,7 +691,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              'Failed to Load Orders',
+              _t('failed_to_load_orders_title'),
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -677,7 +700,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              errorMessage ?? 'An error occurred while loading your orders.',
+              errorMessage ?? _t('failed_to_load_orders'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
@@ -692,7 +715,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 fetchOrders();
               },
               icon: Icon(Icons.refresh),
-              label: Text('Retry'),
+              label: Text(_t('retry')),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 backgroundColor: Colors.blue,
@@ -723,12 +746,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '🚗 Car ${carIndex + 1}: ${_getCarDisplayName(carData)}',
+              '🚗 ${_t('car_label')} ${carIndex + 1}: ${_getCarDisplayName(carData)}',
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 4),
             Text(
-              '🔧 Services: ${_getServicesDisplayText(carServices)}',
+              '🔧 ${_t('services_label')}: ${_getServicesDisplayText(carServices)}',
               style: const TextStyle(fontSize: 13, color: Colors.black87),
             ),
           ],
@@ -743,8 +766,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.red.shade200),
         ),
-        child: Text(
-          '❌ Error displaying car ${carIndex + 1}',
+          child: Text(
+          '❌ ${_t('error_displaying_car')} ${carIndex + 1}',
           style: TextStyle(color: Colors.red, fontSize: 12),
         ),
       );
@@ -764,7 +787,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           ),
         ),
         child: isLoading
-            ? const AnimatedLoadingIndicator(message: 'Loading your orders...')
+            ? AnimatedLoadingIndicator(message: _t('loading_orders'))
             : errorMessage != null && orders.isEmpty
                 ? _buildErrorWidget()
                 : orders.isEmpty
@@ -779,7 +802,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                         ),
                         const SizedBox(height: 20),
                         Text(
-                          'No Orders Yet',
+                          _t('no_orders_yet'),
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -788,7 +811,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'You haven\'t placed any orders yet.\nStart by creating your first order!',
+                          _t('no_orders_message'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
@@ -832,7 +855,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Create New Order',
+                                  _t('create_new_order'),
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
