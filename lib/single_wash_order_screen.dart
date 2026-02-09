@@ -2351,8 +2351,8 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                                 child: usePackage && isAvailableInPackage
                                     ? Text(
                                         remainingQuantity != null && remainingQuantity > 0
-                                            ? '$remainingQuantity remaining'
-                                            : 'Not available',
+                                            ? '$remainingQuantity ${_t('remaining')}'
+                                            : _t('not_available'),
                                         style: GoogleFonts.poppins(
                                           color: Colors.white,
                                           fontWeight: FontWeight.w700,
