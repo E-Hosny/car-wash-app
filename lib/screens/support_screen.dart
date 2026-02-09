@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -5,6 +6,8 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/language_service.dart';
+import '../translations.dart';
 
 class SupportScreen extends StatefulWidget {
   final String? token;
@@ -22,11 +25,45 @@ class _SupportScreenState extends State<SupportScreen> {
   String? error;
   Map<int, bool> _isExpanded = {};
 
+  String _currentLanguage = 'en';
+  late StreamSubscription _languageSubscription;
+
   @override
   void initState() {
     super.initState();
+    _loadLanguage();
+    _languageSubscription = LanguageService.languageStream.listen((_) async {
+      await _loadLanguage();
+    });
     fetchContactInfo();
     fetchFAQs();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    if (mounted) {
+      setState(() => _currentLanguage = lang);
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  /// Format phone number: ensure + at start, correct for RTL display
+  String _formatPhoneForDisplay(dynamic value) {
+    if (value == null) return '';
+    String s = value.toString().trim();
+    s = s.replaceAll(' ', '').replaceAll('+', '');
+    s = s.replaceAll(RegExp(r'[^\d]'), '');
+    if (s.isEmpty) return value.toString();
+    return '\u200E+$s'; // LTR mark so + appears at start in RTL
+  }
+
+  @override
+  void dispose() {
+    _languageSubscription.cancel();
+    super.dispose();
   }
 
   Future<void> fetchContactInfo() async {
@@ -34,7 +71,7 @@ class _SupportScreenState extends State<SupportScreen> {
       final baseUrl = dotenv.env['BASE_URL'];
       if (baseUrl == null || baseUrl.isEmpty) {
         setState(() {
-          error = 'Configuration error: BASE_URL not found';
+          error = _t('configuration_error');
           isLoading = false;
         });
         return;
@@ -57,7 +94,7 @@ class _SupportScreenState extends State<SupportScreen> {
         }
       } else {
         setState(() {
-          error = 'Failed to load contact information';
+          error = _t('failed_to_load_contact');
           isLoading = false;
         });
       }
@@ -96,7 +133,7 @@ class _SupportScreenState extends State<SupportScreen> {
   }
 
   Future<void> _launchWhatsApp(String phoneNumber) async {
-    final message = 'Hello, I need help with the car wash app';
+    final message = _t('whatsapp_message');
     final url = 'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}';
     
     try {
@@ -108,7 +145,7 @@ class _SupportScreenState extends State<SupportScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Cannot open WhatsApp. Please make sure the app is installed',
+                _t('cannot_open_whatsapp'),
                 style: GoogleFonts.poppins(),
               ),
               backgroundColor: Colors.red,
@@ -143,7 +180,7 @@ class _SupportScreenState extends State<SupportScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Cannot open phone app',
+                _t('cannot_open_phone'),
                 style: GoogleFonts.poppins(),
               ),
               backgroundColor: Colors.red,
@@ -167,8 +204,8 @@ class _SupportScreenState extends State<SupportScreen> {
   }
 
   Future<void> _launchEmail(String email) async {
-    final subject = 'Support Request - Car Wash App';
-    final body = 'Hello,\n\nI need help regarding:\n\n';
+    final subject = _t('email_subject');
+    final body = _t('email_body');
     final url = 'mailto:$email?subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}';
     
     try {
@@ -183,7 +220,7 @@ class _SupportScreenState extends State<SupportScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Email app not available. Email address copied to clipboard: $email',
+                '${_t('email_not_available')} $email',
                 style: GoogleFonts.poppins(),
               ),
               backgroundColor: Colors.orange,
@@ -200,7 +237,7 @@ class _SupportScreenState extends State<SupportScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Could not open email app. Email address copied to clipboard: $email',
+                '${_t('email_copied')} $email',
                 style: GoogleFonts.poppins(),
               ),
               backgroundColor: Colors.orange,
@@ -213,7 +250,7 @@ class _SupportScreenState extends State<SupportScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Cannot open email app. Please contact: $email',
+                '${_t('contact_email')} $email',
                 style: GoogleFonts.poppins(),
               ),
               backgroundColor: Colors.red,
@@ -230,7 +267,7 @@ class _SupportScreenState extends State<SupportScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          'Support',
+          _t('support'),
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
             color: Colors.black,
@@ -280,7 +317,7 @@ class _SupportScreenState extends State<SupportScreen> {
                           ),
                         ),
                         child: Text(
-                          'Retry',
+                          _t('retry'),
                           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -295,7 +332,7 @@ class _SupportScreenState extends State<SupportScreen> {
                       // Contact Methods Section
                       if (contactInfo != null) ...[
                         Text(
-                          'Contact Methods',
+                          _t('contact_methods'),
                           style: GoogleFonts.poppins(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -307,8 +344,8 @@ class _SupportScreenState extends State<SupportScreen> {
                         if (contactInfo!['whatsapp'] != null)
                           _buildContactCard(
                             icon: Icons.chat,
-                            title: 'WhatsApp',
-                            subtitle: contactInfo!['whatsapp'],
+                            title: _t('whatsapp'),
+                            subtitle: _formatPhoneForDisplay(contactInfo!['whatsapp']),
                             color: Colors.green,
                             onTap: () {
                               final phone = contactInfo!['whatsapp']
@@ -323,8 +360,8 @@ class _SupportScreenState extends State<SupportScreen> {
                         if (contactInfo!['phone'] != null)
                           _buildContactCard(
                             icon: Icons.phone,
-                            title: 'Phone Call',
-                            subtitle: contactInfo!['phone'],
+                            title: _t('phone_call'),
+                            subtitle: _formatPhoneForDisplay(contactInfo!['phone']),
                             color: Colors.blue,
                             onTap: () {
                               final phone = contactInfo!['phone']
@@ -338,7 +375,7 @@ class _SupportScreenState extends State<SupportScreen> {
                         if (contactInfo!['support_email'] != null)
                           _buildContactCard(
                             icon: Icons.email,
-                            title: 'Email',
+                            title: _t('email'),
                             subtitle: contactInfo!['support_email'],
                             color: Colors.orange,
                             onTap: () => _launchEmail(contactInfo!['support_email']),
@@ -348,7 +385,7 @@ class _SupportScreenState extends State<SupportScreen> {
                       // FAQ Section
                       if (faqs.isNotEmpty) ...[
                         Text(
-                          'Frequently Asked Questions',
+                          _t('frequently_asked_questions'),
                           style: GoogleFonts.poppins(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -430,6 +467,12 @@ class _SupportScreenState extends State<SupportScreen> {
   }
 
   Widget _buildFAQCard(Map<String, dynamic> faq) {
+    final question = _currentLanguage == 'ar' && faq['question_ar'] != null
+        ? faq['question_ar']
+        : (faq['question'] ?? '');
+    final answer = _currentLanguage == 'ar' && faq['answer_ar'] != null
+        ? faq['answer_ar']
+        : (faq['answer'] ?? '');
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -446,7 +489,7 @@ class _SupportScreenState extends State<SupportScreen> {
       ),
       child: ExpansionTile(
         title: Text(
-          faq['question'] ?? '',
+          question,
           style: GoogleFonts.poppins(
             fontSize: 15,
             fontWeight: FontWeight.w600,
@@ -461,7 +504,7 @@ class _SupportScreenState extends State<SupportScreen> {
         },
         children: [
           Text(
-            faq['answer'] ?? '',
+            answer,
             style: GoogleFonts.poppins(
               fontSize: 14,
               color: Colors.grey.shade700,
