@@ -891,7 +891,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content:
-                  Text('Payment successful! Your order is being processed.'),
+                  Text(_t('payment_success_snackbar')),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 5),
             ),
@@ -1410,7 +1410,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 Icon(Icons.celebration, color: Colors.green, size: 64),
                 const SizedBox(height: 16),
                 Text(
-                  'Thank You!',
+                  _t('thank_you'),
                   style: GoogleFonts.poppins(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -1419,7 +1419,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Your payment was successful.\nYour order is being processed.',
+                  _t('payment_success_message'),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey),
                 ),

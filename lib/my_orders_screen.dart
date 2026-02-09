@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'main_navigation_screen.dart';
 import 'services/cache_service.dart';
+import 'services/language_service.dart';
+import 'translations.dart';
 import 'widgets/animated_loading_indicator.dart';
 import 'screens/rate_app_screen.dart';
 
@@ -31,9 +34,16 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   static const int maxRetries = 3;
   Map<int, Map<String, dynamic>> orderRatings = {}; // Store rating info for each order
 
+  String _currentLanguage = 'en';
+  late StreamSubscription _languageSubscription;
+
   @override
   void initState() {
     super.initState();
+    _loadLanguage();
+    _languageSubscription = LanguageService.languageStream.listen((_) async {
+      await _loadLanguage();
+    });
     // Clear any existing snackbars when entering orders screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -49,7 +59,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     children: [
                       Icon(Icons.check_circle, color: Colors.white),
                       SizedBox(width: 8),
-                      Text('Payment successful! Your order is being processed.'),
+                      Text(_t('payment_success_snackbar')),
                     ],
                   ),
                   backgroundColor: Colors.green,
@@ -73,6 +83,23 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     } else {
       _loadOrders();
     }
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    if (mounted) {
+      setState(() => _currentLanguage = lang);
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  @override
+  void dispose() {
+    _languageSubscription.cancel();
+    super.dispose();
   }
 
   Future<void> _loadOrders() async {
