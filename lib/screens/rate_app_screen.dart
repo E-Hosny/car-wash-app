@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../services/language_service.dart';
+import '../translations.dart';
 
 class RateAppScreen extends StatefulWidget {
   final String token;
@@ -22,8 +25,32 @@ class _RateAppScreenState extends State<RateAppScreen> {
   final TextEditingController commentController = TextEditingController();
   bool isLoading = false;
 
+  String _currentLanguage = 'en';
+  late StreamSubscription _languageSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+    _languageSubscription = LanguageService.languageStream.listen((_) async {
+      await _loadLanguage();
+    });
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    if (mounted) {
+      setState(() => _currentLanguage = lang);
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
   @override
   void dispose() {
+    _languageSubscription.cancel();
     commentController.dispose();
     super.dispose();
   }
@@ -32,8 +59,8 @@ class _RateAppScreenState extends State<RateAppScreen> {
     // Validation
     if (selectedRating == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a rating'),
+        SnackBar(
+          content: Text(_t('please_select_rating')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -42,8 +69,8 @@ class _RateAppScreenState extends State<RateAppScreen> {
 
     if (commentController.text.trim().length > 1000) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Comment must be 1000 characters or less'),
+        SnackBar(
+          content: Text(_t('comment_max_length')),
           backgroundColor: Colors.red,
         ),
       );
@@ -85,13 +112,13 @@ class _RateAppScreenState extends State<RateAppScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             content: Row(
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 8),
-                Text('Rating submitted successfully'),
+                Text(_t('rating_submitted')),
               ],
             ),
             backgroundColor: Colors.green,
@@ -132,7 +159,7 @@ class _RateAppScreenState extends State<RateAppScreen> {
               const Icon(Icons.error_outline, color: Colors.white),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('Connection error. Please try again.'),
+                child: Text(_t('connection_error_retry')),
               ),
             ],
           ),
@@ -154,8 +181,8 @@ class _RateAppScreenState extends State<RateAppScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.orderId != null 
-            ? 'Rate Order #${widget.orderId}' 
-            : 'Rate your experience'),
+            ? '${_t('rate_order')} #${widget.orderId}' 
+            : _t('rate_experience')),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
@@ -173,8 +200,8 @@ class _RateAppScreenState extends State<RateAppScreen> {
             const SizedBox(height: 24),
             Text(
               widget.orderId != null 
-                  ? 'Rate Order #${widget.orderId}' 
-                  : 'Rate your experience',
+                  ? '${_t('rate_order')} #${widget.orderId}' 
+                  : _t('rate_experience'),
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -183,8 +210,8 @@ class _RateAppScreenState extends State<RateAppScreen> {
             const SizedBox(height: 8),
             Text(
               widget.orderId != null
-                  ? 'How would you rate this order?'
-                  : 'How would you rate your experience with our app?',
+                  ? _t('rate_order_question')
+                  : _t('rate_experience_question'),
               style: const TextStyle(
                 fontSize: 16,
                 color: Colors.grey,
@@ -222,7 +249,7 @@ class _RateAppScreenState extends State<RateAppScreen> {
             if (selectedRating != null) ...[
               const SizedBox(height: 8),
               Text(
-                '${selectedRating} ${selectedRating == 1 ? 'star' : 'stars'}',
+                '${selectedRating} ${selectedRating == 1 ? _t('star') : _t('stars')}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -237,10 +264,10 @@ class _RateAppScreenState extends State<RateAppScreen> {
               maxLines: 5,
               maxLength: 1000,
               decoration: InputDecoration(
-                labelText: 'Tell us more (optional)',
+                labelText: _t('tell_us_more'),
                 hintText: widget.orderId != null
-                    ? 'Share your thoughts about this order...'
-                    : 'Share your thoughts about the app...',
+                    ? _t('share_thoughts_order')
+                    : _t('share_thoughts_app'),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -271,8 +298,8 @@ class _RateAppScreenState extends State<RateAppScreen> {
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                    : const Text(
-                        'Submit',
+                    : Text(
+                        _t('submit'),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
