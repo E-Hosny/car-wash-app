@@ -49,6 +49,7 @@ class AppTranslations {
 
       // الخدمات
       'services': 'الخدمات',
+      'service': 'خدمة',
       'select_services': 'اختر الخدمات',
       'service_name': 'اسم الخدمة',
       'service_description': 'وصف الخدمة',
@@ -238,6 +239,33 @@ class AppTranslations {
       'error_opening_map': 'خطأ في فتح الخريطة',
       'please_enter_label': 'يرجى إدخال تسمية لهذا العنوان',
       'save_address': 'حفظ العنوان',
+
+      // صفحة تأكيد الطلب
+      'order_confirmation': 'تأكيد الطلب',
+      'selected_car': 'السيارة المختارة',
+      'selected_address': 'العنوان المختار',
+      'change': 'تغيير',
+      'select': 'اختيار',
+      'select_date': 'اختر التاريخ',
+      'select_time': 'اختر الوقت',
+      'select_date_time': 'اختر التاريخ والوقت',
+      'today': 'اليوم',
+      'tomorrow': 'غداً',
+      'day_after': 'بعد الغد',
+      'past': 'منتهي',
+      'off': 'غير متاح',
+      'add_car_to_continue': 'أضف سيارة للمتابعة',
+      'processing': 'جاري المعالجة...',
+      'order_summary': 'ملخص الطلب',
+      'selected_services': 'الخدمات المختارة',
+      'regular_payment': 'الدفع العادي',
+      'package_payment': 'الدفع بالباقة',
+      'pay_with_card_cash': 'الدفع ببطاقة ائتمان',
+      'using_package_services': 'استخدام خدمات الباقة',
+      'services_to_use': 'الخدمات المستخدمة',
+      'remaining_services': 'الخدمات المتبقية',
+      'services_usage': 'استخدام الخدمات',
+      'free_with_package': 'مجاني مع الباقة!',
     },
     'en': {
       // Packages
@@ -288,6 +316,7 @@ class AppTranslations {
 
       // Services
       'services': 'Services',
+      'service': 'Service',
       'select_services': 'Select Services',
       'service_name': 'Service Name',
       'service_description': 'Service Description',
@@ -477,6 +506,33 @@ class AppTranslations {
       'error_opening_map': 'Error opening map',
       'please_enter_label': 'Please enter a label for this address',
       'save_address': 'Save Address',
+
+      // Order Confirmation
+      'order_confirmation': 'Order Confirmation',
+      'selected_car': 'Selected Car',
+      'selected_address': 'Selected Address',
+      'change': 'Change',
+      'select': 'Select',
+      'select_date': 'Select Date',
+      'select_time': 'Select Time',
+      'select_date_time': 'Select Date & Time',
+      'today': 'Today',
+      'tomorrow': 'Tomorrow',
+      'day_after': 'Day After',
+      'past': 'Past',
+      'off': 'OFF',
+      'add_car_to_continue': 'Add a car to continue',
+      'processing': 'Processing...',
+      'order_summary': 'Order Summary',
+      'selected_services': 'Selected Services',
+      'regular_payment': 'Regular Payment',
+      'package_payment': 'Package Payment',
+      'pay_with_card_cash': 'Pay with credit card',
+      'using_package_services': 'Using package services',
+      'services_to_use': 'Services to Use',
+      'remaining_services': 'Remaining Services',
+      'services_usage': 'Services Usage',
+      'free_with_package': 'Free with Package!',
     },
   };
 

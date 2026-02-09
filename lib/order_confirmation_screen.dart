@@ -214,11 +214,11 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
 
     String dateLabel = '';
     if (_isSameDate(dateTime, DateTime.now())) {
-      dateLabel = 'Today';
+      dateLabel = _t('today');
     } else if (_isSameDate(dateTime, DateTime.now().add(const Duration(days: 1)))) {
-      dateLabel = 'Tomorrow';
+      dateLabel = _t('tomorrow');
     } else if (_isSameDate(dateTime, DateTime.now().add(const Duration(days: 2)))) {
-      dateLabel = 'Day After';
+      dateLabel = _t('day_after');
     } else {
       dateLabel = '${dateTime.day}/${dateTime.month}';
     }
@@ -484,11 +484,13 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(
-          'Order Confirmation',
+          title: Text(
+          _t('order_confirmation'),
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -539,6 +541,8 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                         selectedServicesCount: widget.selectedServices.length,
                         remainingPoints: widget.userPackage?['remaining_points'],
                         totalPointsUsed: _calculateTotalPointsUsed(),
+                        currency: _t('riyal'),
+                        language: _currentLanguage,
                       ),
                     ],
                   ),
@@ -556,6 +560,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -566,14 +571,14 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _sectionTitle('Selected Car'),
+            _sectionTitle(_t('selected_car')),
             if (selectedCarId != null)
               TextButton(
                 onPressed: () {
                   _showCarSelectionDialog();
                 },
                 child: Text(
-                  'Change',
+                  _t('change'),
                   style: GoogleFonts.poppins(
                     color: Colors.blue,
                     fontWeight: FontWeight.w600,
@@ -600,7 +605,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Add a car to continue',
+                    _t('add_car_to_continue'),
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       color: Colors.grey[500],
@@ -968,13 +973,13 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _sectionTitle('Selected Address'),
+            _sectionTitle(_t('selected_address')),
             TextButton(
               onPressed: () {
                 _showAddressSelectionDialog();
               },
               child: Text(
-                selectedSavedAddress == null ? 'Select' : 'Change',
+                selectedSavedAddress == null ? _t('select') : _t('change'),
                 style: GoogleFonts.poppins(
                   color: Colors.blue,
                   fontWeight: FontWeight.w600,
@@ -1589,7 +1594,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Schedule'),
+        _sectionTitle(_t('schedule')),
         const SizedBox(height: 12),
         // Date Selection
         Container(
@@ -1608,7 +1613,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                       color: Colors.blue.shade700, size: 18),
                   const SizedBox(width: 6),
                   Text(
-                    'Select Date',
+                    _t('select_date'),
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
@@ -1621,18 +1626,18 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
               Column(
                 children: [
                   _buildModernDateOptionInline(
-                      'Today',
+                      _t('today'),
                       DateTime.now(),
                       Icons.today),
                   const SizedBox(height: 4),
                   _buildModernDateOptionInline(
-                      'Tomorrow',
+                      _t('tomorrow'),
                       DateTime.now()
                           .add(const Duration(days: 1)),
                       Icons.event_available),
                   const SizedBox(height: 4),
                   _buildModernDateOptionInline(
-                      'Day After',
+                      _t('day_after'),
                       DateTime.now()
                           .add(const Duration(days: 2)),
                       Icons.date_range),
@@ -1652,7 +1657,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     color: Colors.green.shade700, size: 18),
                 const SizedBox(width: 6),
                 Text(
-                  'Select Time',
+                  _t('select_time'),
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
@@ -1782,7 +1787,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                               const SizedBox(height: 2),
                               Flexible(
                                 child: Text(
-                                  isPastHour ? 'Past' : 'OFF',
+                                  isPastHour ? _t('past') : _t('off'),
                                   style: GoogleFonts.poppins(
                                     color: isBooked
                                         ? Colors.red.shade600
@@ -1899,7 +1904,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Select Date & Time',
+                          _t('select_date_time'),
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -1941,7 +1946,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                                       color: Colors.blue.shade700, size: 20),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Select Date',
+                                    _t('select_date'),
                                     style: GoogleFonts.poppins(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 16,
@@ -1954,20 +1959,20 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                               Column(
                                 children: [
                                   _buildModernDateOption(
-                                      'Today',
+                                      _t('today'),
                                       DateTime.now(),
                                       setDialogState,
                                       Icons.today),
                                   const SizedBox(height: 6),
                                   _buildModernDateOption(
-                                      'Tomorrow',
+                                      _t('tomorrow'),
                                       DateTime.now()
                                           .add(const Duration(days: 1)),
                                       setDialogState,
                                       Icons.event_available),
                                   const SizedBox(height: 6),
                                   _buildModernDateOption(
-                                      'Day After',
+                                      _t('day_after'),
                                       DateTime.now()
                                           .add(const Duration(days: 2)),
                                       setDialogState,
@@ -1990,7 +1995,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                                       color: Colors.green.shade700, size: 20),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Select Time',
+                                    _t('select_time'),
                                     style: GoogleFonts.poppins(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 16,
@@ -2120,7 +2125,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                                                 const SizedBox(height: 2),
                                                 Flexible(
                                                   child: Text(
-                                                    isPastHour ? 'Past' : 'OFF',
+                                                    isPastHour ? _t('past') : _t('off'),
                                                     style: GoogleFonts.poppins(
                                                       color: isBooked
                                                           ? Colors.red.shade600
@@ -2544,11 +2549,11 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     final targetDate = DateTime(date.year, date.month, date.day);
 
     if (targetDate == today) {
-      return 'Today - ${date.day}/${date.month}';
+      return '${_t('today')} - ${date.day}/${date.month}';
     } else if (targetDate == tomorrow) {
-      return 'Tomorrow - ${date.day}/${date.month}';
+      return '${_t('tomorrow')} - ${date.day}/${date.month}';
     } else if (targetDate == dayAfter) {
-      return 'Day After - ${date.day}/${date.month}';
+      return '${_t('day_after')} - ${date.day}/${date.month}';
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
@@ -2856,7 +2861,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Total Amount',
+                      _t('total_amount'),
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         color: Colors.grey.shade600,
@@ -2870,7 +2875,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                       children: [
                         Flexible(
                           child: Text(
-                            'AED ${totalPrice.toStringAsFixed(2)}',
+                            '${totalPrice.toStringAsFixed(2)} ${_t('riyal')}',
                             style: GoogleFonts.poppins(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -2888,7 +2893,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              'Package',
+                              _t('package'),
                               style: GoogleFonts.poppins(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
@@ -2950,7 +2955,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              'Processing...',
+                              _t('processing'),
                               style: GoogleFonts.poppins(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -2964,7 +2969,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                             Icon(usePackage ? Icons.card_giftcard : Icons.payment, size: 18),
                             const SizedBox(width: 6),
                             Text(
-                              usePackage ? 'Use Package' : 'Pay Now',
+                              usePackage ? _t('use_package') : _t('pay_now'),
                               style: GoogleFonts.poppins(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
