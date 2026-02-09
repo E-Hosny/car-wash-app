@@ -1399,7 +1399,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Select Address',
+                              _t('select_address'),
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 20,
@@ -1408,7 +1408,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Choose from your saved addresses',
+                              _t('choose_from_saved_addresses'),
                               style: GoogleFonts.poppins(
                                 fontSize: 13,
                                 color: Colors.grey.shade600,
@@ -1438,7 +1438,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                             Icon(Icons.location_off, size: 56, color: Colors.grey.shade400),
                             const SizedBox(height: 20),
                             Text(
-                              'No saved addresses',
+                              _t('no_saved_addresses'),
                               style: GoogleFonts.poppins(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w500,
@@ -1560,7 +1560,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   },
                   icon: const Icon(Icons.add_location_alt, size: 22),
                   label: Text(
-                    'Add New Address',
+                    _t('add_new_address'),
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

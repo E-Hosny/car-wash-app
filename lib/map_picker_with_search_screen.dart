@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/cache_service.dart';
+import 'services/language_service.dart';
+import 'translations.dart';
 import 'dart:convert';
 import 'dart:async';
 
@@ -35,9 +37,17 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
   Timer? _debounce;
   bool _isSelectingPlace = false; // متغير لمنع البحث عند اختيار مكان
 
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
+  late StreamSubscription _languageSubscription;
+
   @override
   void initState() {
     super.initState();
+    _loadLanguage();
+    _languageSubscription = LanguageService.languageStream.listen((_) async {
+      await _loadLanguage();
+    });
     _selectedLocation = widget.initialLocation;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _goToCurrentLocation();
@@ -45,8 +55,24 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
     _searchController.addListener(_onSearchChanged);
   }
 
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
   @override
   void dispose() {
+    _languageSubscription.cancel();
     _searchController.dispose();
     _debounce?.cancel();
     super.dispose();
@@ -622,7 +648,9 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(160),
         child: AppBar(
@@ -666,7 +694,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Important Notice',
+                              _t('important_notice'),
                               style: GoogleFonts.poppins(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
@@ -678,9 +706,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Please ensure the car is parked in a safe and legal location, not in RTA parking. '
-                        'The parking area must allow the Luxuria Wash vehicle to park and safely use car wash resources. '
-                        'Thank you for your cooperation.',
+                        _t('parking_notice_message'),
                         style: GoogleFonts.poppins(
                           fontSize: 11,
                           color: Colors.black87,
@@ -756,7 +782,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                     enableSuggestions: true,
                     autocorrect: true,
                     decoration: InputDecoration(
-                      hintText: 'Search for location...',
+                      hintText: _t('search_for_location'),
                       hintStyle: TextStyle(
                         color: Colors.grey[500],
                         fontSize: 16,
@@ -1028,13 +1054,13 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                       _addressLoading = false;
                     });
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Failed to get address: $e')),
+                      SnackBar(content: Text('${_t('failed_to_get_address')}: $e')),
                     );
                     print('Geocoding error: $e');
                   }
                 },
                 icon: const Icon(Icons.check),
-                label: const Text('Confirm Location'),
+                label: Text(_t('confirm_location')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
@@ -1049,6 +1075,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -1111,7 +1138,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Add Address Details',
+                          _t('add_address_details'),
                           style: GoogleFonts.poppins(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -1153,7 +1180,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Selected Location',
+                                      _t('selected_location'),
                                       style: GoogleFonts.poppins(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
@@ -1180,23 +1207,23 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                         // Form Fields
                         _buildTextField(
                           controller: labelController,
-                          label: 'Label',
-                          hint: 'e.g. Home, Work, Office',
+                          label: _t('label'),
+                          hint: _t('label_hint'),
                           icon: Icons.label_outline,
                           isRequired: true,
                         ),
                         const SizedBox(height: 16),
                         _buildTextField(
                           controller: streetController,
-                          label: 'Street',
-                          hint: 'Enter street name',
+                          label: _t('street'),
+                          hint: _t('street_hint'),
                           icon: Icons.streetview,
                         ),
                         const SizedBox(height: 16),
                         _buildTextField(
                           controller: notesController,
-                          label: 'Additional Notes',
-                          hint: 'Any special instructions (optional)',
+                          label: _t('additional_notes'),
+                          hint: _t('additional_notes_hint'),
                           icon: Icons.note_outlined,
                           maxLines: 3,
                         ),
@@ -1229,7 +1256,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                             ),
                           ),
                           child: Text(
-                            'Cancel',
+                            _t('cancel'),
                             style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -1249,7 +1276,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                            'Please enter a label for this address'),
+                                            _t('please_enter_label')),
                                         backgroundColor: Colors.orange,
                                       ),
                                     );
@@ -1307,7 +1334,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                                               const SizedBox(width: 8),
                                               Expanded(
                                                 child: Text(
-                                                    'Address saved successfully!'),
+                                                    _t('address_saved')),
                                               ),
                                             ],
                                           ),
@@ -1318,9 +1345,9 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                                     } else {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
-                                        const SnackBar(
+                                        SnackBar(
                                           content:
-                                              Text('Failed to save address'),
+                                              Text(_t('failed_to_save_address')),
                                           backgroundColor: Colors.red,
                                         ),
                                       );
@@ -1361,7 +1388,7 @@ class _MapPickerWithSearchScreenState extends State<MapPickerWithSearchScreen> {
                                     const Icon(Icons.save, size: 20),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Save Address',
+                                      _t('save_address'),
                                       style: GoogleFonts.poppins(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,

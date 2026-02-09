@@ -2598,7 +2598,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Select Address',
+                            _t('select_address'),
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.bold,
                               fontSize: 18,
@@ -2607,7 +2607,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Choose from your saved addresses',
+                            _t('choose_from_saved_addresses'),
                             style: GoogleFonts.poppins(
                               fontSize: 12,
                               color: Colors.grey.shade600,
@@ -2640,7 +2640,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'No saved addresses',
+                              _t('no_saved_addresses'),
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
@@ -2649,7 +2649,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Add your first address to get started',
+                              _t('add_first_address'),
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
                                 color: Colors.grey.shade500,
@@ -2772,9 +2772,8 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                       if (latitude == null || longitude == null) {
                         // If no location available, show error and try to get default location
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'No location available. Please wait or check location permissions.'),
+                          SnackBar(
+                            content: Text(_t('no_location_available')),
                             backgroundColor: Colors.orange,
                           ),
                         );
@@ -2805,12 +2804,12 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                       }
                     } catch (e) {
                       print('❌ Error opening map picker: $e');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error opening map: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${_t('error_opening_map')}: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -2824,7 +2823,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                   ),
                   icon: const Icon(Icons.add_location_alt, size: 20),
                   label: Text(
-                    'Add New Address',
+                    _t('add_new_address'),
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
