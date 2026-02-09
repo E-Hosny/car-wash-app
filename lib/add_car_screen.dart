@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/cache_service.dart';
+import 'services/language_service.dart';
+import 'translations.dart';
 
 class AddCarScreen extends StatefulWidget {
   final String token;
@@ -49,11 +52,34 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
   final TextEditingController colorController = TextEditingController();
 
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
+  late StreamSubscription _languageSubscription;
+
   @override
   void initState() {
     super.initState();
+    _loadLanguage();
+    _languageSubscription = LanguageService.languageStream.listen((_) async {
+      await _loadLanguage();
+    });
     fetchBrands();
     fetchYears();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
   }
 
   Future<void> fetchBrands() async {
@@ -108,8 +134,8 @@ class _AddCarScreenState extends State<AddCarScreen> {
     // Validation
     if (selectedColor == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a car color'),
+        SnackBar(
+          content: Text(_t('please_select_car_color')),
           backgroundColor: Colors.red,
         ),
       );
@@ -118,8 +144,8 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
     if (!isCustomBrand && selectedBrandId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a brand'),
+        SnackBar(
+          content: Text(_t('please_select_brand')),
           backgroundColor: Colors.red,
         ),
       );
@@ -128,8 +154,8 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
     if (isCustomBrand && customBrandController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a custom brand name'),
+        SnackBar(
+          content: Text(_t('please_enter_custom_brand')),
           backgroundColor: Colors.red,
         ),
       );
@@ -138,8 +164,8 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
     if (!isCustomModel && selectedModelId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a model'),
+        SnackBar(
+          content: Text(_t('please_select_model')),
           backgroundColor: Colors.red,
         ),
       );
@@ -148,8 +174,8 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
     if (isCustomModel && customModelController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a custom model name'),
+        SnackBar(
+          content: Text(_t('please_enter_custom_model')),
           backgroundColor: Colors.red,
         ),
       );
@@ -158,8 +184,8 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
     if (!isCustomYear && selectedYearId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a year'),
+        SnackBar(
+          content: Text(_t('please_select_year')),
           backgroundColor: Colors.red,
         ),
       );
@@ -168,8 +194,8 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
     if (isCustomYear && customYearController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a custom year'),
+        SnackBar(
+          content: Text(_t('please_enter_custom_year')),
           backgroundColor: Colors.red,
         ),
       );
@@ -222,7 +248,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
       // Invalidate cache so fresh data is loaded
       CacheService().invalidateCars(widget.token);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Car added successfully')),
+        SnackBar(content: Text('✅ ${_t('car_added_successfully')}')),
       );
 
       Navigator.pop(context, true);
@@ -232,7 +258,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
       if (!mounted) return;
 
-      String errorMessage = '❌ Failed to add car';
+      String errorMessage = '❌ ${_t('failed_to_add_car')}';
 
       // Try to parse error message from response
       try {
@@ -256,6 +282,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
   @override
   void dispose() {
+    _languageSubscription.cancel();
     licensePlateController.dispose();
     colorController.dispose();
     customBrandController.dispose();
@@ -266,7 +293,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
       backgroundColor: Colors.white,
       body: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -307,9 +336,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
               // Year Selection
               _buildYearSection(),
               const SizedBox(height: 20),
-              const Text(
-                'License Plate (Optional)',
-                style: TextStyle(
+              Text(
+                _t('license_plate_optional'),
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -318,7 +347,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
               TextFormField(
                 controller: licensePlateController,
                 decoration: InputDecoration(
-                  hintText: 'Enter license plate number',
+                  hintText: _t('enter_license_plate'),
                   filled: true,
                   fillColor: Colors.grey[100],
                   border: OutlineInputBorder(
@@ -328,9 +357,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'Select Car Color',
-                style: TextStyle(
+              Text(
+                _t('select_car_color'),
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -410,7 +439,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              'Selected Color: $selectedColor',
+                              '${_t('selected_color')}: $selectedColor',
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -435,15 +464,16 @@ class _AddCarScreenState extends State<AddCarScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Add Car',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                child: Text(
+                  _t('add_car'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -451,9 +481,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Select Brand',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        Text(
+          _t('select_brand'),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         if (!isCustomBrand)
@@ -469,7 +499,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
                 contentPadding:
                     EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-              hint: const Text('Select Brand'),
+              hint: Text(_t('select_brand')),
               items: [
                 ...brands.map<DropdownMenuItem<int>>((item) {
                   return DropdownMenuItem<int>(
@@ -477,15 +507,15 @@ class _AddCarScreenState extends State<AddCarScreen> {
                     child: Text(item['name'].toString()),
                   );
                 }),
-                const DropdownMenuItem<int>(
+                DropdownMenuItem<int>(
                   value: -1,
                   child: Row(
                     children: [
-                      Icon(Icons.add_circle_outline,
+                      const Icon(Icons.add_circle_outline,
                           size: 20, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Text('Other (Enter Custom)',
-                          style: TextStyle(color: Colors.blue)),
+                      const SizedBox(width: 8),
+                      Text(_t('other_enter_custom'),
+                          style: const TextStyle(color: Colors.blue)),
                     ],
                   ),
                 ),
@@ -517,7 +547,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
               TextFormField(
                 controller: customBrandController,
                 decoration: InputDecoration(
-                  hintText: 'Enter brand name (e.g., Tesla, BYD)',
+                  hintText: _t('enter_brand_name'),
                   filled: true,
                   fillColor: Colors.blue.shade50,
                   border: OutlineInputBorder(
@@ -542,7 +572,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
                       });
                     },
                     icon: const Icon(Icons.arrow_back, size: 16),
-                    label: const Text('Back to list'),
+                    label: Text(_t('back_to_list')),
                   ),
                 ],
               ),
@@ -556,9 +586,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Select Model',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        Text(
+          _t('select_model'),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         if (isCustomBrand || isCustomModel)
@@ -568,7 +598,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
               TextFormField(
                 controller: customModelController,
                 decoration: InputDecoration(
-                  hintText: 'Enter model name (e.g., Model S, Corolla)',
+                  hintText: _t('enter_model_name'),
                   filled: true,
                   fillColor: Colors.blue.shade50,
                   border: OutlineInputBorder(
@@ -592,7 +622,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
                         });
                       },
                       icon: const Icon(Icons.arrow_back, size: 16),
-                      label: const Text('Back to list'),
+                      label: Text(_t('back_to_list')),
                     ),
                   ],
                 ),
@@ -612,7 +642,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
                 contentPadding:
                     EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-              hint: const Text('Select Model'),
+              hint: Text(_t('select_model')),
               items: [
                 ...models.map<DropdownMenuItem<int>>((item) {
                   return DropdownMenuItem<int>(
@@ -620,15 +650,15 @@ class _AddCarScreenState extends State<AddCarScreen> {
                     child: Text(item['name'].toString()),
                   );
                 }),
-                const DropdownMenuItem<int>(
+                DropdownMenuItem<int>(
                   value: -1,
                   child: Row(
                     children: [
-                      Icon(Icons.add_circle_outline,
+                      const Icon(Icons.add_circle_outline,
                           size: 20, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Text('Other (Enter Custom)',
-                          style: TextStyle(color: Colors.blue)),
+                      const SizedBox(width: 8),
+                      Text(_t('other_enter_custom'),
+                          style: const TextStyle(color: Colors.blue)),
                     ],
                   ),
                 ),
@@ -654,9 +684,9 @@ class _AddCarScreenState extends State<AddCarScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Select Year',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        Text(
+          _t('select_year'),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         if (!isCustomYear)
@@ -672,7 +702,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
                 contentPadding:
                     EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-              hint: const Text('Select Year'),
+              hint: Text(_t('select_year')),
               items: [
                 ...years.map<DropdownMenuItem<int>>((item) {
                   return DropdownMenuItem<int>(
@@ -680,15 +710,15 @@ class _AddCarScreenState extends State<AddCarScreen> {
                     child: Text(item['year'].toString()),
                   );
                 }),
-                const DropdownMenuItem<int>(
+                DropdownMenuItem<int>(
                   value: -1,
                   child: Row(
                     children: [
-                      Icon(Icons.add_circle_outline,
+                      const Icon(Icons.add_circle_outline,
                           size: 20, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Text('Other (Enter Custom)',
-                          style: TextStyle(color: Colors.blue)),
+                      const SizedBox(width: 8),
+                      Text(_t('other_enter_custom'),
+                          style: const TextStyle(color: Colors.blue)),
                     ],
                   ),
                 ),
@@ -713,7 +743,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
                 controller: customYearController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  hintText: 'Enter year (e.g., 2024)',
+                  hintText: _t('enter_year'),
                   filled: true,
                   fillColor: Colors.blue.shade50,
                   border: OutlineInputBorder(
@@ -736,7 +766,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
                       });
                     },
                     icon: const Icon(Icons.arrow_back, size: 16),
-                    label: const Text('Back to list'),
+                    label: Text(_t('back_to_list')),
                   ),
                 ],
               ),

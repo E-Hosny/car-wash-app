@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +13,8 @@ import 'main_navigation_screen.dart';
 import 'services/package_service.dart';
 import 'services/cache_service.dart';
 import 'widgets/order_summary_card.dart';
+import 'services/language_service.dart';
+import 'translations.dart';
 
 class OrderConfirmationScreen extends StatefulWidget {
   final String token;
@@ -71,9 +74,17 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   DateTime selectedDate = DateTime.now();
   bool isChangingDate = false;
 
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
+  late StreamSubscription _languageSubscription;
+
   @override
   void initState() {
     super.initState();
+    _loadLanguage();
+    _languageSubscription = LanguageService.languageStream.listen((_) async {
+      await _loadLanguage();
+    });
     selectedCarId = widget.selectedCarId;
     selectedSavedAddress = widget.selectedSavedAddress;
     selectedAddress = widget.selectedAddress;
@@ -85,6 +96,27 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     savedAddresses = widget.savedAddresses;
     selectedDate = widget.selectedDate;
     _fetchBookedTimeSlots();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  @override
+  void dispose() {
+    _languageSubscription.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchBookedTimeSlots([DateTime? date]) async {
@@ -594,7 +626,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                       }
                     },
                     icon: const Icon(Icons.add),
-                    label: const Text('Add Car'),
+                    label: Text(_t('add_car')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
@@ -697,7 +729,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(
-                        'Select Car',
+                        _t('select_car'),
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.bold,
                           fontSize: 22,
@@ -727,7 +759,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'No cars available',
+                              _t('no_cars_available'),
                               style: GoogleFonts.poppins(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
@@ -736,7 +768,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Add a new car to continue',
+                              _t('add_new_car_to_continue'),
                               style: GoogleFonts.poppins(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
@@ -814,7 +846,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
-                                              'Year: ${car['year']['year']} • Color: ${car['color']}',
+                                              '${_t('year')}: ${car['year']['year']} • ${_t('color')}: ${car['color']}',
                                               style: GoogleFonts.poppins(
                                                 fontSize: 13,
                                                 color: Colors.grey.shade600,
@@ -909,7 +941,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            'Add New Car',
+                            _t('add_new_car'),
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.w600,
                               fontSize: 16,

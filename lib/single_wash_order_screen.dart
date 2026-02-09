@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -84,6 +85,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
   
   String _currentLanguage = 'en';
   bool _isRTL = false;
+  late StreamSubscription _languageSubscription;
 
   // Loading animation controller
   late AnimationController _loadingAnimationController;
@@ -95,7 +97,10 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
     super.initState();
     print('🚀 SingleWashOrderScreen initState started');
     _loadLanguage();
-    
+    _languageSubscription = LanguageService.languageStream.listen((_) async {
+      await _loadLanguage();
+    });
+
     // Initialize loading animation
     _loadingAnimationController = AnimationController(
       vsync: this,
@@ -130,8 +135,13 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
     }
   }
 
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
   @override
   void dispose() {
+    _languageSubscription.cancel();
     _loadingAnimationController.dispose();
     super.dispose();
   }
@@ -290,7 +300,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       print('❌ Error in SingleWashOrderScreen initialization: $e');
       setState(() {
         isLoading = false;
-        errorMessage = 'Failed to load data. Please try again.';
+        errorMessage = 'failed_to_load_data';
       });
     }
   }
@@ -733,7 +743,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       totalRemaining += remaining is int ? remaining : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
     }
     
-    final packageName = userPackage['package']['name'] ?? 'Package';
+    final packageName = userPackage['package']['name'] ?? _t('package');
     return '$packageName - $totalRemaining services remaining';
   }
 
@@ -769,8 +779,8 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
         !hasSelectedAddress ||
         selectedDateTime == null) {
       _showErrorDialog(
-        'Missing Information',
-        'Please select at least one service, car, address, and time slot to continue.',
+        _t('missing_information'),
+        _t('missing_information_message'),
         Icons.warning_amber_rounded,
       );
       return;
@@ -1004,7 +1014,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                             ),
                           ),
                           child: Text(
-                            'Cancel',
+                            _t('cancel'),
                             style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -1464,7 +1474,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                           ),
                         ),
                         child: Text(
-                          'Cancel',
+                          _t('cancel'),
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600,
                             color: Colors.grey.shade600,
@@ -1709,10 +1719,12 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return Scaffold(
+      return Directionality(
+        textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+        child: Scaffold(
         appBar: AppBar(
           title: Text(
-            'Single Car Wash',
+            _t('single_car_wash'),
             style: GoogleFonts.poppins(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -1771,7 +1783,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
               ),
               const SizedBox(height: 24),
               Text(
-                'Loading your preferences...',
+                _t('loading_preferences'),
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -1807,14 +1819,17 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
             ],
           ),
         ),
-      );
+      ),
+    );
     }
 
     if (errorMessage != null) {
-      return Scaffold(
+      return Directionality(
+        textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+        child: Scaffold(
         appBar: AppBar(
           title: Text(
-            'Single Car Wash',
+            _t('single_car_wash'),
             style: GoogleFonts.poppins(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -1837,7 +1852,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
               ),
               const SizedBox(height: 16),
               Text(
-                errorMessage!,
+                _t(errorMessage!),
                 style: const TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
@@ -1856,19 +1871,22 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Retry'),
+                child: Text(_t('retry')),
               ),
             ],
           ),
         ),
-      );
+      ),
+    );
     }
 
-    return Scaffold(
+    return Directionality(
+      textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          'Single Car Wash',
+          _t('single_car_wash'),
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -1921,12 +1939,13 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
           if (isRefreshing)
             Container(
               color: Colors.white.withOpacity(0.8),
-              child: const AnimatedLoadingIndicator(
-                message: 'Refreshing Data...',
+              child: AnimatedLoadingIndicator(
+                message: _t('refreshing_data'),
               ),
             ),
         ],
       ),
+    ),
     );
   }
 
@@ -2072,7 +2091,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          'Select Car',
+          _t('select_car'),
           style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
         ),
         content: SizedBox(
@@ -2091,7 +2110,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                       title: Text(
                           '${car['brand']['name']} ${car['model']['name']}'),
                       subtitle: Text(
-                          'Year: ${car['year']['year']} • Color: ${car['color']}'),
+                          '${_t('year')}: ${car['year']['year']} • ${_t('color')}: ${car['color']}'),
                       onChanged: (val) {
                         setState(() {
                           selectedCarId = val;
@@ -2108,7 +2127,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                 leading:
                     const Icon(Icons.add_circle_outline, color: Colors.black),
                 title: Text(
-                  'Add New Car',
+                  _t('add_new_car'),
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
                     color: Colors.black,
@@ -2159,14 +2178,14 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle('Services'),
+          _sectionTitle(_t('services')),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Center(
               child: Text(
                 usePackage && availableServices.isEmpty
-                    ? 'No services available in your package'
-                    : 'No services available',
+                    ? _t('no_services_in_package')
+                    : _t('no_services_available'),
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   color: Colors.grey.shade600,
@@ -2181,7 +2200,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Services'),
+        _sectionTitle(_t('services')),
         ...servicesToShow.map((s) {
           final price = double.tryParse(s['price'].toString()) ?? 0.0;
           final isAvailableInPackage = usePackage &&
@@ -2385,7 +2404,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                                     child: Padding(
                                       padding: const EdgeInsets.only(top: 4),
                                       child: Text(
-                                        expandedServices[s['id']] == true ? 'Show less' : 'Read more',
+                                        expandedServices[s['id']] == true ? _t('show_less') : _t('read_more'),
                                         style: GoogleFonts.poppins(
                                           color: Colors.blue.shade600,
                                           fontSize: 12,
@@ -2825,7 +2844,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                   ),
                 ),
                 child: Text(
-                  'Cancel',
+                  _t('cancel'),
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
                     color: Colors.grey.shade600,
@@ -3367,7 +3386,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                             ),
                           ),
                           child: Text(
-                            'Cancel',
+                            _t('cancel'),
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.w600,
                               fontSize: 16,
@@ -3399,7 +3418,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                             elevation: selectedDateTime != null ? 4 : 0,
                           ),
                           child: Text(
-                            'Confirm',
+                            _t('confirm'),
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.w600,
                               fontSize: 16,
@@ -3597,7 +3616,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                         ),
                       ),
                       child: Text(
-                        'Cancel',
+                        _t('cancel'),
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -3625,7 +3644,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                         elevation: 4,
                       ),
                       child: Text(
-                        'Confirm',
+                        _t('confirm'),
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -4086,7 +4105,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                   const Icon(Icons.check_circle, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    'Confirm',
+                    _t('confirm'),
                     style: GoogleFonts.poppins(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
