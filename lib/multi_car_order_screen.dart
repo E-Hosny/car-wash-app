@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -16,6 +17,8 @@ import 'add_car_screen.dart';
 import 'services/cache_service.dart';
 import 'widgets/animated_loading_indicator.dart';
 import 'utils/currency_helper.dart';
+import 'services/language_service.dart';
+import 'translations.dart';
 
 class MultiCarOrderScreen extends StatefulWidget {
   final String token;
@@ -57,10 +60,34 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
   bool isLoadingTimeSlots = false;
   bool isChangingDate = false; // Flag to prevent multiple date changes
 
+  String _currentLanguage = 'en';
+  late StreamSubscription _languageSubscription;
+
   @override
   void initState() {
     super.initState();
+    _loadLanguage();
+    _languageSubscription = LanguageService.languageStream.listen((_) async {
+      await _loadLanguage();
+    });
     initializeData();
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    if (mounted) {
+      setState(() => _currentLanguage = lang);
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  @override
+  void dispose() {
+    _languageSubscription.cancel();
+    super.dispose();
   }
 
   Future<void> initializeData() async {
@@ -2420,7 +2447,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
               const SizedBox(height: 16),
 
               Text(
-                'Time Slot Selected!',
+                _t('time_slot_selected'),
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -8,6 +9,8 @@ import 'services/stripe_service.dart';
 import 'services/cache_service.dart';
 import 'main_navigation_screen.dart';
 import 'screens/package_success_screen.dart';
+import 'services/language_service.dart';
+import 'translations.dart';
 
 class PaymentScreen extends StatefulWidget {
   final String token;
@@ -38,9 +41,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
   String? _paymentIntentId;
   String? _errorMessage;
 
+  String _currentLanguage = 'en';
+  bool _isRTL = false;
+  late StreamSubscription _languageSubscription;
+
   @override
   void initState() {
     super.initState();
+    _loadLanguage();
+    _languageSubscription = LanguageService.languageStream.listen((_) async {
+      await _loadLanguage();
+    });
     _initializeStripe();
 
     // استخدام payment intent الموجود من all_packages_screen
@@ -54,6 +65,27 @@ class _PaymentScreenState extends State<PaymentScreen> {
         _paymentIntentId = widget.orderData['payment_intent_id'];
       });
     }
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    final isRTL = await LanguageService.isRTL();
+    if (mounted) {
+      setState(() {
+        _currentLanguage = lang;
+        _isRTL = isRTL;
+      });
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  @override
+  void dispose() {
+    _languageSubscription.cancel();
+    super.dispose();
   }
 
   Future<void> _initializeStripe() async {
@@ -136,14 +168,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
         
         // إظهار رسالة خطأ واضحة للمستخدم
         setState(() {
-          _errorMessage = 'Location information is missing. Please go back and select a location.';
+          _errorMessage = '${_t('location_missing')}. ${_t('location_missing_message')}';
           _isLoading = false;
         });
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Location information is missing. Please go back and select a location.'),
+            SnackBar(
+              content: Text('${_t('location_missing')}. ${_t('location_missing_message')}'),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 5),
             ),
@@ -1421,7 +1453,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       (route) => false, // Remove all previous routes
                     );
                   },
-                  child: Text('View Orders',
+                  child: Text(_t('view_orders'),
                       style: GoogleFonts.poppins(fontSize: 16)),
                 ),
               ],
@@ -1447,7 +1479,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
           Navigator.of(context).pop(false);
         }
       },
-      child: Scaffold(
+      child: Directionality(
+        textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+        child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
           backgroundColor: Colors.white,
@@ -1459,8 +1493,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           title: Text(
             isPackagePurchase
-                ? 'Package Purchase'
-                : (isPackageOrder ? 'Package Order' : 'Payment'),
+                ? _t('package_purchase')
+                : (isPackageOrder ? _t('package_order') : _t('payment')),
             style: GoogleFonts.poppins(
               fontSize: 20,
               fontWeight: FontWeight.w600,
@@ -1525,10 +1559,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     children: [
                       Text(
                         isPackagePurchase
-                            ? 'Package Summary'
+                            ? _t('package_summary')
                             : (isPackageOrder
-                                ? 'Package Order Summary'
-                                : 'Order Summary'),
+                                ? _t('package_order_summary')
+                                : _t('order_summary')),
                         style: GoogleFonts.poppins(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
@@ -1537,14 +1571,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       ),
                       const SizedBox(height: 15),
                       if (isPackagePurchase) ...[
-                        _buildSummaryRow('Package ID', widget.orderId),
-                        _buildSummaryRow('Amount',
-                            '${widget.amount.toStringAsFixed(2)} AED'),
-                        _buildSummaryRow('Payment Method', 'Credit/Debit Card'),
+                        _buildSummaryRow(_t('package_id'), widget.orderId),
+                        _buildSummaryRow(_t('amount'),
+                            '${widget.amount.toStringAsFixed(2)} ${_t('riyal')}'),
+                        _buildSummaryRow(_t('payment_method'), _t('credit_debit_card')),
                       ] else ...[
-                        _buildSummaryRow('Order ID', widget.orderId),
+                        _buildSummaryRow(_t('order_id'), widget.orderId),
                         if (isPackageOrder) ...[
-                          _buildSummaryRow('Payment Method', 'Package'),
+                          _buildSummaryRow(_t('payment_method'), _t('package')),
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(15),
@@ -1560,7 +1594,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    'This order will be paid using your package',
+                                    _t('this_order_paid_with_package'),
                                     style: GoogleFonts.poppins(
                                       fontSize: 14,
                                       color: Colors.blue,
@@ -1572,10 +1606,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             ),
                           ),
                         ] else ...[
-                          _buildSummaryRow('Amount',
-                              '${widget.amount.toStringAsFixed(2)} AED'),
+                          _buildSummaryRow(_t('amount'),
+                              '${widget.amount.toStringAsFixed(2)} ${_t('riyal')}'),
                           _buildSummaryRow(
-                              'Payment Method', 'Credit/Debit Card'),
+                              _t('payment_method'), _t('credit_debit_card')),
                         ],
                       ],
                       const SizedBox(height: 20),
@@ -1594,7 +1628,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Secure payment powered by Stripe',
+                                _t('secure_payment_stripe'),
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
                                   color: Colors.green,
@@ -1721,7 +1755,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 Icon(Icons.card_giftcard, size: 20),
                                 const SizedBox(width: 10),
                                 Text(
-                                  'Confirm Package Order',
+                                  _t('confirm_package_order'),
                                   style: GoogleFonts.poppins(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
@@ -1752,7 +1786,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Multiple Payment Methods Available',
+                                _t('multiple_payment_methods'),
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -1761,7 +1795,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Cards, Apple Pay, Google Pay, Link & more',
+                                _t('payment_methods_list'),
                                 style: GoogleFonts.poppins(
                                   fontSize: 12,
                                   color: Colors.blue[700],
@@ -1822,8 +1856,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 const SizedBox(width: 10),
                                 Text(
                                   isPackagePurchase
-                                      ? 'Purchase Package - ${widget.amount.toStringAsFixed(2)} AED'
-                                      : 'Pay ${widget.amount.toStringAsFixed(2)} AED',
+                                      ? '${_t('purchase_package')} - ${widget.amount.toStringAsFixed(2)} ${_t('riyal')}'
+                                      : '${_t('pay')} ${widget.amount.toStringAsFixed(2)} ${_t('riyal')}',
                                   style: GoogleFonts.poppins(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
@@ -1834,52 +1868,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     ),
                   ),
                 ],
-
-                const SizedBox(height: 30),
-
-                // معلومات إضافية
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              color: Colors.blue, size: 20),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Payment Information',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.blue,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        '• Your payment is secured by Stripe\n• No card details are stored on our servers\n• You will receive a confirmation email\n• Payment is processed in real-time',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          height: 1.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
         ),
       ),
+    ),
     );
   }
 

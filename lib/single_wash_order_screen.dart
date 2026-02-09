@@ -3723,7 +3723,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
               const SizedBox(height: 16),
 
               Text(
-                'Time Slot Selected!',
+                _t('time_slot_selected'),
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
