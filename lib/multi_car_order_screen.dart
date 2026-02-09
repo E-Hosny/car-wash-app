@@ -84,6 +84,15 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
     return AppTranslations.getTextWithFallback(key, _currentLanguage);
   }
 
+  String _getServiceDisplayName(Map<String, dynamic> service) {
+    if (_currentLanguage == 'ar' &&
+        service['name_ar'] != null &&
+        service['name_ar'].toString().trim().isNotEmpty) {
+      return service['name_ar'].toString().trim();
+    }
+    return service['name']?.toString() ?? '';
+  }
+
   @override
   void dispose() {
     _languageSubscription.cancel();
@@ -475,6 +484,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
             usePackage: usePackage,
             availableServices: availableServices,
             token: widget.token,
+            language: _currentLanguage,
             onCarsUpdated: () {
               CacheService().invalidateCars(widget.token);
               fetchUserCars();
@@ -549,6 +559,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
         usePackage: usePackage,
         availableServices: availableServices,
         token: widget.token,
+        language: _currentLanguage,
         onCarsUpdated: () => fetchUserCars(),
         initialCarData: selectedCars[index],
         onCarAdded: (carData) {
@@ -589,8 +600,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
           : (remaining is String ? int.tryParse(remaining) ?? 0 : 0);
     }
 
-    final packageName = userPackage['package']['name'] ?? 'Package';
-    return '$packageName - $totalRemaining services remaining';
+    final packageName = userPackage['package']['name'] ?? _t('package');
+    return '$packageName - $totalRemaining ${_t('services_remaining')}';
   }
 
   int _calculateRemainingServices(
@@ -1080,7 +1091,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Add Address Details',
+                              _t('add_address_details'),
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 18,
@@ -1089,7 +1100,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Complete your address information',
+                              _t('complete_address_info'),
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
                                 color: Colors.grey.shade600,
@@ -1106,30 +1117,30 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                 // Form fields
                 _buildModernTextField(
                   controller: labelController,
-                  label: 'Label',
-                  hint: 'e.g. Home, Work',
+                  label: _t('label'),
+                  hint: _t('label_hint'),
                   icon: Icons.label,
                   isRequired: true,
                 ),
                 const SizedBox(height: 16),
                 _buildModernTextField(
                   controller: streetController,
-                  label: 'Street',
-                  hint: 'Enter street name',
+                  label: _t('street'),
+                  hint: _t('street_hint'),
                   icon: Icons.route,
                 ),
                 const SizedBox(height: 16),
                 _buildModernTextField(
                   controller: buildingController,
-                  label: 'Building',
-                  hint: 'Enter building name/number',
+                  label: _t('building'),
+                  hint: _t('building_hint'),
                   icon: Icons.business,
                 ),
                 const SizedBox(height: 16),
                 _buildModernTextField(
                   controller: notesController,
-                  label: 'Notes',
-                  hint: 'Additional instructions (optional)',
+                  label: _t('additional_notes'),
+                  hint: _t('additional_notes_hint'),
                   icon: Icons.note,
                   maxLines: 2,
                 ),
@@ -1179,7 +1190,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                           ),
                         ),
                         child: Text(
-                          'Cancel',
+                          _t('cancel'),
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600,
                             color: Colors.grey.shade600,
@@ -1199,9 +1210,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                   if (baseUrl == null || baseUrl.isEmpty) {
                                     setState(() => isSaving = false);
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Configuration error: BASE_URL not found'),
+                                      SnackBar(
+                                          content: Text(_t('configuration_error')),
                                           backgroundColor: Colors.red),
                                     );
                                     return;
@@ -1234,15 +1244,15 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                     await _autoSelectRecentAddress();
                                     Navigator.pop(context);
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text('Address saved!'),
+                                      SnackBar(
+                                          content: Text(_t('address_saved')),
                                           backgroundColor: Colors.green),
                                     );
                                   } else {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                           content:
-                                              Text('Failed to save address'),
+                                              Text(_t('failed_to_save_address')),
                                           backgroundColor: Colors.red),
                                     );
                                   }
@@ -1251,7 +1261,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                         content: Text(
-                                            'Error saving address: ${e.toString()}'),
+                                            '${_t('failed_to_save_address')}: ${e.toString()}'),
                                         backgroundColor: Colors.red),
                                   );
                                 }
@@ -1276,7 +1286,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                 ),
                               )
                             : Text(
-                                'Save Address',
+                                _t('save_address'),
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 16,
@@ -1386,7 +1396,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          'Multi-Car Order',
+          _t('multi_car_order'),
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -1453,11 +1463,11 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Address'),
+        _sectionTitle(_t('address')),
         if (isLoadingAddresses)
-          const SizedBox(
+          SizedBox(
             height: 100,
-            child: AnimatedLoadingIndicator(message: 'Loading addresses...'),
+            child: AnimatedLoadingIndicator(message: _t('loading_addresses')),
           ),
         if (!isLoadingAddresses && savedAddresses.isNotEmpty)
           ...savedAddresses.map((addr) => Card(
@@ -1466,7 +1476,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                     ? Colors.green[50]
                     : Colors.white,
                 child: ListTile(
-                  title: Text(addr['label'] ?? addr['address'] ?? 'Address',
+                  title: Text(addr['label'] ?? addr['address'] ?? _t('address'),
                       style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
                   subtitle: Text(
                       '${addr['street'] ?? ''} ${addr['building'] ?? ''} ${addr['floor'] ?? ''} ${addr['apartment'] ?? ''}\n${addr['address'] ?? ''}',
@@ -1493,7 +1503,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
               )),
         ElevatedButton.icon(
           icon: const Icon(Icons.add_location_alt),
-          label: const Text('Add New Address'),
+          label: Text(_t('add_new_address')),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.black,
             foregroundColor: Colors.white,
@@ -1505,9 +1515,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
               if (latitude == null || longitude == null) {
                 // If no location available, show error and try to get default location
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'No location available. Please wait or check location permissions.'),
+                  SnackBar(
+                    content: Text(_t('no_location_available')),
                     backgroundColor: Colors.orange,
                   ),
                 );
@@ -1538,7 +1547,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
               debugPrint('❌ Error opening map picker: $e');
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Error opening map: $e'),
+                  content: Text('${_t('error_opening_map')}: $e'),
                   backgroundColor: Colors.red,
                 ),
               );
@@ -1562,7 +1571,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                 const Icon(Icons.card_giftcard, color: Colors.black),
                 const SizedBox(width: 8),
                 Text(
-                  'Current Package',
+                  _t('current_package'),
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -1584,8 +1593,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                   onChanged: togglePackageUsage,
                   activeColor: Colors.black,
                 ),
-                const Text('Use Package',
-                    style: TextStyle(color: Colors.black)),
+                Text(_t('use_package'),
+                    style: const TextStyle(color: Colors.black)),
               ],
             ),
           ],
@@ -1601,7 +1610,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _sectionTitle('Selected Cars (${selectedCars.length})'),
+            _sectionTitle('${_t('selected_cars')} (${selectedCars.length})'),
             if (selectedCars.isNotEmpty)
               TextButton.icon(
                 onPressed: () {
@@ -1611,13 +1620,13 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                   });
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('✅ All cars cleared'),
+                      content: Text('✅ ${_t('all_cars_cleared')}'),
                       backgroundColor: Colors.blue,
                     ),
                   );
                 },
                 icon: Icon(Icons.clear_all, size: 16),
-                label: Text('Clear All'),
+                label: Text(_t('clear_all')),
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.red,
                 ),
@@ -1631,7 +1640,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                 onPressed: addCarToOrder,
                 icon: const Icon(Icons.add_circle_outline),
                 label: Text(
-                    'Add Car (${cars.length - selectedCars.length} available)'),
+                    _t('add_car_available').replaceAll('{count}', '${cars.length - selectedCars.length}')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
@@ -1681,7 +1690,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                         children: [
                           const Icon(Icons.edit),
                           const SizedBox(width: 8),
-                          const Text('Edit'),
+                          Text(_t('edit')),
                         ],
                       ),
                     ),
@@ -1691,8 +1700,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                         children: [
                           const Icon(Icons.delete, color: Colors.black),
                           const SizedBox(width: 8),
-                          const Text('Delete',
-                              style: TextStyle(color: Colors.black)),
+                          Text(_t('delete'),
+                              style: const TextStyle(color: Colors.black)),
                         ],
                       ),
                     ),
@@ -1709,12 +1718,12 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Year: ${car['year']['year']} • Color: ${car['color']}',
+              '${_t('year')}: ${car['year']['year']} • ${_t('color')}: ${car['color']}',
               style: const TextStyle(color: Colors.grey, fontSize: 14),
             ),
             const SizedBox(height: 12),
             Text(
-              'Selected Services:',
+              '${_t('selected_services')}:',
               style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
@@ -1724,8 +1733,9 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
               children: (carData['services'] as List).map<Widget>((serviceId) {
                 final service =
                     services.firstWhere((s) => s['id'] == serviceId);
+                final serviceName = _getServiceDisplayName(service);
                 return Chip(
-                  label: Text(service['name']),
+                  label: Text(serviceName),
                   backgroundColor: Colors.grey.shade200,
                 );
               }).toList(),
@@ -1735,7 +1745,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  usePackage ? 'Services Used:' : 'Total:',
+                  usePackage ? '${_t('services_used')}:' : '${_t('total_amount')}:',
                   style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                 ),
                 Builder(
@@ -1745,7 +1755,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                         'Displaying car ${carData['car_id']} with $pointsUsed points (usePackage: $usePackage)');
                     return usePackage
                         ? Text(
-                            '$pointsUsed Points',
+                            '$pointsUsed ${_t('points')}',
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.bold,
                               color: Colors.black,
@@ -1795,8 +1805,8 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                 selectedDateTime != null ? Icons.access_time : Icons.schedule),
             label: Text(
               selectedDateTime != null
-                  ? 'Selected: ${_formatSelectedTime(selectedDateTime!)}'
-                  : 'Select Time Slot',
+                  ? '${_t('selected')} ${_formatSelectedTime(selectedDateTime!)}'
+                  : _t('select_time_slot'),
               style: const TextStyle(fontSize: 16),
             ),
             style: ElevatedButton.styleFrom(
@@ -1842,7 +1852,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Loading Available Times...',
+                _t('loading_available_times'),
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -1901,7 +1911,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Select Date & Time',
+                          _t('select_date_time'),
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
@@ -1943,7 +1953,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                       color: Colors.blue.shade700, size: 20),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Select Date',
+                                    _t('select_date'),
                                     style: GoogleFonts.poppins(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 16,
@@ -1956,20 +1966,20 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                               Column(
                                 children: [
                                   _buildModernDateOption(
-                                      'Today',
+                                      _t('today'),
                                       DateTime.now(),
                                       setDialogState,
                                       Icons.today),
                                   const SizedBox(height: 6),
                                   _buildModernDateOption(
-                                      'Tomorrow',
+                                      _t('tomorrow'),
                                       DateTime.now()
                                           .add(const Duration(days: 1)),
                                       setDialogState,
                                       Icons.event_available),
                                   const SizedBox(height: 6),
                                   _buildModernDateOption(
-                                      'Day After',
+                                      _t('day_after'),
                                       DateTime.now()
                                           .add(const Duration(days: 2)),
                                       setDialogState,
@@ -1992,7 +2002,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                       color: Colors.green.shade700, size: 20),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Select Time',
+                                    _t('select_time'),
                                     style: GoogleFonts.poppins(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 16,
@@ -2122,7 +2132,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                                                 const SizedBox(height: 2),
                                                 Flexible(
                                                   child: Text(
-                                                    isPastHour ? 'Past' : 'OFF',
+                                                    isPastHour ? _t('past') : _t('off'),
                                                     style: GoogleFonts.poppins(
                                                       color: isBooked
                                                           ? Colors.red.shade600
@@ -2257,7 +2267,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
 
               // Title
               Text(
-                'Confirm Time Slot',
+                _t('confirm_time_slot'),
                 style: GoogleFonts.poppins(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -2268,7 +2278,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
 
               // Message
               Text(
-                'Are you sure you want to select this time slot?',
+                _t('confirm_time_slot_message'),
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   color: Colors.grey.shade700,
@@ -2338,7 +2348,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                         ),
                       ),
                       child: Text(
-                        'Cancel',
+                        _t('cancel'),
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -2364,7 +2374,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                         elevation: 4,
                       ),
                       child: Text(
-                        'Confirm',
+                        _t('confirm'),
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -2490,11 +2500,11 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
     final targetDate = DateTime(date.year, date.month, date.day);
 
     if (targetDate == today) {
-      return 'Today - ${date.day}/${date.month}';
+      return '${_t('today')} - ${date.day}/${date.month}';
     } else if (targetDate == tomorrow) {
-      return 'Tomorrow - ${date.day}/${date.month}';
+      return '${_t('tomorrow')} - ${date.day}/${date.month}';
     } else if (targetDate == dayAfter) {
-      return 'Day After - ${date.day}/${date.month}';
+      return '${_t('day_after')} - ${date.day}/${date.month}';
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
@@ -2510,11 +2520,11 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
 
     String displayLabel = label;
     if (isToday)
-      displayLabel = 'Today';
+      displayLabel = _t('today');
     else if (isTomorrow)
-      displayLabel = 'Tomorrow';
+      displayLabel = _t('tomorrow');
     else
-      displayLabel = 'Day After';
+      displayLabel = _t('day_after');
 
     return GestureDetector(
       onTap: () async {
@@ -2722,13 +2732,13 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
 
     String dateLabel = '';
     if (_isSameDate(dateTime, DateTime.now())) {
-      dateLabel = 'Today';
+      dateLabel = _t('today');
     } else if (_isSameDate(
         dateTime, DateTime.now().add(const Duration(days: 1)))) {
-      dateLabel = 'Tomorrow';
+      dateLabel = _t('tomorrow');
     } else if (_isSameDate(
         dateTime, DateTime.now().add(const Duration(days: 2)))) {
-      dateLabel = 'Day After';
+      dateLabel = _t('day_after');
     } else {
       dateLabel = '${dateTime.day}/${dateTime.month}';
     }
@@ -2755,7 +2765,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Order Summary',
+              _t('order_summary'),
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -2765,7 +2775,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Number of Cars:'),
+                Text(_t('number_of_cars')),
                 Text('${selectedCars.length}'),
               ],
             ),
@@ -2774,16 +2784,16 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Services Used:'),
-                  Text('$totalPointsUsed services'),
+                  Text(_t('services_used')),
+                  Text('$totalPointsUsed ${_t('services_remaining')}'),
                 ],
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Services Remaining:'),
+                  Text(_t('services_remaining')),
                   Text(
-                      '${_calculateRemainingServices(userPackage, totalPointsUsed)} services'),
+                      '${_calculateRemainingServices(userPackage, totalPointsUsed)} ${_t('services_remaining')}'),
                 ],
               ),
             ] else ...[
@@ -2791,7 +2801,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Total:',
+                    '${_t('total_amount')}:',
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -2855,7 +2865,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Total Amount',
+                      _t('total_amount'),
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         color: Colors.grey.shade600,
@@ -2869,7 +2879,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                       children: [
                         usePackage
                             ? Text(
-                                'FREE',
+                                _t('free'),
                                 style: GoogleFonts.poppins(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -2901,7 +2911,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              'Package',
+                              _t('package'),
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -2964,7 +2974,7 @@ class _MultiCarOrderScreenState extends State<MultiCarOrderScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        usePackage ? 'Use Package' : 'Pay Now',
+                        usePackage ? _t('use_package') : _t('pay_now'),
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -3001,6 +3011,7 @@ class CarSelectionDialog extends StatefulWidget {
   final Map<String, dynamic>? initialCarData;
   final String token;
   final VoidCallback? onCarsUpdated;
+  final String language;
 
   const CarSelectionDialog({
     super.key,
@@ -3012,6 +3023,7 @@ class CarSelectionDialog extends StatefulWidget {
     required this.token,
     this.initialCarData,
     this.onCarsUpdated,
+    this.language = 'en',
   });
 
   @override
@@ -3107,7 +3119,9 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                   children: [
                     Expanded(
                       child: Text(
-                        widget.initialCarData != null ? 'Edit Car' : 'Add Car',
+                        widget.initialCarData != null
+                            ? AppTranslations.getTextWithFallback('edit_car', widget.language)
+                            : AppTranslations.getTextWithFallback('add_car', widget.language),
                         style: GoogleFonts.poppins(
                           color: Colors.white,
                           fontSize: 18,
@@ -3129,7 +3143,7 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Select Car:',
+                        '${AppTranslations.getTextWithFallback('select_car', widget.language)}:',
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -3154,14 +3168,14 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                         leading: const Icon(Icons.add_circle_outline,
                             color: Colors.blue),
                         title: Text(
-                          'Add New Car',
+                          AppTranslations.getTextWithFallback('add_new_car', widget.language),
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600,
                             color: Colors.blue,
                           ),
                         ),
-                        subtitle: const Text(
-                            'Create a new car to add to your collection'),
+                        subtitle: Text(
+                            AppTranslations.getTextWithFallback('create_new_car_description', widget.language)),
                         onTap: () async {
                           Navigator.pop(context);
                           final added = await Navigator.push(
@@ -3177,11 +3191,11 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                             // Show success message - check if widget is still mounted
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
+                                SnackBar(
                                   content: Text(
-                                      '✅ Car added successfully! Please select it from the list.'),
+                                      '✅ ${AppTranslations.getTextWithFallback('car_added_success', widget.language)}'),
                                   backgroundColor: Colors.green,
-                                  duration: Duration(seconds: 3),
+                                  duration: const Duration(seconds: 3),
                                 ),
                               );
                             }
@@ -3190,7 +3204,7 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        'Select Services:',
+                        '${AppTranslations.getTextWithFallback('select_services', widget.language)}:',
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -3198,11 +3212,11 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                       ),
                       const SizedBox(height: 12),
                       if (widget.services.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.all(20),
+                        Padding(
+                          padding: const EdgeInsets.all(20),
                           child: Text(
-                            'Loading services...',
-                            style: TextStyle(
+                            AppTranslations.getTextWithFallback('loading_services', widget.language),
+                            style: const TextStyle(
                               fontSize: 16,
                               color: Colors.grey,
                             ),
@@ -3280,8 +3294,8 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                                     ),
                                     child: Text(
                                       remainingQuantity > 0
-                                          ? '$remainingQuantity remaining'
-                                          : 'Not available',
+                                          ? '$remainingQuantity ${AppTranslations.getTextWithFallback('remaining', widget.language)}'
+                                          : AppTranslations.getTextWithFallback('not_available', widget.language),
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -3321,7 +3335,9 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          widget.usePackage ? 'Services Used:' : 'Total:',
+                          widget.usePackage
+                              ? '${AppTranslations.getTextWithFallback('services_used', widget.language)}:'
+                              : '${AppTranslations.getTextWithFallback('total_amount', widget.language)}:',
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -3329,7 +3345,7 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                         ),
                         widget.usePackage
                             ? Text(
-                                '$pointsUsed Points',
+                                '$pointsUsed ${AppTranslations.getTextWithFallback('points', widget.language)}',
                                 style: GoogleFonts.poppins(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -3381,7 +3397,9 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                           ),
                         ),
                         child: Text(
-                          widget.initialCarData != null ? 'Update' : 'Add',
+                          widget.initialCarData != null
+                              ? AppTranslations.getTextWithFallback('update', widget.language)
+                              : AppTranslations.getTextWithFallback('add', widget.language),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
