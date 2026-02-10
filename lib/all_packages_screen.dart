@@ -70,6 +70,14 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
     return AppTranslations.getTextWithFallback(key, _currentLanguage);
   }
 
+  String _validityMonthsText(Map<String, dynamic> package) {
+    final n = package['validity_months'] is int
+        ? package['validity_months'] as int
+        : (int.tryParse(package['validity_months']?.toString() ?? '1') ?? 1);
+    if (n <= 1) return _t('valid_for_1_month');
+    return _t('valid_for_n_months').replaceAll('%s', '$n');
+  }
+
   TextStyle _getArabicTextStyle({
     double fontSize = 16,
     FontWeight fontWeight = FontWeight.normal,
@@ -430,7 +438,7 @@ class _AllPackagesScreenState extends State<AllPackagesScreen> {
                                 ),
                                 const SizedBox(height: 0),
                                 Text(
-                                  _t('valid_for_1_month'),
+                                  _validityMonthsText(package),
                                   style: _getArabicTextStyle(
                                     fontSize: 11,
                                     color: Colors.grey.shade600,

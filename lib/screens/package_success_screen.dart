@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../main_navigation_screen.dart';
+import '../services/language_service.dart';
+import '../translations.dart';
 
-class PackageSuccessScreen extends StatelessWidget {
+class PackageSuccessScreen extends StatefulWidget {
   final String token;
   final Map<String, dynamic> packageData;
 
@@ -11,6 +14,40 @@ class PackageSuccessScreen extends StatelessWidget {
     required this.token,
     required this.packageData,
   });
+
+  @override
+  State<PackageSuccessScreen> createState() => _PackageSuccessScreenState();
+}
+
+class _PackageSuccessScreenState extends State<PackageSuccessScreen> {
+  String _currentLanguage = 'en';
+  late StreamSubscription _languageSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+    _languageSubscription = LanguageService.languageStream.listen((_) async {
+      await _loadLanguage();
+    });
+  }
+
+  Future<void> _loadLanguage() async {
+    final lang = await LanguageService.getCurrentLanguage();
+    if (mounted) {
+      setState(() => _currentLanguage = lang);
+    }
+  }
+
+  String _t(String key) {
+    return AppTranslations.getTextWithFallback(key, _currentLanguage);
+  }
+
+  @override
+  void dispose() {
+    _languageSubscription.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +113,7 @@ class PackageSuccessScreen extends StatelessWidget {
                         child: Column(
                           children: [
                             Text(
-                              'Congratulations! 🎉',
+                              _t('congratulations'),
                               style: GoogleFonts.poppins(
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
@@ -86,7 +123,7 @@ class PackageSuccessScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Package purchased successfully!',
+                              _t('package_purchased_successfully'),
                               style: GoogleFonts.poppins(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w600,
@@ -123,7 +160,7 @@ class PackageSuccessScreen extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'You can now use your package to request car wash services',
+                          _t('package_use_message'),
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             color: Colors.blue[700],
@@ -169,7 +206,7 @@ class PackageSuccessScreen extends StatelessWidget {
                                     MaterialPageRoute(
                                       builder: (context) =>
                                           MainNavigationScreen(
-                                        token: token,
+                                        token: widget.token,
                                         initialIndex: 1, // My Packages tab
                                       ),
                                     ),
@@ -190,7 +227,7 @@ class PackageSuccessScreen extends StatelessWidget {
                                     Icon(Icons.card_giftcard, size: 20),
                                     const SizedBox(width: 10),
                                     Text(
-                                      'View My Packages',
+                                      _t('view_my_packages'),
                                       style: GoogleFonts.poppins(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
@@ -223,7 +260,7 @@ class PackageSuccessScreen extends StatelessWidget {
                                     MaterialPageRoute(
                                       builder: (context) =>
                                           MainNavigationScreen(
-                                        token: token,
+                                        token: widget.token,
                                         initialIndex: 0, // Services tab
                                       ),
                                     ),
@@ -244,7 +281,7 @@ class PackageSuccessScreen extends StatelessWidget {
                                     Icon(Icons.local_car_wash, size: 20),
                                     const SizedBox(width: 10),
                                     Text(
-                                      'Request Service',
+                                      _t('request_service'),
                                       style: GoogleFonts.poppins(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
