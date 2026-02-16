@@ -21,6 +21,10 @@ import 'widgets/animated_loading_indicator.dart';
 import 'main_navigation_screen.dart';
 import 'screens/my_package_screen.dart';
 import 'multi_car_order_screen.dart';
+import 'single_wash_order_screen.dart';
+import 'my_orders_screen.dart';
+import 'screens/support_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'services/config_service.dart';
 
 class OrderRequestScreen extends StatefulWidget {
@@ -66,6 +70,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
 
   // Track expanded descriptions for each service
   Map<int, bool> expandedServices = {};
+  HomeBannerConfig? _bannerConfig;
 
   @override
   void initState() {
@@ -142,9 +147,14 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
   }
 
   Future<void> _loadConfigAndPackages() async {
+    final cachedBanner = await ConfigService.getCachedHomeBannerConfig();
+    if (mounted) setState(() => _bannerConfig = cachedBanner);
     packagesEnabled = await ConfigService.fetchPackagesEnabled();
+    final bannerConfig = await ConfigService.fetchHomeBannerConfig();
     if (!mounted) return;
-    setState(() {});
+    setState(() {
+      _bannerConfig = bannerConfig;
+    });
     if (packagesEnabled) {
       checkUserPackage();
       fetchPackages();
@@ -152,6 +162,127 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       setState(() {
         isLoadingPackages = false;
       });
+    }
+  }
+
+  Widget _buildBanner() {
+    final config = _bannerConfig;
+    final hasLink = config != null &&
+        config.linkType.isNotEmpty &&
+        config.linkType != 'none';
+    // إذا لم يُضف أدمن أي صورة من الباكند، نعرض الصورة الافتراضية الحالية (assets/banner.png)
+    final bannerUrl = config?.imageUrl;
+    final imageWidget = bannerUrl != null && bannerUrl.isNotEmpty
+        ? CachedNetworkImage(
+            imageUrl: bannerUrl,
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            placeholder: (context, url) => _bannerPlaceholder(),
+            errorWidget: (context, url, error) => _bannerPlaceholder(),
+          )
+        : Image.asset(
+            'assets/banner.png',
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            errorBuilder: (context, error, stackTrace) => _bannerPlaceholder(),
+          );
+    final content = Container(
+      width: double.infinity,
+      height: 200,
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.only(left: 20, right: 20),
+          decoration: const BoxDecoration(color: Colors.white),
+          child: imageWidget,
+        ),
+      ),
+    );
+    if (!hasLink) return content;
+    return InkWell(
+      onTap: () => _onBannerTap(config),
+      borderRadius: BorderRadius.circular(20),
+      child: content,
+    );
+  }
+
+  Widget _bannerPlaceholder() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Icon(Icons.local_car_wash, size: 60, color: Colors.grey[400]),
+    );
+  }
+
+  Future<void> _onBannerTap(HomeBannerConfig config) async {
+    switch (config.linkType) {
+      case 'single_wash':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SingleWashOrderScreen(token: widget.token),
+          ),
+        );
+        break;
+      case 'multi_car':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MultiCarOrderScreen(token: widget.token),
+          ),
+        );
+        break;
+      case 'packages':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AllPackagesScreen(
+              token: widget.token,
+              isGuest: false,
+            ),
+          ),
+        );
+        break;
+      case 'orders':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MyOrdersScreen(token: widget.token),
+          ),
+        );
+        break;
+      case 'support':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SupportScreen(token: widget.token),
+          ),
+        );
+        break;
+      case 'external':
+        final url = config.externalUrl;
+        if (url != null && url.isNotEmpty) {
+          final uri = Uri.parse(url);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        }
+        break;
+      default:
+        break;
     }
   }
 
@@ -686,36 +817,8 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Banner Section
-                Container(
-                  width: double.infinity,
-                  height: 200,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.only(left: 20, right: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                      ),
-                      child: Image.asset(
-                        'assets/banner.png',
-                        fit: BoxFit.contain,
-                        alignment: Alignment.center,
-                      ),
-                    ),
-                  ),
-                ),
+                // 1. Banner Section (from API, linkable)
+                _buildBanner(),
 
                 // 2. Multi-Car Order Option (Prominent)
                 Container(
@@ -1421,15 +1524,6 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: _buildPackageImage(package),
-                        ),
-                        child: Icon(
-                          Icons.card_giftcard,
-                          size: 50,
-                          color: Colors.black,
-                        ),
-                      );
-                    },
-                  ),
                 ),
               ),
             const SizedBox(height: 16),
@@ -1664,7 +1758,6 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
               fontSize: 22, fontWeight: FontWeight.w700, color: Colors.black),
         ),
       );
-  }
 
   Widget _buildPackageImage(Map<String, dynamic> package) {
     // Check for image_url first (full URL like services)

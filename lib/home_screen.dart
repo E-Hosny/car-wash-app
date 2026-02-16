@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 import 'single_wash_order_screen.dart';
 import 'multi_car_order_screen.dart';
+import 'all_packages_screen.dart';
+import 'my_orders_screen.dart';
+import 'screens/support_screen.dart';
 import 'translations.dart';
+import 'services/config_service.dart';
 import 'services/language_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,15 +25,24 @@ class _HomeScreenState extends State<HomeScreen> {
   String _currentLanguage = 'en';
   bool _isRTL = false;
   late StreamSubscription _languageSubscription;
+  HomeBannerConfig? _bannerConfig;
 
   @override
   void initState() {
     super.initState();
     _loadLanguage();
-    // Listen for language changes
+    _loadBannerConfigCachedThenFromApi();
     _languageSubscription = LanguageService.languageStream.listen((languageCode) async {
-      await _loadLanguage(); // Update local language state
+      await _loadLanguage();
     });
+  }
+
+  /// عرض البانر من الذاكرة المحلية فوراً ثم تحديثه من الـ API في الخلفية
+  Future<void> _loadBannerConfigCachedThenFromApi() async {
+    final cached = await ConfigService.getCachedHomeBannerConfig();
+    if (mounted) setState(() => _bannerConfig = cached);
+    final config = await ConfigService.fetchHomeBannerConfig();
+    if (mounted) setState(() => _bannerConfig = config);
   }
 
   @override
@@ -68,6 +83,129 @@ class _HomeScreenState extends State<HomeScreen> {
         fontWeight: fontWeight,
         color: color,
       );
+    }
+  }
+
+  Widget _buildBanner() {
+    final config = _bannerConfig;
+    final hasLink = config != null &&
+        config.linkType.isNotEmpty &&
+        config.linkType != 'none';
+    // إذا لم يُضف أدمن أي صورة من الباكند، نعرض الصورة الافتراضية الحالية (assets/banner.png)
+    final bannerUrl = config?.imageUrl;
+    final imageWidget = bannerUrl != null && bannerUrl.isNotEmpty
+        ? CachedNetworkImage(
+            imageUrl: bannerUrl,
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            placeholder: (context, url) => _bannerPlaceholder(),
+            errorWidget: (context, url, error) => _bannerPlaceholder(),
+          )
+        : Image.asset(
+            'assets/banner.png',
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            errorBuilder: (context, error, stackTrace) => _bannerPlaceholder(),
+          );
+
+    final content = Container(
+      width: double.infinity,
+      height: 180,
+      margin: const EdgeInsets.only(bottom: 40),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: const BoxDecoration(color: Colors.white),
+          child: imageWidget,
+        ),
+      ),
+    );
+
+    if (!hasLink) return content;
+    return InkWell(
+      onTap: () => _onBannerTap(config),
+      borderRadius: BorderRadius.circular(20),
+      child: content,
+    );
+  }
+
+  Widget _bannerPlaceholder() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Icon(Icons.local_car_wash, size: 60, color: Colors.grey[400]),
+    );
+  }
+
+  Future<void> _onBannerTap(HomeBannerConfig config) async {
+    switch (config.linkType) {
+      case 'single_wash':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SingleWashOrderScreen(token: widget.token),
+          ),
+        );
+        break;
+      case 'multi_car':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MultiCarOrderScreen(token: widget.token),
+          ),
+        );
+        break;
+      case 'packages':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AllPackagesScreen(
+              token: widget.token,
+              isGuest: false,
+            ),
+          ),
+        );
+        break;
+      case 'orders':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MyOrdersScreen(token: widget.token),
+          ),
+        );
+        break;
+      case 'support':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SupportScreen(token: widget.token),
+          ),
+        );
+        break;
+      case 'external':
+        final url = config.externalUrl;
+        if (url != null && url.isNotEmpty) {
+          final uri = Uri.parse(url);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        }
+        break;
+      default:
+        break;
     }
   }
 
@@ -124,49 +262,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-              // Banner Image
-              Container(
-                width: double.infinity,
-                height: 180,
-                margin: const EdgeInsets.only(bottom: 40),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                    ),
-                    child: Image.asset(
-                      'assets/banner.png',
-                      fit: BoxFit.contain,
-                      alignment: Alignment.center,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Icon(
-                            Icons.local_car_wash,
-                            size: 60,
-                            color: Colors.grey[400],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
+              // Banner Image (from API or fallback to asset)
+              _buildBanner(),
 
               // Service Cards
               Column(
