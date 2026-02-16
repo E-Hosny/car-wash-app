@@ -159,46 +159,6 @@ class _OtpScreenState extends State<OtpScreen> {
     }
 
     try {
-      // Get stored OTP code
-      final prefs = await SharedPreferences.getInstance();
-      final String? storedOtp = prefs.getString('otp_code');
-
-      if (storedOtp == null) {
-        setState(() {
-          errorMessage = _t('invalid_code');
-          isLoading = false;
-        });
-        return;
-      }
-
-      // Verify OTP
-      // Special case for demo user: allow 0000 for specific phone numbers
-      bool isDemoUser = (widget.phoneNumber == '971508949923' ||
-          widget.phoneNumber == '971999999999');
-      bool isCorrectOtp =
-          (enteredOtp == storedOtp) || 
-          (isDemoUser && enteredOtp == '0000') ||
-          (enteredOtp == '1832'); // OTP ثابت يسمح لأي شخص بالمرور
-
-      if (isCorrectOtp) {
-        // OTP is correct, proceed with login
-        await _completeLogin();
-      } else {
-        setState(() {
-          errorMessage = _t('incorrect_code');
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        errorMessage = _t('error_verifying');
-        isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _completeLogin() async {
-    try {
       final baseUrl = dotenv.env['BASE_URL']!;
       final url = Uri.parse('$baseUrl/api/login-with-otp');
       final normalizedPhone = normalizePhone(widget.phoneNumber);
@@ -210,40 +170,64 @@ class _OtpScreenState extends State<OtpScreen> {
         },
         body: jsonEncode({
           'phone': normalizedPhone,
+          'otp': enteredOtp,
         }),
       );
 
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final token = data['token'];
-
-        // Save token for persistent login
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('auth_token', token);
-        await prefs.remove('otp_code'); // Clear OTP after successful login
-
-        // تحديد المستخدم في LogRocket
-        // استخدام user_id الحقيقي من API response أو phoneNumber مؤقتاً
-        final userId = data['user_id'] ?? data['user']?['id'] ?? normalizedPhone;
-        final userName = data['user']?['name'] ?? data['name'] ?? normalizedPhone;
-        final userEmail = data['user']?['email'] ?? data['email'] ?? '';
-
+        await _completeLoginWithData(data);
+      } else {
+        String msg = _t('incorrect_code');
         try {
-          LogRocket.identify(
-            userId,
-            {
-              'name': userName,
-              'email': userEmail,
-            },
-          );
-          print("✅ LogRocket user identified: $userId");
-        } catch (e) {
-          print("⚠️ Warning: LogRocket identify failed: $e");
-          // Continue without LogRocket identification
-        }
+          final body = jsonDecode(response.body);
+          final errors = body['errors'];
+          if (errors != null && errors['otp'] != null && (errors['otp'] as List).isNotEmpty) {
+            msg = (errors['otp'] as List).first.toString();
+          }
+        } catch (_) {}
+        setState(() {
+          errorMessage = msg;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = _t('error_verifying');
+        isLoading = false;
+      });
+    }
+  }
 
-        // ربط المستخدم بـ OneSignal
-        try {
+  Future<void> _completeLoginWithData(Map<String, dynamic> data) async {
+    try {
+      final normalizedPhone = normalizePhone(widget.phoneNumber);
+      final token = data['token'];
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', token);
+      await prefs.remove('otp_code');
+
+      final userId = data['user_id'] ?? data['user']?['id'] ?? normalizedPhone;
+      final userName = data['user']?['name'] ?? data['name'] ?? normalizedPhone;
+      final userEmail = data['user']?['email'] ?? data['email'] ?? '';
+
+      try {
+        LogRocket.identify(
+          userId.toString(),
+          {
+            'name': userName,
+            'email': userEmail,
+          },
+        );
+        print("✅ LogRocket user identified: $userId");
+      } catch (e) {
+        print("⚠️ Warning: LogRocket identify failed: $e");
+      }
+
+      try {
           // التحقق من حالة الاشتراك قبل ربط المستخدم (خاصة iOS)
           final subscription = OneSignal.User.pushSubscription;
           final isOptedIn = subscription.optedIn ?? false;
@@ -275,35 +259,30 @@ class _OtpScreenState extends State<OtpScreen> {
               }
             }
           }
-        } catch (e) {
-          print("⚠️ Warning: OneSignal login failed: $e");
-          // Continue without OneSignal user linking
-        }
+      } catch (e) {
+        print("⚠️ Warning: OneSignal login failed: $e");
+      }
 
-        if (!mounted) return;
+      if (!mounted) return;
+      setState(() => isLoading = false);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_t('login_successful'))),
-        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_t('login_successful'))),
+      );
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MainNavigationScreen(token: token),
-          ),
-        );
-      } else {
-        final error = jsonDecode(response.body);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MainNavigationScreen(token: token),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          errorMessage = error['message'] ?? _t('login_failed');
+          errorMessage = _t('connection_error');
           isLoading = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        errorMessage = _t('connection_error');
-        isLoading = false;
-      });
     }
   }
 
@@ -314,33 +293,28 @@ class _OtpScreenState extends State<OtpScreen> {
     });
 
     try {
-      final String otpCode = widget.phoneNumber == '971508949923'
-          ? '0000'
-          : (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
-
-      // Save OTP code
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('otp_code', otpCode);
-
-      // Send OTP via webhook
-      final webhookUrl = Uri.parse(
-          'https://www.uchat.com.au/api/iwh/7c12fdd537dcf07c2df40f2e230ed94b');
-      await http.post(
-        webhookUrl,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "phone_number": widget.phoneNumber,
-          "code": otpCode,
-        }),
+      final baseUrl = dotenv.env['BASE_URL']!;
+      final url = Uri.parse('$baseUrl/api/request-otp');
+      final normalizedPhone = normalizePhone(widget.phoneNumber);
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({'phone': normalizedPhone}),
       );
 
-      setState(() {
-        isLoading = false;
-      });
+      if (!mounted) return;
+      setState(() => isLoading = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_t('code_resent'))),
-      );
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_t('code_resent'))),
+        );
+      } else {
+        setState(() => errorMessage = _t('failed_to_resend'));
+      }
     } catch (e) {
       setState(() {
         errorMessage = _t('failed_to_resend');

@@ -171,27 +171,28 @@ class _LoginScreenState extends State<LoginScreen> {
             return;
           }
 
-          // Only send OTP if user exists
-          final String otpCode =
-              (phoneNumber == '971508949923' || phoneNumber == '971999999999')
-                  ? '0000'
-                  : (1000 + (DateTime.now().millisecondsSinceEpoch % 9000))
-                      .toString();
-
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('otp_code', otpCode);
-
-          final webhookUrl = Uri.parse(
-              'https://www.uchat.com.au/api/iwh/7c12fdd537dcf07c2df40f2e230ed94b');
-          await http.post(
-            webhookUrl,
-            headers: {"Content-Type": "application/json"},
-            body: jsonEncode({
-              "phone_number": phoneNumber,
-              "code": otpCode,
-            }),
+          // إرسال OTP من الـ API (الرقم الجديد فقط — لا webhook قديم)
+          final requestOtpUrl = Uri.parse('$baseUrl/api/request-otp');
+          final otpResponse = await http.post(
+            requestOtpUrl,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'phone': phoneNumber}),
           );
 
+          if (!mounted) return;
+          if (otpResponse.statusCode != 200) {
+            final err = jsonDecode(otpResponse.body);
+            setState(() {
+              generalError = err['message'] ?? _t('connection_error');
+              isLoading = false;
+            });
+            return;
+          }
+
+          setState(() => isLoading = false);
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
