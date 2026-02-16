@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:upgrader/upgrader.dart';
 import 'package:logrocket_flutter/logrocket_flutter.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'services/force_update_messages.dart';
 import 'services/language_service.dart';
 import 'splash_screen.dart'; // أو login_screen.dart
 import 'screens/order_details_screen.dart';
@@ -194,17 +192,7 @@ class _MyAppState extends State<MyApp> {
             child: child!,
           );
         },
-        home: UpgradeAlert(
-          upgrader: Upgrader(
-            // Country code for App Store/Play Store
-            countryCode: 'us',
-            // Check immediately
-            durationUntilAlertAgain: const Duration(days: 0),
-            // Custom messages for force update
-            messages: ForceUpdateMessages(),
-          ),
-          child: const SplashScreen(),
-        ),
+        home: const SplashScreen(),
       ),
     );
   }

@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:upgrader/upgrader.dart';
-import 'services/force_update_messages.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'services/config_service.dart';
 import 'services/language_service.dart';
-import 'login_screen.dart'; // استيراد صفحة تسجيل الدخول
+import 'login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'main_navigation_screen.dart';
 import 'translations.dart';
@@ -21,6 +21,8 @@ class _SplashScreenState extends State<SplashScreen> {
   String _currentLanguage = 'en';
   bool _isRTL = false;
   bool _languageSelected = false;
+  /// إذا غير null، عرض شاشة التحديث الإجباري وفتح هذا الرابط عند الضغط على "تحديث"
+  String? _forceUpdateStoreUrl;
 
   @override
   void initState() {
@@ -66,7 +68,16 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkLoginStatus() async {
     try {
-      await Future.delayed(const Duration(seconds: 2)); // Splash delay
+      await Future.delayed(const Duration(seconds: 2));
+
+      // فحص التحديث الإجباري من الـ API (التحكم من لوحة الأدمن)
+      final forceUpdate = await ConfigService.checkForceUpdate();
+      if (forceUpdate.required && forceUpdate.storeUrl != null && forceUpdate.storeUrl!.isNotEmpty) {
+        if (!mounted) return;
+        setState(() => _forceUpdateStoreUrl = forceUpdate.storeUrl);
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
       final languageSelected = prefs.getBool('language_selected') ?? false;
@@ -196,26 +207,88 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 
+  Future<void> _openStoreUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
-      child: UpgradeAlert(
-        upgrader: Upgrader(
-          // Country code for App Store/Play Store
-          countryCode: 'us',
-          // Check immediately
-          durationUntilAlertAgain: const Duration(days: 0),
-          // Custom messages for force update
-          messages: ForceUpdateMessages(),
-        ),
-        child: const Scaffold(
-          backgroundColor: Colors.white,
-          body: Center(
-            child: Image(
-              image: AssetImage('assets/logo.png'),
-              width: 300,
-              height: 300,
+      child: _forceUpdateStoreUrl != null
+          ? _buildForceUpdateScreen()
+          : Scaffold(
+              backgroundColor: Colors.white,
+              body: Center(
+                child: Image(
+                  image: AssetImage('assets/logo.png'),
+                  width: 300,
+                  height: 300,
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildForceUpdateScreen() {
+    final storeUrl = _forceUpdateStoreUrl!;
+    final title = _t('force_update_title');
+    final message = _t('force_update_message');
+    final buttonText = _t('force_update_button');
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.system_update_alt, size: 80, color: Colors.blue.shade700),
+                const SizedBox(height: 24),
+                Text(
+                  title,
+                  style: _getArabicTextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  message,
+                  style: _getArabicTextStyle(fontSize: 16, color: Colors.black54),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => _openStoreUrl(storeUrl),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      buttonText,
+                      style: _getArabicTextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
