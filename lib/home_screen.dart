@@ -96,14 +96,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final imageWidget = bannerUrl != null && bannerUrl.isNotEmpty
         ? CachedNetworkImage(
             imageUrl: bannerUrl,
-            fit: BoxFit.contain,
+            fit: BoxFit.cover,
             alignment: Alignment.center,
             placeholder: (context, url) => _bannerPlaceholder(),
             errorWidget: (context, url, error) => _bannerPlaceholder(),
           )
         : Image.asset(
             'assets/banner.png',
-            fit: BoxFit.contain,
+            fit: BoxFit.cover,
             alignment: Alignment.center,
             errorBuilder: (context, error, stackTrace) => _bannerPlaceholder(),
           );
@@ -124,11 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: const BoxDecoration(color: Colors.white),
-          child: imageWidget,
-        ),
+        child: imageWidget,
       ),
     );
 
