@@ -24,7 +24,38 @@ class HomeBannerConfig {
   final String? externalUrl;
 }
 
+class CarTypePricingRule {
+  const CarTypePricingRule({
+    required this.key,
+    required this.labelEn,
+    required this.labelAr,
+    required this.percentage,
+  });
+
+  final String key;
+  final String labelEn;
+  final String labelAr;
+  final double percentage;
+
+  String labelForLanguage(String languageCode) {
+    final normalized = languageCode.toLowerCase().trim();
+    final isArabic =
+        normalized == 'ar' ||
+        normalized.startsWith('ar-') ||
+        normalized.startsWith('ar_') ||
+        normalized.contains('arabic');
+    return isArabic ? labelAr : labelEn;
+  }
+}
+
 class ConfigService {
+  static const List<CarTypePricingRule> defaultCarTypePricingRules = [
+    CarTypePricingRule(key: 'sedan', labelEn: 'Sedan', labelAr: 'سيدان', percentage: 0),
+    CarTypePricingRule(key: '4x4_5', labelEn: '4*4 (5 seats)', labelAr: '4*4 (5 مقاعد)', percentage: 15),
+    CarTypePricingRule(key: '4x4_7', labelEn: '4*4 (7 seats)', labelAr: '4*4 (7 مقاعد)', percentage: 20),
+    CarTypePricingRule(key: 'carnival', labelEn: 'Carnival', labelAr: 'كارنفال', percentage: 25),
+  ];
+
   static Future<bool> fetchPackagesEnabled() async {
     final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
     try {
@@ -174,6 +205,42 @@ class ConfigService {
     } catch (e) {
       print('⚠️ ConfigService fetchHomeBannerConfig error: $e');
       return const HomeBannerConfig();
+    }
+  }
+
+  static Future<List<CarTypePricingRule>> fetchCarTypePricingRules() async {
+    final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
+    try {
+      final res = await http
+          .get(Uri.parse('$baseUrl/api/config'))
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) return defaultCarTypePricingRules;
+
+      final data = jsonDecode(res.body);
+      final raw = data['data']?['car_type_pricing_rules'];
+      if (raw is! List) return defaultCarTypePricingRules;
+
+      final parsed = <CarTypePricingRule>[];
+      for (final item in raw) {
+        if (item is! Map) continue;
+        final key = (item['key'] ?? '').toString().trim();
+        if (key.isEmpty) continue;
+        final labelEn = (item['label_en'] ?? item['label'] ?? key).toString().trim();
+        final labelAr = (item['label_ar'] ?? item['label'] ?? key).toString().trim();
+        final percentage = double.tryParse(item['percentage'].toString()) ?? 0.0;
+        parsed.add(
+          CarTypePricingRule(
+            key: key,
+            labelEn: labelEn.isEmpty ? key : labelEn,
+            labelAr: labelAr.isEmpty ? key : labelAr,
+            percentage: percentage,
+          ),
+        );
+      }
+      return parsed.isNotEmpty ? parsed : defaultCarTypePricingRules;
+    } catch (e) {
+      print('⚠️ ConfigService fetchCarTypePricingRules error: $e');
+      return defaultCarTypePricingRules;
     }
   }
 }

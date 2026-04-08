@@ -22,6 +22,7 @@ import 'order_confirmation_screen.dart';
 import 'widgets/animated_loading_indicator.dart';
 import 'translations.dart';
 import 'utils/currency_helper.dart';
+import 'utils/car_type_price_helper.dart';
 
 class SingleWashOrderScreen extends StatefulWidget {
   final String token;
@@ -719,12 +720,12 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       if (selected) {
         selectedServices.add(id);
         if (!usePackage) {
-          totalPrice += price;
+          totalPrice += _applySelectedCarTypeMarkup(price);
         }
       } else {
         selectedServices.remove(id);
         if (!usePackage) {
-          totalPrice -= price;
+          totalPrice -= _applySelectedCarTypeMarkup(price);
         }
       }
       // Ensure totalPrice doesn't go negative
@@ -759,7 +760,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
           try {
             final service = services.firstWhere((s) => s['id'] == serviceId);
             final price = double.tryParse(service['price'].toString()) ?? 0.0;
-            totalPrice += price;
+            totalPrice += _applySelectedCarTypeMarkup(price);
           } catch (e) {
             print('Error calculating price for service $serviceId: $e');
             // Continue with other services
@@ -770,6 +771,31 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       if (totalPrice < 0) {
         totalPrice = 0;
       }
+    });
+  }
+
+  double _applySelectedCarTypeMarkup(double basePrice) {
+    return CarTypePriceHelper.applyMarkup(
+      basePrice,
+      CarTypePriceHelper.percentageFromCarId(cars, selectedCarId),
+    );
+  }
+
+  void _recalculateTotalPrice() {
+    if (usePackage) {
+      setState(() => totalPrice = 0);
+      return;
+    }
+    double nextTotal = 0;
+    for (int serviceId in selectedServices) {
+      try {
+        final service = services.firstWhere((s) => s['id'] == serviceId);
+        final basePrice = double.tryParse(service['price'].toString()) ?? 0.0;
+        nextTotal += _applySelectedCarTypeMarkup(basePrice);
+      } catch (_) {}
+    }
+    setState(() {
+      totalPrice = nextTotal < 0 ? 0 : nextTotal;
     });
   }
 
@@ -2115,6 +2141,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                         setState(() {
                           selectedCarId = val;
                         });
+                        _recalculateTotalPrice();
                         Navigator.pop(context);
                       },
                       activeColor: Colors.black,
@@ -2202,7 +2229,8 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       children: [
         _sectionTitle(_t('services')),
         ...servicesToShow.map((s) {
-          final price = double.tryParse(s['price'].toString()) ?? 0.0;
+          final basePrice = double.tryParse(s['price'].toString()) ?? 0.0;
+          final displayPrice = _applySelectedCarTypeMarkup(basePrice);
           final isAvailableInPackage = usePackage &&
               availableServices.any((service) => service['id'] == s['id']);
           final remainingQuantity = usePackage && isAvailableInPackage
@@ -2216,7 +2244,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
             onTap: () {
               // Add haptic feedback
               HapticFeedback.selectionClick();
-              _toggleService(s['id'], price, !isSelected);
+              _toggleService(s['id'], basePrice, !isSelected);
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
@@ -2360,10 +2388,10 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
                                         ),
                                       )
                                     : FutureBuilder<String>(
-                                        future: CurrencyHelper.formatPrice(price, decimals: 0),
+                                        future: CurrencyHelper.formatPrice(displayPrice, decimals: 0),
                                         builder: (context, snapshot) {
                                           return Text(
-                                            snapshot.data ?? '${price.toStringAsFixed(0)} AED',
+                                            snapshot.data ?? '${displayPrice.toStringAsFixed(0)} AED',
                                             style: GoogleFonts.poppins(
                                               color: Colors.green.shade700,
                                               fontWeight: FontWeight.w700,
@@ -4119,8 +4147,8 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
     );
   }
 
-  void _navigateToConfirmation() {
-    Navigator.push(
+  void _navigateToConfirmation() async {
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => OrderConfirmationScreen(
@@ -4142,5 +4170,40 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
         ),
       ),
     );
+
+    if (!mounted || result is! Map) return;
+
+    setState(() {
+      if (result['selectedCarId'] is int) {
+        selectedCarId = result['selectedCarId'] as int;
+      }
+
+      if (result['selectedSavedAddress'] is Map<String, dynamic>) {
+        selectedSavedAddress = result['selectedSavedAddress'] as Map<String, dynamic>;
+      }
+
+      if (result['selectedAddress'] is String?) {
+        selectedAddress = result['selectedAddress'] as String?;
+      }
+
+      if (result['selectedLocation'] is LatLng?) {
+        selectedLocation = result['selectedLocation'] as LatLng?;
+      }
+
+      if (result['selectedDateTime'] is DateTime?) {
+        selectedDateTime = result['selectedDateTime'] as DateTime?;
+      }
+
+      if (result['selectedDate'] is DateTime) {
+        selectedDate = result['selectedDate'] as DateTime;
+      }
+
+      final returnedTotal = result['totalPrice'];
+      if (returnedTotal is num) {
+        totalPrice = returnedTotal.toDouble();
+      }
+    });
+
+    _recalculateTotalPrice();
   }
 }

@@ -17,6 +17,7 @@ import 'add_car_screen.dart';
 import 'services/cache_service.dart';
 import 'widgets/animated_loading_indicator.dart';
 import 'utils/currency_helper.dart';
+import 'utils/car_type_price_helper.dart';
 import 'services/language_service.dart';
 import 'translations.dart';
 
@@ -3076,7 +3077,7 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
       if (selectedServices.contains(serviceId)) {
         selectedServices.remove(serviceId);
         if (!widget.usePackage) {
-          subtotal -= price;
+          subtotal -= _applySelectedCarTypeMarkup(price);
         } else {
           pointsUsed -= 1; // Each service uses 1 quantity
         }
@@ -3084,12 +3085,34 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
       } else {
         selectedServices.add(serviceId);
         if (!widget.usePackage) {
-          subtotal += price;
+          subtotal += _applySelectedCarTypeMarkup(price);
         } else {
           pointsUsed += 1; // Each service uses 1 quantity
         }
         debugPrint('Added service $serviceId - pointsUsed: $pointsUsed');
       }
+    });
+  }
+
+  double _applySelectedCarTypeMarkup(double basePrice) {
+    return CarTypePriceHelper.applyMarkup(
+      basePrice,
+      CarTypePriceHelper.percentageFromCarId(widget.cars, selectedCarId),
+    );
+  }
+
+  void _recalculateSubtotal() {
+    if (widget.usePackage) return;
+    double nextSubtotal = 0.0;
+    for (final serviceId in selectedServices) {
+      try {
+        final service = widget.services.firstWhere((s) => s['id'] == serviceId);
+        final basePrice = double.tryParse(service['price'].toString()) ?? 0.0;
+        nextSubtotal += _applySelectedCarTypeMarkup(basePrice);
+      } catch (_) {}
+    }
+    setState(() {
+      subtotal = nextSubtotal < 0 ? 0 : nextSubtotal;
     });
   }
 
@@ -3159,8 +3182,10 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                                     '${car['brand']?['name'] ?? 'Unknown'} ${car['model']?['name'] ?? 'Unknown'}'),
                                 subtitle: Text(
                                     '${car['year']?['year'] ?? 'Unknown'} • ${car['color'] ?? 'Unknown'}'),
-                                onChanged: (val) =>
-                                    setState(() => selectedCarId = val),
+                                onChanged: (val) {
+                                  setState(() => selectedCarId = val);
+                                  _recalculateSubtotal();
+                                },
                                 activeColor: Colors.black,
                               )),
                       const Divider(),
@@ -3227,8 +3252,10 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                           .where((service) =>
                               service != null && service['id'] != null)
                           .map((service) {
-                        final price =
+                        final basePrice =
                             double.tryParse(service['price'].toString()) ?? 0.0;
+                        final displayPrice =
+                            _applySelectedCarTypeMarkup(basePrice);
 
                         // Use same logic as main order screen
                         final isAvailableInPackage = widget.usePackage &&
@@ -3261,7 +3288,7 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                             value: selectedServices.contains(service['id']),
                             onChanged: (val) {
                               toggleService(
-                                  service['id'], price, remainingQuantity ?? 0);
+                                  service['id'], basePrice, remainingQuantity);
                             },
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 8),
@@ -3304,10 +3331,10 @@ class _CarSelectionDialogState extends State<CarSelectionDialog> {
                                     ),
                                   )
                                 : FutureBuilder<String>(
-                                    future: CurrencyHelper.formatPrice(price, decimals: 0),
+                                    future: CurrencyHelper.formatPrice(displayPrice, decimals: 0),
                                     builder: (context, snapshot) {
                                       return Text(
-                                        snapshot.data ?? '${price.toStringAsFixed(0)} AED',
+                                        snapshot.data ?? '${displayPrice.toStringAsFixed(0)} AED',
                                         style: const TextStyle(
                                           color: Colors.black,
                                           fontWeight: FontWeight.w600,

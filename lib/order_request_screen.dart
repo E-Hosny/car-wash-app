@@ -26,6 +26,7 @@ import 'my_orders_screen.dart';
 import 'screens/support_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'services/config_service.dart';
+import 'utils/car_type_price_helper.dart';
 
 class OrderRequestScreen extends StatefulWidget {
   final String token;
@@ -548,12 +549,12 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       if (selected) {
         selectedServices.add(id);
         if (!usePackage) {
-          totalPrice += price;
+          totalPrice += _applySelectedCarTypeMarkup(price);
         }
       } else {
         selectedServices.remove(id);
         if (!usePackage) {
-          totalPrice -= price;
+          totalPrice -= _applySelectedCarTypeMarkup(price);
         }
       }
       // Ensure totalPrice doesn't go negative
@@ -588,7 +589,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
           try {
             final service = services.firstWhere((s) => s['id'] == serviceId);
             final price = double.tryParse(service['price'].toString()) ?? 0.0;
-            totalPrice += price;
+            totalPrice += _applySelectedCarTypeMarkup(price);
           } catch (e) {
             print('Error calculating price for service $serviceId: $e');
             // Continue with other services
@@ -599,6 +600,31 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
       if (totalPrice < 0) {
         totalPrice = 0;
       }
+    });
+  }
+
+  double _applySelectedCarTypeMarkup(double basePrice) {
+    return CarTypePriceHelper.applyMarkup(
+      basePrice,
+      CarTypePriceHelper.percentageFromCarId(cars, selectedCarId),
+    );
+  }
+
+  void _recalculateTotalPrice() {
+    if (usePackage) {
+      setState(() => totalPrice = 0);
+      return;
+    }
+    double nextTotal = 0;
+    for (int serviceId in selectedServices) {
+      try {
+        final service = services.firstWhere((s) => s['id'] == serviceId);
+        final basePrice = double.tryParse(service['price'].toString()) ?? 0.0;
+        nextTotal += _applySelectedCarTypeMarkup(basePrice);
+      } catch (_) {}
+    }
+    setState(() {
+      totalPrice = nextTotal < 0 ? 0 : nextTotal;
     });
   }
 
@@ -927,7 +953,10 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                                     color: Colors.grey, fontSize: 14)),
                         ],
                       ),
-                      onChanged: (val) => setState(() => selectedCarId = val),
+                      onChanged: (val) {
+                        setState(() => selectedCarId = val);
+                        _recalculateTotalPrice();
+                      },
                       activeColor: Colors.black,
                     ),
                   );
@@ -937,7 +966,10 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                 // 4. Services Selection
                 sectionTitle('Services'),
                 ...services.map((s) {
-                  final price = double.tryParse(s['price'].toString()) ?? 0.0;
+                  final baseServicePrice =
+                      double.tryParse(s['price'].toString()) ?? 0.0;
+                  final displayServicePrice =
+                      _applySelectedCarTypeMarkup(baseServicePrice);
                   final isAvailableInPackage = usePackage &&
                       availableServices
                           .any((service) => service['id'] == s['id']);
@@ -948,7 +980,8 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                   final isSelected = selectedServices.contains(s['id']);
 
                   return GestureDetector(
-                    onTap: () => toggleService(s['id'], price, !isSelected),
+                    onTap: () =>
+                        toggleService(s['id'], baseServicePrice, !isSelected),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
@@ -1049,7 +1082,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
                                               ? remainingQuantity != null && remainingQuantity > 0
                                                   ? '$remainingQuantity remaining'
                                                   : 'Not available'
-                                              : '${price.toStringAsFixed(0)} AED',
+                                              : '${displayServicePrice.toStringAsFixed(0)} AED',
                                           style: GoogleFonts.poppins(
                                             color: usePackage &&
                                                     isAvailableInPackage

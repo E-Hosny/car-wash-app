@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../utils/car_type_price_helper.dart';
 import '../services/package_service.dart';
 import '../services/language_service.dart';
 import '../translations.dart';
@@ -11,6 +12,8 @@ class ServiceItem extends StatelessWidget {
   final List<dynamic> availableServices;
   final Function(int, double, bool) onToggle;
   final VoidCallback? onTap;
+  /// نسبة زيادة نوع السيارة (0 إن لم تُحدَّد سيارة) — العرض فقط؛ يُمرَّر السعر الأساسي لـ [onToggle].
+  final double carTypeMarkupPercent;
 
   const ServiceItem({
     super.key,
@@ -20,11 +23,14 @@ class ServiceItem extends StatelessWidget {
     required this.availableServices,
     required this.onToggle,
     this.onTap,
+    this.carTypeMarkupPercent = 0,
   });
 
   @override
   Widget build(BuildContext context) {
-    final price = double.tryParse(service['price'].toString()) ?? 0.0;
+    final basePrice = double.tryParse(service['price'].toString()) ?? 0.0;
+    final displayPrice =
+        CarTypePriceHelper.applyMarkup(basePrice, carTypeMarkupPercent);
     final isAvailableInPackage = usePackage &&
         PackageService.isServiceAvailableInPackage(
             availableServices, service['id']);
@@ -74,7 +80,7 @@ class ServiceItem extends StatelessWidget {
                 ),
               ),
             ),
-            _buildPriceOrPoints(remainingQuantity, price, isAvailableInPackage),
+            _buildPriceOrPoints(remainingQuantity, displayPrice, isAvailableInPackage),
           ],
         ),
         subtitle: service['description'] != null
@@ -91,9 +97,9 @@ class ServiceItem extends StatelessWidget {
         trailing: Checkbox(
           value: isSelected,
           activeColor: AppTheme.primaryColor,
-          onChanged: (val) => onToggle(service['id'], price, val ?? false),
+          onChanged: (val) => onToggle(service['id'], basePrice, val ?? false),
         ),
-        onTap: onTap ?? () => onToggle(service['id'], price, !isSelected),
+        onTap: onTap ?? () => onToggle(service['id'], basePrice, !isSelected),
       ),
     );
   }
@@ -179,6 +185,7 @@ class ServiceListSection extends StatelessWidget {
   final List<dynamic> availableServices;
   final Function(int, double, bool) onToggleService;
   final VoidCallback? onServiceTap;
+  final double carTypeMarkupPercent;
 
   const ServiceListSection({
     super.key,
@@ -188,6 +195,7 @@ class ServiceListSection extends StatelessWidget {
     required this.availableServices,
     required this.onToggleService,
     this.onServiceTap,
+    this.carTypeMarkupPercent = 0,
   });
 
   @override
@@ -274,6 +282,7 @@ class ServiceListSection extends StatelessWidget {
                   availableServices: availableServices,
                   onToggle: onToggleService,
                   onTap: onServiceTap,
+                  carTypeMarkupPercent: carTypeMarkupPercent,
                 ))
             .toList(),
       ],

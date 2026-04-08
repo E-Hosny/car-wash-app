@@ -15,6 +15,7 @@ import 'services/cache_service.dart';
 import 'widgets/order_summary_card.dart';
 import 'services/language_service.dart';
 import 'translations.dart';
+import 'utils/car_type_price_helper.dart';
 
 class OrderConfirmationScreen extends StatefulWidget {
   final String token;
@@ -95,6 +96,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     cars = widget.cars;
     savedAddresses = widget.savedAddresses;
     selectedDate = widget.selectedDate;
+    _recalculateTotalPrice();
     _fetchBookedTimeSlots();
   }
 
@@ -154,9 +156,41 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
       setState(() {
         cars = carsData;
       });
+      _recalculateTotalPrice();
     } catch (e) {
       print('Error fetching user cars: $e');
     }
+  }
+
+  void _recalculateTotalPrice() {
+    if (usePackage) {
+      setState(() => totalPrice = 0);
+      return;
+    }
+
+    final selectedServiceIds = <int>[];
+    for (final service in widget.selectedServices) {
+      if (service is int) {
+        selectedServiceIds.add(service);
+      } else if (service is Map && service['id'] != null) {
+        final parsed = int.tryParse(service['id'].toString());
+        if (parsed != null) selectedServiceIds.add(parsed);
+      }
+    }
+
+    double nextTotal = 0;
+    final markupPercent = CarTypePriceHelper.percentageFromCarId(cars, selectedCarId);
+    for (final serviceId in selectedServiceIds) {
+      try {
+        final service = widget.services.firstWhere((s) => s['id'] == serviceId);
+        final basePrice = double.tryParse(service['price'].toString()) ?? 0.0;
+        nextTotal += CarTypePriceHelper.applyMarkup(basePrice, markupPercent);
+      } catch (_) {}
+    }
+
+    setState(() {
+      totalPrice = nextTotal < 0 ? 0 : nextTotal;
+    });
   }
 
   Future<void> _fetchSavedAddresses() async {
@@ -178,6 +212,82 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         savedAddresses = [];
         isLoadingAddresses = false;
       });
+    }
+  }
+
+  Future<void> _deleteCarById(int carId, {VoidCallback? onUpdated}) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_t('delete')),
+        content: Text(_t('delete_selected_car_confirm')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(_t('cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(_t('delete'))),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
+      final res = await http.delete(
+        Uri.parse('$baseUrl/api/cars/$carId'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+
+      if (res.statusCode == 200) {
+        CacheService().invalidateCars(widget.token);
+        await _fetchUserCars();
+        setState(() {
+          if (selectedCarId == carId) {
+            selectedCarId = cars.isNotEmpty ? cars.first['id'] : null;
+          }
+        });
+        _recalculateTotalPrice();
+        onUpdated?.call();
+      }
+    } catch (e) {
+      debugPrint('Failed to delete car: $e');
+    }
+  }
+
+  Future<void> _deleteAddressById(dynamic addressId, {VoidCallback? onUpdated}) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_t('delete')),
+        content: Text(_t('delete_selected_address_confirm')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(_t('cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(_t('delete'))),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
+      final res = await http.delete(
+        Uri.parse('$baseUrl/api/addresses/$addressId'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+
+      if (res.statusCode == 200) {
+        CacheService().invalidateAddresses(widget.token);
+        await _fetchSavedAddresses();
+        setState(() {
+          if (selectedSavedAddress?['id'] == addressId) {
+            selectedSavedAddress = null;
+            selectedAddress = null;
+          }
+        });
+        onUpdated?.call();
+      }
+    } catch (e) {
+      debugPrint('Failed to delete address: $e');
     }
   }
 
@@ -486,9 +596,18 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+      child: WillPopScope(
+      onWillPop: () async {
+        _popWithSelectionState();
+        return false;
+      },
       child: Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+          leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _popWithSelectionState,
+        ),
           title: Text(
           _t('order_confirmation'),
           style: GoogleFonts.poppins(
@@ -561,7 +680,20 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         ),
       ),
     ),
+    ),
     );
+  }
+
+  void _popWithSelectionState() {
+    Navigator.pop(context, {
+      'selectedCarId': selectedCarId,
+      'selectedSavedAddress': selectedSavedAddress,
+      'selectedAddress': selectedAddress,
+      'selectedLocation': selectedLocation,
+      'selectedDateTime': selectedDateTime,
+      'selectedDate': selectedDate,
+      'totalPrice': totalPrice,
+    });
   }
 
   Widget _buildSelectedCarSection() {
@@ -627,6 +759,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                           setState(() {
                             selectedCarId = cars.last['id'];
                           });
+                          _recalculateTotalPrice();
                         }
                       }
                     },
@@ -647,7 +780,29 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         ] else ...[
           Builder(
             builder: (context) {
-              final car = cars.firstWhere((c) => c['id'] == selectedCarId);
+              final matchedCars = cars.where((c) => c['id'] == selectedCarId).toList();
+              if (matchedCars.isEmpty) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  setState(() {
+                    selectedCarId = cars.isNotEmpty ? cars.first['id'] : null;
+                  });
+                  _recalculateTotalPrice();
+                });
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      _t('add_car_to_continue'),
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                );
+              }
+              final car = matchedCars.first;
               return Card(
                 color: Colors.green[50],
                 child: ListTile(
@@ -695,9 +850,10 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   void _showCarSelectionDialog() {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Container(
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Container(
           width: double.maxFinite,
           constraints: const BoxConstraints(maxHeight: 500),
           child: Column(
@@ -810,6 +966,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                                   setState(() {
                                     selectedCarId = car['id'];
                                   });
+                                  _recalculateTotalPrice();
                                   Navigator.pop(context);
                                 },
                                 borderRadius: BorderRadius.circular(16),
@@ -885,6 +1042,23 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                                             ),
                                           ),
                                         ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.red,
+                                        ),
+                                        tooltip: _t('delete'),
+                                        onPressed: () async {
+                                          await _deleteCarById(
+                                            car['id'] as int,
+                                            onUpdated: () => setModalState(() {}),
+                                          );
+                                          if (mounted && cars.isEmpty) {
+                                            Navigator.pop(context);
+                                          }
+                                        },
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -922,6 +1096,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                           setState(() {
                             selectedCarId = cars.last['id'];
                           });
+                          _recalculateTotalPrice();
                         }
                       }
                     },
@@ -960,6 +1135,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),
@@ -1361,10 +1537,11 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   void _showAddressSelectionDialog() {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        elevation: 20,
-        child: Container(
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          elevation: 20,
+          child: Container(
           width: MediaQuery.of(context).size.width * 0.9,
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.8,
@@ -1521,6 +1698,20 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                                     Icon(Icons.check_circle, 
                                          color: Colors.blue.shade600, 
                                          size: 24),
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                    tooltip: _t('delete'),
+                                    onPressed: () async {
+                                      await _deleteAddressById(
+                                        address['id'],
+                                        onUpdated: () => setModalState(() {}),
+                                      );
+                                      if (mounted && savedAddresses.isEmpty) {
+                                        Navigator.pop(context);
+                                      }
+                                    },
+                                  ),
                                 ],
                               ),
                             ),
@@ -1584,6 +1775,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
               ),
               ],
             ),
+          ),
           ),
         ),
       ),

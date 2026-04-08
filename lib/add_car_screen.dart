@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/cache_service.dart';
+import 'services/config_service.dart';
 import 'services/language_service.dart';
 import 'translations.dart';
 
@@ -24,6 +25,8 @@ class _AddCarScreenState extends State<AddCarScreen> {
   int? selectedModelId;
   int? selectedYearId;
   String? selectedColor;
+  String? selectedCarTypeKey;
+  List<CarTypePricingRule> carTypeRules = [];
   final TextEditingController licensePlateController = TextEditingController();
 
   // Custom input controllers
@@ -65,6 +68,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
     });
     fetchBrands();
     fetchYears();
+    _fetchCarTypeRules();
   }
 
   Future<void> _loadLanguage() async {
@@ -130,12 +134,30 @@ class _AddCarScreenState extends State<AddCarScreen> {
     }
   }
 
+  Future<void> _fetchCarTypeRules() async {
+    final rules = await ConfigService.fetchCarTypePricingRules();
+    if (!mounted) return;
+    setState(() {
+      carTypeRules = rules;
+    });
+  }
+
   Future<void> addCar() async {
     // Validation
     if (selectedColor == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_t('please_select_car_color')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (selectedCarTypeKey == null || selectedCarTypeKey!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_t('please_select_car_type')),
           backgroundColor: Colors.red,
         ),
       );
@@ -207,6 +229,7 @@ class _AddCarScreenState extends State<AddCarScreen> {
     // Prepare request body
     Map<String, dynamic> requestBody = {
       'color': selectedColor,
+      'car_type': selectedCarTypeKey,
       'license_plate': licensePlateController.text.isEmpty
           ? null
           : licensePlateController.text,
@@ -335,6 +358,8 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
               // Year Selection
               _buildYearSection(),
+              const SizedBox(height: 20),
+              _buildCarTypeSection(),
               const SizedBox(height: 20),
               Text(
                 _t('license_plate_optional'),
@@ -772,6 +797,44 @@ class _AddCarScreenState extends State<AddCarScreen> {
               ),
             ],
           ),
+      ],
+    );
+  }
+
+  Widget _buildCarTypeSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _t('car_type'),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: DropdownButtonFormField<String>(
+            value: selectedCarTypeKey,
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            hint: Text(_t('select_car_type')),
+            items: carTypeRules
+                .map(
+                  (rule) => DropdownMenuItem<String>(
+                    value: rule.key,
+                    child: Text(
+                      '${rule.labelForLanguage(_currentLanguage)} (+${rule.percentage.toStringAsFixed(rule.percentage % 1 == 0 ? 0 : 2)}%)',
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (val) => setState(() => selectedCarTypeKey = val),
+          ),
+        ),
       ],
     );
   }
