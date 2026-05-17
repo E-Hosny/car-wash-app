@@ -9,6 +9,7 @@ import 'otp_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_screen.dart';
 import 'main_navigation_screen.dart'; // Added import for MainNavigationScreen
+import 'services/config_service.dart';
 import 'services/language_service.dart';
 import 'translations.dart';
 
@@ -242,6 +243,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Save token for persistent login
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('auth_token', token);
+        await ConfigService.resetPromoPopupForNewLogin();
 
         // تحديد المستخدم في LogRocket
         // استخدام user_id الحقيقي من API response أو phoneNumber مؤقتاً

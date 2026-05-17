@@ -7,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logrocket_flutter/logrocket_flutter.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'main_navigation_screen.dart';
+import 'services/config_service.dart';
 import 'services/language_service.dart';
 import 'translations.dart';
 
@@ -209,6 +210,7 @@ class _OtpScreenState extends State<OtpScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', token);
       await prefs.remove('otp_code');
+      await ConfigService.resetPromoPopupForNewLogin();
 
       final userId = data['user_id'] ?? data['user']?['id'] ?? normalizedPhone;
       final userName = data['user']?['name'] ?? data['name'] ?? normalizedPhone;

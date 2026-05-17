@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'login_screen.dart';
 import 'services/config_service.dart';
+import 'utils/app_link_handler.dart';
+import 'widgets/promo_popup_dialog.dart';
 import 'services/data_preloader_service.dart';
 import 'services/language_service.dart';
 import 'services/cache_service.dart';
@@ -40,6 +42,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   late int currentIndex;
   bool packagesEnabled = true;
   bool loadingConfig = true;
+  bool _promoPopupChecked = false;
   List<Widget>? screens; // Store screens to prevent recreation
   String _currentLanguage = 'en';
   bool _isRTL = false;
@@ -154,9 +157,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       });
 
       // Preload critical data in background for logged-in users only
-      // This improves performance for Single Car Wash screen
       if (!widget.isGuest && widget.token != null && widget.token!.isNotEmpty) {
         _preloadDataInBackground();
+        _maybeShowPromoPopup();
       }
     } catch (e) {
       print('⚠️ Error loading config: $e');
@@ -168,11 +171,65 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         _buildScreens();
       });
 
-      // Still try to preload data even if config loading failed
       if (!widget.isGuest && widget.token != null && widget.token!.isNotEmpty) {
         _preloadDataInBackground();
+        _maybeShowPromoPopup();
       }
     }
+  }
+
+  Future<void> _maybeShowPromoPopup() async {
+    if (_promoPopupChecked || widget.isGuest || widget.token == null || widget.token!.isEmpty) {
+      return;
+    }
+    _promoPopupChecked = true;
+
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+
+    final config = await ConfigService.fetchPromoPopupConfig();
+    if (!config.shouldDisplay || !mounted) return;
+
+    final seenVersion = await ConfigService.getSeenPromoPopupVersion();
+    if (seenVersion == config.version) return;
+
+    if (!mounted) return;
+
+    await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      builder: (dialogContext) {
+        return Directionality(
+          textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
+          child: PromoPopupDialog(
+            config: config,
+            isRTL: _isRTL,
+            languageCode: _currentLanguage,
+            onAction: () async {
+              Navigator.of(dialogContext).pop(true);
+              await ConfigService.markPromoPopupSeen(config.version);
+              if (!mounted) return;
+              await AppLinkHandler.navigate(
+                context: context,
+                linkType: config.linkType,
+                token: widget.token!,
+                externalUrl: config.externalUrl,
+                packagesEnabled: packagesEnabled,
+                onTabSelected: (index) {
+                  if (!mounted) return;
+                  setState(() => currentIndex = index);
+                },
+              );
+            },
+          ),
+        );
+      },
+    ).then((actionTaken) async {
+      if (actionTaken != true) {
+        await ConfigService.markPromoPopupSeen(config.version);
+      }
+    });
   }
 
   /// Preload critical data in background without blocking UI

@@ -20,7 +20,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
   String _currentLanguage = 'en';
   bool _isRTL = false;
 
@@ -142,8 +141,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'name': nameController.text,
           'phone': normalizePhone(phoneController.text.trim()),
           'email': emailController.text,
-          'password': passwordController.text,
-          'password_confirmation': passwordController.text,
           'role': 'customer',
         }),
       );
@@ -226,9 +223,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 15),
                   _buildTextField(_t('email_address'), controller: emailController),
-                  const SizedBox(height: 15),
-                  _buildTextField(_t('password'),
-                      controller: passwordController, obscure: true),
                   const SizedBox(height: 30),
 
                   // زر التسجيل
@@ -333,9 +327,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return TextField(
       controller: controller,
       obscureText: obscure,
-      textDirection: obscure || hint.contains('Password') || hint.contains('كلمة المرور')
-          ? (_isRTL ? TextDirection.rtl : TextDirection.ltr)
-          : (_isRTL && !hint.contains('Email') && !hint.contains('البريد') ? TextDirection.rtl : TextDirection.ltr),
+      textDirection: _isRTL && !hint.contains('Email') && !hint.contains('البريد')
+          ? TextDirection.rtl
+          : TextDirection.ltr,
       style: const TextStyle(color: Colors.black),
       decoration: InputDecoration(
         hintText: hintText ?? hint,

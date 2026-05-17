@@ -12,6 +12,45 @@ class ForceUpdateResult {
   final String? storeUrl;
 }
 
+/// إعدادات بوب أب العروض للمستخدمين المسجلين
+class AppPromoPopupConfig {
+  const AppPromoPopupConfig({
+    this.enabled = false,
+    this.version = '',
+    this.title = '',
+    this.titleAr = '',
+    this.body = '',
+    this.bodyAr = '',
+    this.buttonText = '',
+    this.buttonTextAr = '',
+    this.imageUrl,
+    this.linkType = 'none',
+    this.externalUrl,
+  });
+
+  final bool enabled;
+  final String version;
+  final String title;
+  final String titleAr;
+  final String body;
+  final String bodyAr;
+  final String buttonText;
+  final String buttonTextAr;
+  final String? imageUrl;
+  final String linkType;
+  final String? externalUrl;
+
+  bool get shouldDisplay {
+    if (!enabled || version.isEmpty) return false;
+    final hasContent = (imageUrl != null && imageUrl!.isNotEmpty) ||
+        title.isNotEmpty ||
+        titleAr.isNotEmpty ||
+        body.isNotEmpty ||
+        bodyAr.isNotEmpty;
+    return hasContent;
+  }
+}
+
 /// إعدادات بانر الصفحة الرئيسية من الـ API
 class HomeBannerConfig {
   const HomeBannerConfig({
@@ -139,6 +178,7 @@ class ConfigService {
   static const _keyBannerImageUrl = 'home_banner_cached_image_url';
   static const _keyBannerLinkType = 'home_banner_cached_link_type';
   static const _keyBannerExternalUrl = 'home_banner_cached_external_url';
+  static const _keyPromoSeenVersion = 'promo_popup_seen_version';
 
   /// جلب إعدادات البانر من الذاكرة المحلية (للعرض الفوري دون انتظار الـ API)
   static Future<HomeBannerConfig?> getCachedHomeBannerConfig() async {
@@ -206,6 +246,83 @@ class ConfigService {
       print('⚠️ ConfigService fetchHomeBannerConfig error: $e');
       return const HomeBannerConfig();
     }
+  }
+
+  static Future<AppPromoPopupConfig> fetchPromoPopupConfig() async {
+    final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8000';
+    try {
+      final res = await http
+          .get(Uri.parse('$baseUrl/api/config'))
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode != 200) return const AppPromoPopupConfig();
+
+      final data = jsonDecode(res.body);
+      final raw = data['data']?['promo_popup'];
+      if (raw is! Map) return const AppPromoPopupConfig();
+
+      var imageUrl = (raw['image_url'] ?? '').toString().trim();
+      if (imageUrl.isNotEmpty) {
+        imageUrl = _normalizeAssetUrl(imageUrl, baseUrl);
+      }
+
+      return AppPromoPopupConfig(
+        enabled: raw['enabled'] == true ||
+            raw['enabled'] == 1 ||
+            raw['enabled']?.toString() == '1',
+        version: (raw['version'] ?? '').toString().trim(),
+        title: (raw['title'] ?? '').toString().trim(),
+        titleAr: (raw['title_ar'] ?? '').toString().trim(),
+        body: (raw['body'] ?? '').toString().trim(),
+        bodyAr: (raw['body_ar'] ?? '').toString().trim(),
+        buttonText: (raw['button_text'] ?? '').toString().trim(),
+        buttonTextAr: (raw['button_text_ar'] ?? '').toString().trim(),
+        imageUrl: imageUrl.isEmpty ? null : imageUrl,
+        linkType: (raw['link_type'] ?? 'none').toString().trim(),
+        externalUrl: (raw['link_external_url'] ?? '').toString().trim().isEmpty
+            ? null
+            : (raw['link_external_url'] ?? '').toString().trim(),
+      );
+    } catch (e) {
+      print('⚠️ ConfigService fetchPromoPopupConfig error: $e');
+      return const AppPromoPopupConfig();
+    }
+  }
+
+  static Future<String?> getSeenPromoPopupVersion() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_keyPromoSeenVersion);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> markPromoPopupSeen(String version) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyPromoSeenVersion, version);
+    } catch (_) {}
+  }
+
+  /// يُستدعى بعد تسجيل دخول ناجح لإظهار البوب أب مرة أخرى في الجلسة الجديدة.
+  static Future<void> resetPromoPopupForNewLogin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyPromoSeenVersion);
+    } catch (_) {}
+  }
+
+  static String _normalizeAssetUrl(String imageUrl, String baseUrl) {
+    try {
+      final uri = Uri.parse(imageUrl);
+      final host = uri.host.toLowerCase();
+      if (host == 'localhost' || host == '127.0.0.1') {
+        final base = baseUrl.replaceFirst(RegExp(r'/$'), '');
+        final path = uri.path.startsWith('/') ? uri.path : '/${uri.path}';
+        return base + path;
+      }
+    } catch (_) {}
+    return imageUrl;
   }
 
   static Future<List<CarTypePricingRule>> fetchCarTypePricingRules() async {
