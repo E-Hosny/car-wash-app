@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logrocket_flutter/logrocket_flutter.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
-import 'main_navigation_screen.dart';
+import 'utils/post_login_navigation.dart';
 import 'services/config_service.dart';
 import 'services/language_service.dart';
 import 'translations.dart';
@@ -272,12 +272,7 @@ class _OtpScreenState extends State<OtpScreen> {
         SnackBar(content: Text(_t('login_successful'))),
       );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => MainNavigationScreen(token: token),
-        ),
-      );
+      await PostLoginNavigation.navigateAfterLogin(context, token);
     } catch (e) {
       if (mounted) {
         setState(() {

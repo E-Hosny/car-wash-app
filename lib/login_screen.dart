@@ -8,6 +8,7 @@ import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'otp_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_screen.dart';
+import 'utils/post_login_navigation.dart';
 import 'main_navigation_screen.dart'; // Added import for MainNavigationScreen
 import 'services/config_service.dart';
 import 'services/language_service.dart';
@@ -309,13 +310,7 @@ class _LoginScreenState extends State<LoginScreen> {
           SnackBar(content: Text(_t('login_successful'))),
         );
 
-        // Navigate directly to main screen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MainNavigationScreen(token: token),
-          ),
-        );
+        await PostLoginNavigation.navigateAfterLogin(context, token);
       } else {
         setState(() {
           generalError = _t('login_failed');

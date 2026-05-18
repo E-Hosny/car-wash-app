@@ -16,6 +16,7 @@ import 'widgets/order_summary_card.dart';
 import 'services/language_service.dart';
 import 'translations.dart';
 import 'utils/car_type_price_helper.dart';
+import 'services/wash_context_service.dart';
 
 class OrderConfirmationScreen extends StatefulWidget {
   final String token;
@@ -33,10 +34,14 @@ class OrderConfirmationScreen extends StatefulWidget {
   final List<Map<String, dynamic>> savedAddresses;
   final List<dynamic> services;
   final DateTime selectedDate;
+  final WashCategory washCategory;
+  final CaravanSize? caravanSize;
 
   const OrderConfirmationScreen({
     super.key,
     required this.token,
+    this.washCategory = WashCategory.car,
+    this.caravanSize,
     required this.selectedCarId,
     required this.selectedServices,
     required this.selectedSavedAddress,
@@ -52,6 +57,8 @@ class OrderConfirmationScreen extends StatefulWidget {
     required this.services,
     required this.selectedDate,
   });
+
+  bool get requiresCar => washCategory == WashCategory.car;
 
   @override
   State<OrderConfirmationScreen> createState() => _OrderConfirmationScreenState();
@@ -92,7 +99,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     selectedLocation = widget.selectedLocation;
     selectedDateTime = widget.selectedDateTime;
     totalPrice = widget.totalPrice;
-    usePackage = widget.usePackage;
+    usePackage = widget.requiresCar ? widget.usePackage : false;
     cars = widget.cars;
     savedAddresses = widget.savedAddresses;
     selectedDate = widget.selectedDate;
@@ -179,12 +186,16 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     }
 
     double nextTotal = 0;
-    final markupPercent = CarTypePriceHelper.percentageFromCarId(cars, selectedCarId);
+    final markupPercent = widget.requiresCar
+        ? CarTypePriceHelper.percentageFromCarId(cars, selectedCarId)
+        : 0.0;
     for (final serviceId in selectedServiceIds) {
       try {
         final service = widget.services.firstWhere((s) => s['id'] == serviceId);
         final basePrice = double.tryParse(service['price'].toString()) ?? 0.0;
-        nextTotal += CarTypePriceHelper.applyMarkup(basePrice, markupPercent);
+        nextTotal += widget.requiresCar
+            ? CarTypePriceHelper.applyMarkup(basePrice, markupPercent)
+            : basePrice;
       } catch (_) {}
     }
 
@@ -343,13 +354,14 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   }
 
   Future<void> _submitOrder() async {
-    if (selectedCarId == null ||
+    final missingCar = widget.requiresCar && selectedCarId == null;
+    if (missingCar ||
         widget.selectedServices.isEmpty ||
         selectedSavedAddress == null ||
         selectedDateTime == null) {
       _showErrorDialog(
-        'Missing Information',
-        'Please select car, address, and time slot to continue.',
+        _t('missing_information'),
+        _t('missing_information_message'),
         Icons.warning_amber_rounded,
       );
       return;
@@ -368,11 +380,14 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         'building': selectedSavedAddress?['building'],
         'floor': selectedSavedAddress?['floor'],
         'apartment': selectedSavedAddress?['apartment'],
-        'car_id': selectedCarId,
+        if (widget.requiresCar && selectedCarId != null) 'car_id': selectedCarId,
+        'wash_category': widget.washCategory.name,
+        if (widget.washCategory == WashCategory.caravan && widget.caravanSize != null)
+          'caravan_size': widget.caravanSize!.name,
         'services': widget.selectedServices,
         'scheduled_at': selectedDateTime?.toIso8601String(),
         'total': totalPrice,
-        'use_package': usePackage,
+        'use_package': widget.requiresCar ? usePackage : false,
       };
 
       final orderId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -641,8 +656,11 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Selected Car Section
-                      _buildSelectedCarSection(),
+                      if (widget.requiresCar) ...[
+                        _buildSelectedCarSection(),
+                      ] else ...[
+                        _buildWashTypeSection(),
+                      ],
                       const SizedBox(height: 16),
 
                       // Selected Address Section
@@ -694,6 +712,44 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
       'selectedDate': selectedDate,
       'totalPrice': totalPrice,
     });
+  }
+
+  Widget _buildWashTypeSection() {
+    final label = WashContextService.displayLabel(
+      category: widget.washCategory,
+      caravanSize: widget.caravanSize,
+      language: _currentLanguage,
+    );
+    final icon = widget.washCategory == WashCategory.motorcycle
+        ? Icons.two_wheeler
+        : Icons.airport_shuttle;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle(_t('wash_type_label')),
+        Card(
+          color: Colors.green[50],
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: Colors.white, size: 22),
+            ),
+            title: Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildSelectedCarSection() {
@@ -3021,7 +3077,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
 
 
   Widget _buildFixedPaymentButton() {
-    final bool isReadyToProceed = selectedCarId != null &&
+    final bool isReadyToProceed = (!widget.requiresCar || selectedCarId != null) &&
         widget.selectedServices.isNotEmpty &&
         selectedSavedAddress != null &&
         selectedDateTime != null &&

@@ -23,18 +23,26 @@ import 'widgets/animated_loading_indicator.dart';
 import 'translations.dart';
 import 'utils/currency_helper.dart';
 import 'utils/car_type_price_helper.dart';
+import 'services/wash_context_service.dart';
+import 'widgets/wash_category_chip_bar.dart';
 
 class SingleWashOrderScreen extends StatefulWidget {
   final String token;
   final bool? initialUsePackage;
   final int? preselectedServiceId;
+  final WashCategory washCategory;
+  final CaravanSize? caravanSize;
 
   const SingleWashOrderScreen({
     super.key,
     required this.token,
     this.initialUsePackage,
     this.preselectedServiceId,
+    this.washCategory = WashCategory.car,
+    this.caravanSize,
   });
+
+  bool get requiresCar => washCategory == WashCategory.car;
 
   @override
   State<SingleWashOrderScreen> createState() => _SingleWashOrderScreenState();
@@ -83,6 +91,11 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
   
   // Track expanded descriptions for each service
   Map<int, bool> expandedServices = {};
+  WashContext _washContext = const WashContext(category: WashCategory.car);
+
+  String get _washCategoryKey => widget.washCategory.name;
+
+  String? get _caravanSizeKey => widget.caravanSize?.name;
   
   String _currentLanguage = 'en';
   bool _isRTL = false;
@@ -97,6 +110,13 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
   void initState() {
     super.initState();
     print('🚀 SingleWashOrderScreen initState started');
+    _washContext = WashContext(
+      category: widget.washCategory,
+      caravanSize: widget.caravanSize,
+    );
+    WashContextService.load().then((ctx) {
+      if (mounted) setState(() => _washContext = ctx);
+    });
     _loadLanguage();
     _languageSubscription = LanguageService.languageStream.listen((_) async {
       await _loadLanguage();
@@ -140,6 +160,64 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
     return AppTranslations.getTextWithFallback(key, _currentLanguage);
   }
 
+  String get _appBarTitleKey {
+    switch (widget.washCategory) {
+      case WashCategory.caravan:
+        return 'wash_type_caravan';
+      case WashCategory.motorcycle:
+        return 'wash_type_motorcycle';
+      case WashCategory.car:
+        return 'single_car_wash';
+    }
+  }
+
+  Future<void> _onWashCategoryChanged() async {
+    final ctx = await WashContextService.load();
+    if (!mounted) return;
+
+    final categoryChanged = ctx.category != widget.washCategory;
+    final caravanChanged = ctx.category == WashCategory.caravan &&
+        ctx.caravanSize != widget.caravanSize;
+
+    if (categoryChanged || caravanChanged) {
+      if (ctx.category == WashCategory.caravan && ctx.caravanSize != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SingleWashOrderScreen(
+              token: widget.token,
+              washCategory: WashCategory.caravan,
+              caravanSize: ctx.caravanSize,
+            ),
+          ),
+        );
+      } else if (ctx.category == WashCategory.motorcycle) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SingleWashOrderScreen(
+              token: widget.token,
+              washCategory: WashCategory.motorcycle,
+            ),
+          ),
+        );
+      } else if (ctx.category == WashCategory.car) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SingleWashOrderScreen(
+              token: widget.token,
+              washCategory: WashCategory.car,
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _washContext = ctx);
+  }
+
   @override
   void dispose() {
     _languageSubscription.cancel();
@@ -155,7 +233,9 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       });
 
       // Load configuration first
-      packagesEnabled = await ConfigService.fetchPackagesEnabled();
+      packagesEnabled = widget.requiresCar
+          ? await ConfigService.fetchPackagesEnabled()
+          : false;
 
       // If initialUsePackage is true, prioritize loading package and available services
       if (widget.initialUsePackage == true && packagesEnabled) {
@@ -176,14 +256,22 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       bool hasCachedData = false;
 
       // First try valid cache
-      var cachedServices = cacheService.getCachedServices(widget.token);
+      var cachedServices = cacheService.getCachedServices(
+        widget.token,
+        washCategory: _washCategoryKey,
+        caravanSize: _caravanSizeKey,
+      );
       var cachedCars = cacheService.getCachedCars(widget.token);
       var cachedAddresses = cacheService.getCachedAddresses(widget.token);
       var cachedTimeSlots = cacheService.getCachedTimeSlots(widget.token, selectedDate);
 
       // If no valid cache, try expired cache for instant display
       if (cachedServices == null || cachedServices.isEmpty) {
-        cachedServices = cacheService.getCachedServicesEvenExpired(widget.token);
+        cachedServices = cacheService.getCachedServicesEvenExpired(
+          widget.token,
+          washCategory: _washCategoryKey,
+          caravanSize: _caravanSizeKey,
+        );
       }
       if (cachedCars == null || cachedCars.isEmpty) {
         cachedCars = cacheService.getCachedCarsEvenExpired(widget.token);
@@ -241,7 +329,11 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       }
 
       // Check if we need to refresh each data type (check valid cache, not expired)
-      final validCachedServices = cacheService.getCachedServices(widget.token);
+      final validCachedServices = cacheService.getCachedServices(
+        widget.token,
+        washCategory: _washCategoryKey,
+        caravanSize: _caravanSizeKey,
+      );
       final validCachedCars = cacheService.getCachedCars(widget.token);
       final validCachedAddresses = cacheService.getCachedAddresses(widget.token);
       final validCachedTimeSlots = cacheService.getCachedTimeSlots(widget.token, selectedDate);
@@ -255,7 +347,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       List<Future> refreshTasks = [];
 
       if (needRefreshServices) refreshTasks.add(_fetchServices());
-      if (needRefreshCars) refreshTasks.add(_fetchUserCars());
+      if (widget.requiresCar && needRefreshCars) refreshTasks.add(_fetchUserCars());
       if (needRefreshAddresses) refreshTasks.add(_fetchSavedAddresses());
       if (needRefreshTimeSlots) refreshTasks.add(_fetchBookedTimeSlots());
 
@@ -281,7 +373,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       if (!hasCachedData) {
         await Future.wait([
           _fetchServices(),
-          _fetchUserCars(),
+          if (widget.requiresCar) _fetchUserCars(),
           _determineCurrentPosition(),
           _fetchSavedAddresses(),
           _fetchBookedTimeSlots(),
@@ -310,7 +402,11 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
   Future<void> _loadOtherDataInBackground() async {
     try {
       final cacheService = CacheService();
-      final cachedServices = cacheService.getCachedServices(widget.token);
+      final cachedServices = cacheService.getCachedServices(
+        widget.token,
+        washCategory: _washCategoryKey,
+        caravanSize: _caravanSizeKey,
+      );
       final cachedCars = cacheService.getCachedCars(widget.token);
       final cachedAddresses = cacheService.getCachedAddresses(widget.token);
       final cachedTimeSlots =
@@ -348,7 +444,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       // Refresh other data in background
       List<Future> refreshTasks = [];
       if (cachedServices == null) refreshTasks.add(_fetchServices());
-      if (cachedCars == null) refreshTasks.add(_fetchUserCars());
+      if (widget.requiresCar && cachedCars == null) refreshTasks.add(_fetchUserCars());
       if (cachedAddresses == null) refreshTasks.add(_fetchSavedAddresses());
       if (cachedTimeSlots == null) refreshTasks.add(_fetchBookedTimeSlots());
       refreshTasks.add(_determineCurrentPosition());
@@ -458,7 +554,11 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
   Future<void> _fetchServices() async {
     try {
       final cacheService = CacheService();
-      final servicesData = await cacheService.getServices(widget.token);
+      final servicesData = await cacheService.getServices(
+        widget.token,
+        washCategory: widget.washCategory.name,
+        caravanSize: widget.caravanSize?.name,
+      );
 
       if (!mounted) return;
       
@@ -775,6 +875,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
   }
 
   double _applySelectedCarTypeMarkup(double basePrice) {
+    if (!widget.requiresCar) return basePrice;
     return CarTypePriceHelper.applyMarkup(
       basePrice,
       CarTypePriceHelper.percentageFromCarId(cars, selectedCarId),
@@ -800,7 +901,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
   }
 
   Future<void> _submitOrder() async {
-    if (selectedCarId == null ||
+    if ((widget.requiresCar && selectedCarId == null) ||
         selectedServices.isEmpty ||
         !hasSelectedAddress ||
         selectedDateTime == null) {
@@ -826,11 +927,14 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
         'building': selectedSavedAddress?['building'],
         'floor': selectedSavedAddress?['floor'],
         'apartment': selectedSavedAddress?['apartment'],
-        'car_id': selectedCarId,
+        if (widget.requiresCar && selectedCarId != null) 'car_id': selectedCarId,
+        'wash_category': widget.washCategory.name,
+        if (widget.washCategory == WashCategory.caravan && widget.caravanSize != null)
+          'caravan_size': widget.caravanSize!.name,
         'services': selectedServices,
         'scheduled_at': selectedDateTime?.toIso8601String(),
         'total': totalPrice,
-        'use_package': usePackage,
+        'use_package': widget.requiresCar ? usePackage : false,
       };
 
       // Generate unique order ID
@@ -1291,9 +1395,10 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
 
       // Reload all data
       await Future.wait([
+        _fetchServices(),
         _fetchAvailableServices(),
         _fetchBookedTimeSlots(),
-        _fetchUserCars(),
+        if (widget.requiresCar) _fetchUserCars(),
         _fetchSavedAddresses(),
       ]);
 
@@ -1912,7 +2017,7 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          _t('single_car_wash'),
+          _t(_appBarTitleKey),
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -1935,20 +2040,23 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
             ),
             child: Column(
               children: [
-                // Main content with bottom padding for fixed button
+                WashCategoryChipBar(
+                  token: widget.token,
+                  washContext: _washContext,
+                  onChanged: _onWashCategoryChanged,
+                ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _reloadPageData,
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(
-                          20, 20, 20, 100), // Extra bottom padding for fixed button
+                          20, 20, 20, 100),
                       physics: isMapInteracting
                           ? const NeverScrollableScrollPhysics()
                           : null,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Services Selection Only
                           _buildServicesSection(),
                         ],
                       ),
@@ -4153,6 +4261,8 @@ class _SingleWashOrderScreenState extends State<SingleWashOrderScreen>
       MaterialPageRoute(
         builder: (context) => OrderConfirmationScreen(
           token: widget.token,
+          washCategory: widget.washCategory,
+          caravanSize: widget.caravanSize,
           selectedCarId: selectedCarId,
           selectedServices: selectedServices,
           selectedSavedAddress: selectedSavedAddress,

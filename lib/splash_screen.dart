@@ -7,6 +7,7 @@ import 'services/language_service.dart';
 import 'login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'main_navigation_screen.dart';
+import 'utils/post_login_navigation.dart';
 import 'translations.dart';
 import 'widgets/language_selection_dialog.dart';
 
@@ -98,15 +99,9 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       if (token != null && token.isNotEmpty) {
-        print('✅ User is logged in, navigating to MainNavigationScreen');
+        print('✅ User is logged in, checking cars / wash type flow');
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                MainNavigationScreen(token: token, isGuest: false),
-          ),
-        );
+        await PostLoginNavigation.navigateAuthenticated(context, token);
       } else {
         print('❌ No token found, showing guest options');
         if (!mounted) return;

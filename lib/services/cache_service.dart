@@ -27,9 +27,24 @@ class CacheService {
   // TTL for time slots (30 seconds - they change frequently)
   static const int _timeSlotsTTL = 30 * 1000; // 30 seconds
 
+  static String servicesCacheKey(
+    String token, {
+    String washCategory = 'car',
+    String? caravanSize,
+  }) =>
+      '${_servicesKey}_${token}_${washCategory}_${caravanSize ?? 'none'}';
+
   /// Get services from cache only (no API call) - checks TTL
-  List<dynamic>? getCachedServices(String token) {
-    final cacheKey = '${_servicesKey}_$token';
+  List<dynamic>? getCachedServices(
+    String token, {
+    String washCategory = 'car',
+    String? caravanSize,
+  }) {
+    final cacheKey = servicesCacheKey(
+      token,
+      washCategory: washCategory,
+      caravanSize: caravanSize,
+    );
     if (_isValid(cacheKey, _servicesTTL)) {
       final cachedData = _cache[cacheKey]!.data;
       if (cachedData is Map && cachedData.containsKey('services')) {
@@ -43,8 +58,16 @@ class CacheService {
   }
 
   /// Get services from cache even if expired (for instant display)
-  List<dynamic>? getCachedServicesEvenExpired(String token) {
-    final cacheKey = '${_servicesKey}_$token';
+  List<dynamic>? getCachedServicesEvenExpired(
+    String token, {
+    String washCategory = 'car',
+    String? caravanSize,
+  }) {
+    final cacheKey = servicesCacheKey(
+      token,
+      washCategory: washCategory,
+      caravanSize: caravanSize,
+    );
     if (_cache.containsKey(cacheKey)) {
       final cachedData = _cache[cacheKey]!.data;
       if (cachedData is Map && cachedData.containsKey('services')) {
@@ -103,8 +126,16 @@ class CacheService {
   }
 
   /// Get services from cache or API
-  Future<List<dynamic>> getServices(String token) async {
-    final cacheKey = '${_servicesKey}_$token';
+  Future<List<dynamic>> getServices(
+    String token, {
+    String washCategory = 'car',
+    String? caravanSize,
+  }) async {
+    final cacheKey = servicesCacheKey(
+      token,
+      washCategory: washCategory,
+      caravanSize: caravanSize,
+    );
     
     // Check cache first
     if (_isValid(cacheKey, _servicesTTL)) {
@@ -130,8 +161,14 @@ class CacheService {
       // Get current language
       final currentLanguage = await LanguageService.getCurrentLanguage();
       
+      final query = <String, String>{'wash_category': washCategory};
+      if (caravanSize != null && caravanSize.isNotEmpty) {
+        query['caravan_size'] = caravanSize;
+      }
+      final uri = Uri.parse('$baseUrl/api/services').replace(queryParameters: query);
+
       final res = await http.get(
-        Uri.parse('$baseUrl/api/services'),
+        uri,
         headers: {
           'Authorization': 'Bearer $token',
           'Accept-Language': currentLanguage,

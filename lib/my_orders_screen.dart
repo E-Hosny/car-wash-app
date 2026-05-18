@@ -7,6 +7,7 @@ import 'main_navigation_screen.dart';
 import 'services/cache_service.dart';
 import 'services/language_service.dart';
 import 'translations.dart';
+import 'services/wash_context_service.dart';
 import 'widgets/animated_loading_indicator.dart';
 import 'screens/rate_app_screen.dart';
 
@@ -288,6 +289,18 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     }
   }
 
+  bool _isNonCarWashOrder(Map order) {
+    final category = order['wash_category']?.toString() ?? 'car';
+    return category != 'car';
+  }
+
+  IconData _washOrderIcon(Map order) {
+    final category = order['wash_category']?.toString() ?? 'car';
+    if (category == 'motorcycle') return Icons.two_wheeler_outlined;
+    if (category == 'caravan') return Icons.airport_shuttle_outlined;
+    return Icons.directions_car_outlined;
+  }
+
   String _getServicesDisplayText(dynamic services) {
     try {
       if (services == null || services is! List) return 'No services';
@@ -471,37 +484,55 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   _buildMultiCarDetail(allCars[i], i),
                 ]
               ] else ...[
-                // عرض السيارة الواحدة (النظام القديم)
-                Row(
-                  children: [
-                    const Icon(Icons.directions_car_outlined,
-                        color: Colors.black54),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${_t('car_label')}: ${_getCarDisplayName(car)}',
-                        style: const TextStyle(fontSize: 15),
+                if (_isNonCarWashOrder(order)) ...[
+                  Row(
+                    children: [
+                      Icon(
+                        _washOrderIcon(order),
+                        color: Colors.black54,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // الخدمات للسيارة الواحدة
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.cleaning_services_outlined,
-                        color: Colors.black54),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${_t('services_label')}: ${_getServicesDisplayText(services)}',
-                        style: const TextStyle(fontSize: 15),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${_t('wash_type_label')}: ${WashContextService.displayLabelFromOrder(order, _currentLanguage)}',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.directions_car_outlined,
+                          color: Colors.black54),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${_t('car_label')}: ${_getCarDisplayName(car)}',
+                          style: const TextStyle(fontSize: 15),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.cleaning_services_outlined,
+                          color: Colors.black54),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${_t('services_label')}: ${_getServicesDisplayText(services)}',
+                          style: const TextStyle(fontSize: 15),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
               const SizedBox(height: 10),
 

@@ -6,11 +6,21 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/cache_service.dart';
 import 'services/config_service.dart';
 import 'services/language_service.dart';
+import 'main_navigation_screen.dart';
+import 'services/wash_context_service.dart';
 import 'translations.dart';
 
 class AddCarScreen extends StatefulWidget {
   final String token;
-  const AddCarScreen({super.key, required this.token});
+  final String? preselectedCarTypeKey;
+  final bool navigateToServicesOnSuccess;
+
+  const AddCarScreen({
+    super.key,
+    required this.token,
+    this.preselectedCarTypeKey,
+    this.navigateToServicesOnSuccess = false,
+  });
 
   @override
   State<AddCarScreen> createState() => _AddCarScreenState();
@@ -66,10 +76,17 @@ class _AddCarScreenState extends State<AddCarScreen> {
     _languageSubscription = LanguageService.languageStream.listen((_) async {
       await _loadLanguage();
     });
+    if (widget.preselectedCarTypeKey != null) {
+      selectedCarTypeKey = widget.preselectedCarTypeKey;
+    }
     fetchBrands();
     fetchYears();
-    _fetchCarTypeRules();
+    if (widget.preselectedCarTypeKey == null) {
+      _fetchCarTypeRules();
+    }
   }
+
+  bool get _hideCarTypeSelector => widget.preselectedCarTypeKey != null;
 
   Future<void> _loadLanguage() async {
     final lang = await LanguageService.getCurrentLanguage();
@@ -274,6 +291,24 @@ class _AddCarScreenState extends State<AddCarScreen> {
         SnackBar(content: Text('✅ ${_t('car_added_successfully')}')),
       );
 
+      if (widget.navigateToServicesOnSuccess) {
+        await WashContextService.save(
+          WashContext(
+            category: WashCategory.car,
+            carTypeKey: selectedCarTypeKey,
+          ),
+        );
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MainNavigationScreen(token: widget.token),
+          ),
+          (route) => false,
+        );
+        return;
+      }
+
       Navigator.pop(context, true);
     } else {
       debugPrint('❌ Failed to add car: ${res.statusCode}');
@@ -358,8 +393,10 @@ class _AddCarScreenState extends State<AddCarScreen> {
 
               // Year Selection
               _buildYearSection(),
-              const SizedBox(height: 20),
-              _buildCarTypeSection(),
+              if (!_hideCarTypeSelector) ...[
+                const SizedBox(height: 20),
+                _buildCarTypeSection(),
+              ],
               const SizedBox(height: 20),
               Text(
                 _t('license_plate_optional'),

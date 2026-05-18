@@ -3,19 +3,29 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
-import 'single_wash_order_screen.dart';
+import 'screens/wash_type_selection_screen.dart';
+import 'services/wash_context_service.dart';
+import 'utils/post_login_navigation.dart';
+import 'utils/single_wash_navigation.dart';
+import 'widgets/wash_category_chip_bar.dart';
 import 'multi_car_order_screen.dart';
 import 'all_packages_screen.dart';
 import 'my_orders_screen.dart';
 import 'screens/support_screen.dart';
+import 'single_wash_order_screen.dart';
 import 'translations.dart';
 import 'services/config_service.dart';
 import 'services/language_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final String token;
+  final int refreshToken;
 
-  const HomeScreen({super.key, required this.token});
+  const HomeScreen({
+    super.key,
+    required this.token,
+    this.refreshToken = 0,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -26,23 +36,71 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isRTL = false;
   late StreamSubscription _languageSubscription;
   HomeBannerConfig? _bannerConfig;
+  WashContext _washContext = const WashContext(category: WashCategory.car);
 
   @override
   void initState() {
     super.initState();
     _loadLanguage();
+    _loadWashContext();
     _loadBannerConfigCachedThenFromApi();
     _languageSubscription = LanguageService.languageStream.listen((languageCode) async {
       await _loadLanguage();
     });
   }
 
-  /// عرض البانر من الذاكرة المحلية فوراً ثم تحديثه من الـ API في الخلفية
+  /// يعرض أحدث سيارة على الرئيسية؛ بلا سيارات يُوجَّه لاختيار نوع الغسلة.
+  Future<void> reloadWashContext() async {
+    await _loadWashContext();
+  }
+
+  Future<void> _loadWashContext() async {
+    final hasCars = await PostLoginNavigation.userHasCars(widget.token);
+    if (!mounted) return;
+
+    if (!hasCars) {
+      final saved = await WashContextService.load();
+      if (!mounted) return;
+      if (!WashContextService.canEnterHomeWithoutRegisteredCars(saved)) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WashTypeSelectionScreen(
+              token: widget.token,
+              allowSkip: false,
+            ),
+          ),
+        );
+        return;
+      }
+      setState(() => _washContext = saved);
+      return;
+    }
+
+    final ctx = await WashContextService.syncHomeEntryContext(widget.token);
+    if (!mounted || ctx == null) return;
+    setState(() => _washContext = ctx);
+  }
+
+  bool get _usesSpecialistHomeActions {
+    return (_washContext.category == WashCategory.caravan &&
+            _washContext.caravanSize != null) ||
+        _washContext.category == WashCategory.motorcycle;
+  }
+
   Future<void> _loadBannerConfigCachedThenFromApi() async {
     final cached = await ConfigService.getCachedHomeBannerConfig();
     if (mounted) setState(() => _bannerConfig = cached);
     final config = await ConfigService.fetchHomeBannerConfig();
     if (mounted) setState(() => _bannerConfig = config);
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) {
+      _loadWashContext();
+    }
   }
 
   @override
@@ -149,12 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _onBannerTap(HomeBannerConfig config) async {
     switch (config.linkType) {
       case 'single_wash':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SingleWashOrderScreen(token: widget.token),
-          ),
-        );
+        SingleWashNavigation.open(context, widget.token);
         break;
       case 'multi_car':
         Navigator.push(
@@ -258,64 +311,108 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
+              WashCategoryChipBar(
+                token: widget.token,
+                washContext: _washContext,
+                onChanged: reloadWashContext,
+              ),
+              const SizedBox(height: 16),
+
               // Banner Image (from API or fallback to asset)
               _buildBanner(),
 
               // Service Cards
               Column(
-                children: [
-                  // Single Car Wash Card
-                  _buildServiceCard(
-                    context: context,
-                    title: _t('single_car_wash'),
-                    subtitle: _t('single_car_wash_subtitle'),
-                    icon: Icons.local_car_wash,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              SingleWashOrderScreen(token: widget.token),
+                children: _usesSpecialistHomeActions
+                    ? [
+                        if (_washContext.category == WashCategory.caravan &&
+                            _washContext.caravanSize != null)
+                          _buildServiceCard(
+                            context: context,
+                            title: _t('caravan_wash_action'),
+                            subtitle: _t('caravan_wash_action_subtitle'),
+                            icon: Icons.rv_hookup,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1565C0), Color(0xFF2196F3)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => SingleWashOrderScreen(
+                                    token: widget.token,
+                                    washCategory: WashCategory.caravan,
+                                    caravanSize: _washContext.caravanSize,
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        else if (_washContext.category ==
+                            WashCategory.motorcycle)
+                          _buildServiceCard(
+                            context: context,
+                            title: _t('bike_wash_action'),
+                            subtitle: _t('bike_wash_action_subtitle'),
+                            icon: Icons.two_wheeler,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => SingleWashOrderScreen(
+                                    token: widget.token,
+                                    washCategory: WashCategory.motorcycle,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                      ]
+                    : [
+                        _buildServiceCard(
+                          context: context,
+                          title: _t('single_car_wash'),
+                          subtitle: _t('single_car_wash_subtitle'),
+                          icon: Icons.local_car_wash,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          onTap: () {
+                            SingleWashNavigation.open(context, widget.token);
+                          },
                         ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Multi-Car Order Card
-                  _buildServiceCard(
-                    context: context,
-                    title: _t('multi_car_order'),
-                    subtitle: _t('multi_car_order_subtitle'),
-                    icon: Icons.directions_car,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1565C0), Color(0xFF2196F3)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              MultiCarOrderScreen(token: widget.token),
+                        const SizedBox(height: 24),
+                        _buildServiceCard(
+                          context: context,
+                          title: _t('multi_car_order'),
+                          subtitle: _t('multi_car_order_subtitle'),
+                          icon: Icons.directions_car,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF1565C0), Color(0xFF2196F3)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    MultiCarOrderScreen(token: widget.token),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                ],
+                      ],
               ),
-
-              const SizedBox(height: 40),
-
-              // How It Works Section
-              _buildHowItWorksSection(),
             ],
           ),
         ),
@@ -395,146 +492,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHowItWorksSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _t('how_it_works'),
-          style: _getArabicTextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildStep(
-          number: '1',
-          title: _t('step_1_title'),
-          description: _t('step_1_description'),
-          icon: Icons.touch_app,
-        ),
-        _buildStep(
-          number: '2',
-          title: _t('step_2_title'),
-          description: _t('step_2_description'),
-          icon: Icons.checklist,
-        ),
-        _buildStep(
-          number: '3',
-          title: _t('step_3_title'),
-          description: _t('step_3_description'),
-          icon: Icons.payment,
-        ),
-        _buildStep(
-          number: '4',
-          title: _t('step_4_title'),
-          description: _t('step_4_description'),
-          icon: Icons.location_on,
-          isLast: true,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep({
-    required String number,
-    required String title,
-    required String description,
-    required IconData icon,
-    bool isLast = false,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Center(
-                  child: Text(
-                    number,
-                    style: _getArabicTextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              if (!isLast)
-                Container(
-                  width: 2,
-                  height: 40,
-                  margin: const EdgeInsets.only(top: 8),
-                  color: Colors.grey[300],
-                ),
-            ],
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                textDirection: _isRTL ? TextDirection.rtl : TextDirection.ltr,
-                children: [
-                  Icon(
-                    icon,
-                    size: 24,
-                    color: Colors.black,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: _getArabicTextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          description,
-                          style: _getArabicTextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

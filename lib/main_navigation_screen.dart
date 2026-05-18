@@ -14,7 +14,10 @@ import 'services/data_preloader_service.dart';
 import 'services/language_service.dart';
 import 'services/cache_service.dart';
 import 'screens/support_screen.dart';
+import 'screens/wash_type_selection_screen.dart';
 import 'translations.dart';
+import 'utils/post_login_navigation.dart';
+import 'services/wash_context_service.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final String? token; // Made nullable to support guest mode
@@ -44,6 +47,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   bool loadingConfig = true;
   bool _promoPopupChecked = false;
   List<Widget>? screens; // Store screens to prevent recreation
+  int _homeRefreshToken = 0;
   String _currentLanguage = 'en';
   bool _isRTL = false;
 
@@ -110,7 +114,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ])
         : (packagesEnabled
             ? [
-                HomeScreen(token: widget.token!),
+                HomeScreen(
+                  token: widget.token!,
+                  refreshToken: _homeRefreshToken,
+                ),
                 AllPackagesScreen(key: ValueKey('all_packages_$_currentLanguage'), token: widget.token, isGuest: false),
                 MyOrdersScreen(
                   token: widget.token!, 
@@ -119,7 +126,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 ),
               ]
             : [
-                HomeScreen(token: widget.token!),
+                HomeScreen(
+                  token: widget.token!,
+                  refreshToken: _homeRefreshToken,
+                ),
                 MyOrdersScreen(
                   token: widget.token!, 
                   showSuccessMessage: widget.showPaymentSuccess,
@@ -158,6 +168,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
       // Preload critical data in background for logged-in users only
       if (!widget.isGuest && widget.token != null && widget.token!.isNotEmpty) {
+        await _ensureAuthenticatedEntry();
         _preloadDataInBackground();
         _maybeShowPromoPopup();
       }
@@ -172,10 +183,37 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       });
 
       if (!widget.isGuest && widget.token != null && widget.token!.isNotEmpty) {
+        await _ensureAuthenticatedEntry();
         _preloadDataInBackground();
         _maybeShowPromoPopup();
       }
     }
+  }
+
+  Future<void> _ensureAuthenticatedEntry() async {
+    final token = widget.token;
+    if (token == null || token.isEmpty || widget.isGuest) return;
+
+    final hasCars = await PostLoginNavigation.userHasCars(token);
+    if (!mounted) return;
+
+    if (!hasCars) {
+      final saved = await WashContextService.load();
+      if (!WashContextService.canEnterHomeWithoutRegisteredCars(saved)) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WashTypeSelectionScreen(
+              token: token,
+              allowSkip: false,
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    await WashContextService.syncHomeEntryContext(token);
   }
 
   Future<void> _maybeShowPromoPopup() async {
@@ -534,6 +572,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           }
           setState(() {
             currentIndex = index;
+            if (index == 0 && !widget.isGuest) {
+              _homeRefreshToken++;
+              _buildScreens();
+            }
           });
         },
         selectedItemColor: Colors.black,
