@@ -10,7 +10,13 @@ import 'translations.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String? initialPhone;
-  const RegisterScreen({Key? key, this.initialPhone}) : super(key: key);
+  final bool fromUnregisteredLogin;
+
+  const RegisterScreen({
+    super.key,
+    this.initialPhone,
+    this.fromUnregisteredLogin = false,
+  });
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -193,6 +199,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  if (widget.fromUnregisteredLogin)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.shade100),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue.shade700, size: 22),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _t('register_from_unregistered_hint'),
+                              style: _getArabicTextStyle(
+                                fontSize: 14,
+                                color: Colors.blue.shade900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   Text(
                     _t('enter_phone'),
                     style: _getArabicTextStyle(

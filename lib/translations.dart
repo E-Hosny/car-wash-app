@@ -216,6 +216,8 @@ class AppTranslations {
       'phone_required': 'رقم الهاتف مطلوب',
       'invalid_phone': 'يرجى إدخال رقم هاتف إماراتي صحيح (مثال: 5XXXXXXXX)',
       'phone_not_registered': 'رقم الهاتف غير مسجل',
+      'register_from_unregistered_hint':
+          'رقمك غير مسجل لدينا. أكمل البيانات لإنشاء حساب جديد.',
       'login_successful': 'تم تسجيل الدخول بنجاح',
       'login_failed': 'فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.',
       'dont_have_account': 'ليس لديك حساب؟',
@@ -618,6 +620,8 @@ class AppTranslations {
       'phone_required': 'Phone number is required',
       'invalid_phone': 'Please enter a valid UAE phone number (e.g., 5XXXXXXXX)',
       'phone_not_registered': 'Phone number is not registered',
+      'register_from_unregistered_hint':
+          'This number is not registered. Complete your details to create an account.',
       'login_successful': 'Login successful',
       'login_failed': 'Login failed. Please try again.',
       'dont_have_account': "Don't have an account?",
