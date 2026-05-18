@@ -202,10 +202,13 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         } else {
-          setState(() {
-            generalError = _t('phone_not_registered');
-            isLoading = false;
-          });
+          setState(() => isLoading = false);
+          if (!mounted) return;
+          _goToRegister(
+            rawPhone: rawPhone,
+            fromUnregisteredLogin: true,
+            replace: true,
+          );
         }
       } else {
         setState(() {
@@ -218,6 +221,23 @@ class _LoginScreenState extends State<LoginScreen> {
         generalError = _t('connection_error');
         isLoading = false;
       });
+    }
+  }
+
+  void _goToRegister({
+    required String rawPhone,
+    bool fromUnregisteredLogin = false,
+    bool replace = false,
+  }) {
+    final page = RegisterScreen(
+      initialPhone: rawPhone,
+      fromUnregisteredLogin: fromUnregisteredLogin,
+    );
+    final route = MaterialPageRoute(builder: (_) => page);
+    if (replace) {
+      Navigator.pushReplacement(context, route);
+    } else {
+      Navigator.push(context, route);
     }
   }
 
@@ -376,38 +396,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 20),
                   if (generalError != null)
-                  Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Text(
-                          generalError!,
-                          style: const TextStyle(color: Colors.red),
-                          textAlign: TextAlign.center,
-                        ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        generalError!,
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
                       ),
-                      if (generalError == _t('phone_not_registered'))
-                        SizedBox(
-                          width: double.infinity,
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => RegisterScreen(
-                                      initialPhone:
-                                          phoneController.text.trim()),
-                                ),
-                              );
-                            },
-                            child: Text(
-                              _t('register'),
-                              style: const TextStyle(color: Colors.blue),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                    ),
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -441,13 +437,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => RegisterScreen(
-                              initialPhone: phoneController.text.trim(),
-                            ),
-                          ),
+                        _goToRegister(
+                          rawPhone: phoneController.text.trim(),
                         );
                       },
                       child: Text(
