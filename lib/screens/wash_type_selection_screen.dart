@@ -4,9 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../main_navigation_screen.dart';
 import '../screens/caravan_size_selection_screen.dart';
 import '../screens/car_type_selection_screen.dart';
+import '../screens/registered_car_selection_screen.dart';
 import '../services/language_service.dart';
 import '../services/wash_context_service.dart';
 import '../translations.dart';
+import '../utils/post_login_navigation.dart';
 
 class WashTypeSelectionScreen extends StatefulWidget {
   const WashTypeSelectionScreen({
@@ -52,10 +54,15 @@ class _WashTypeSelectionScreenState extends State<WashTypeSelectionScreen> {
 
   Future<void> _selectCar() async {
     if (!mounted) return;
+    final hasCars = await PostLoginNavigation.userHasCars(widget.token);
+    if (!mounted) return;
+
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => CarTypeSelectionScreen(token: widget.token),
+        builder: (_) => hasCars
+            ? RegisteredCarSelectionScreen(token: widget.token)
+            : CarTypeSelectionScreen(token: widget.token),
       ),
     );
   }
